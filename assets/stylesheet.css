@@ -1,0 +1,132 @@
+h1 {
+	padding-right: 100px;
+}
+
+.elements {
+	display: inline-flex;
+	width: 100%;
+}
+
+.accordion-button {
+	height: 20px;
+	width: 100%;
+}
+
+.tab .tabs {
+	position: relative;
+	float: right;
+}
+
+
+.CHAOS-GAME, .TRANSFORMATIONS {
+	position: absolute;
+	top: 60px;
+	left: 0px;
+	width: 100%;
+}
+
+.title {
+	float: none;
+}
+
+.input.form-control{
+	color: #ebebeb;
+}
+
+.input_number_frame, .input_boolean_frame, .dropdown_frame{
+	border-style: solid;
+	border-width: 1px;
+	display: inline-flex;
+	height: 100%;
+	width: 11.11%;
+}
+
+.input_frame, #plot-button {
+	border-style: solid;
+	border-width: 1px;
+	display: inline-flex;
+	height: 70px;
+	width: 17%;
+}
+
+#plot-button {
+	position: relative;
+	text-align: center !important;
+	font-weight: bold;
+}
+
+.txt {
+	width : 50%;
+}
+
+.txt_area.form-control {
+	color: #FFFF !important;
+}
+
+.my_label {
+	width: 100%;
+	text-align: center;
+}
+
+.input {
+	width: 100%;
+	position: relative;
+	background-color: rgba(0,0,0,0);
+	border-bottom: 1px solid black;
+}
+
+.switch {
+	transform: scale(1.5);
+	display: block;
+	position: relative;
+	top: 15%;
+	left: 60%;
+ }
+
+.numbers {
+	display: flex;
+	height: 60px;
+}
+
+.transfos {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.dropdown {
+	margin: 0 auto;
+	width: 90%;
+	height: 50%;
+}
+
+.Select-value{
+	border-width: 0;
+	background-color: rgba(1,1,1,0.2);
+    color: #ffdf80 !important;
+} 
+
+.Select-control {
+	text-align: left;
+	border-width: 0;
+	background-color: rgba(0,0,0,0);
+} 
+.Select-menu-outer {
+	background-color: rgba(0.7,0.7,0.7,0.9);
+}
+.Select-input>input{
+	color: #0000 !important;
+}
+.Select-value-label{
+	color: #FFFF !important;
+	font-weight: bold;
+}
+
+#PARSE-SELECT {
+	width: 32% !important;
+}
+
+#parse-type {
+	position: relative;
+	left: 15%;
+	width: 100%;
+}

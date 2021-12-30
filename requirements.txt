@@ -1,4 +1,4 @@
-attrs @ file:///tmp/build/80754af9/attrs_1620827162558/work
+attrs == 21.2.0 
 bokeh @ file:///opt/concourse/worker/volumes/live/387ef85c-e237-4389-5b7e-afbe4f800f77/volume/bokeh_1620710043781/work
 Brotli @ file:///opt/concourse/worker/volumes/live/6f34e4d0-4572-4e67-52c6-900349b58bc0/volume/brotli-split_1602517645446/work
 brotlipy==0.7.0
