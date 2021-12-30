@@ -3,14 +3,13 @@ bokeh == 2.3.2
 Brotli == 1.0.9
 brotlipy==0.7.0
 certifi==2020.6.20
-cffi @ file:///opt/concourse/worker/volumes/live/6ed3f91b-28f6-4d58-6a9b-7a5e864c6554/volume/cffi_1625814710543/work
-charset-normalizer @ file:///tmp/build/80754af9/charset-normalizer_1630003229654/work
+cffi == 1.14.6
 click==8.0.3
-cloudpickle @ file:///tmp/build/80754af9/cloudpickle_1632508026186/work
-colorcet @ file:///tmp/build/80754af9/colorcet_1611168489822/work
+cloudpickle == 2.0.0
+colorcet == 2.0.6
 contextvars==2.4
-cryptography @ file:///opt/concourse/worker/volumes/live/efc30a4d-1b2f-4c46-6f02-ff41b1cfc0e9/volume/cryptography_1635366582988/work
-cycler @ file:///tmp/build/80754af9/cycler_1637851556182/work
+cryptography == 35.0.0
+cycler == 0.11.0
 cytoolz==0.11.0
 dash @ file:///home/conda/feedstock_root/build_artifacts/dash_1632235402030/work
 dash-bootstrap-components==1.0.1rc1
