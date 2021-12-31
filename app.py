@@ -166,6 +166,7 @@ header = html.Div(
 app = dash.Dash(__name__,external_stylesheets=[dbc.themes.SUPERHERO])
 app.layout = dbc.Spinner(children = [html.Div(children = [header])], delay_show = 1000, size='md',fullscreen=False)
 
+server = app.server
 #CALLBACKS
 @app.callback(Output('GRAPH','figure'),
 	Input('polygon_input', 'value'),
