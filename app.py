@@ -26,15 +26,37 @@ import scipy
 import math
 import sys
 
+
+#GLOBAL VARIABLES
+fast_prev_pts = None
+fast_prev_N = math.inf
+prev_was_fast = False
+
 #HELPERS
+def reset_fast_globals():
+	global fast_prev_N
+	global fast_prev_pts
+	global prev_was_fast
+	fast_prev_pts = None
+	fast_prev_N = math.inf
+	prev_was_fast = False
+
+def set_fast_globals(new_N, new_pts):
+	global fast_prev_N
+	global fast_prev_pts
+	global prev_was_fast
+	fast_prev_N = new_N
+	fast_prev_pts = new_pts
+	prev_was_fast = True
+
 def raw_figure(preset=None, poly=3, jump=0.5, N=10000, heap = None):
 	if preset : pts = preset(N)
 	else :
 		T = np.array([jump, 0])
 		vs = f.get_polygon(poly, 1, True)
-		if not heap: heap = heap = f.no_rule()
+		if not heap: heap = f.no_rule()
 		T = f.to_array(T, vs.shape[0])
-		pts = f.getPointsV(vs, 0, 0, N, None, T, heap)
+		pts = f.getPointsV(vs, 0., 0., N, None, T, heap)
 
 	poly = f.get_polygon(poly,1,True)
 	pts = pd.DataFrame(pts[:,:2], columns = ['x','y'])
@@ -49,10 +71,13 @@ def raw_figure(preset=None, poly=3, jump=0.5, N=10000, heap = None):
 	fig.update_xaxes(showgrid=False,zeroline=False,visible=False)
 	fig.update_yaxes(showgrid=False,zeroline=False,visible=False)
 	fig.update_layout(showlegend = False)
+	reset_fast_globals()
 	return fig
 
 def update_fig(p):
-	if not p["fig_json"]: return raw_figure(f.sierpc)
+	if not p["fig_json"] or prev_was_fast: 
+		return raw_figure(poly=p["poly"], jump=p['jump'], 
+			N=p['N'], heap = Rule(p["ln"],p["offset"],p["sym"]))
 
 	oldfig = go.Figure(p["fig_json"])
 	T = np.array([p["jump"], 0])
@@ -75,7 +100,7 @@ def update_fig(p):
 	oldfig['data'][1]['marker']["size"]=vs["size"]
 	oldfig['data'][1]['x']=vs['x']
 	oldfig['data'][1]['y']=vs['y']
-
+	reset_fast_globals()
 	return oldfig
 
 def iterations_callback(p):
@@ -115,7 +140,52 @@ def iterations_callback(p):
 		oldfig['data'][0]['y'] = tuple(newy)
 	else: # when iterations are less 
 		oldfig = raw_figure(poly=p["poly"],jump=p["jump"],N=N,heap=heap)
+	reset_fast_globals()
 	return oldfig
+
+def fast_plot_chaos_game(p, need_full_update):
+	global fast_prev_N
+	global fast_prev_pts
+	global prev_was_fast
+	N = p["N"]
+	T = np.array([p["jump"], 0])
+	vs = f.get_polygon(p["poly"], 1, True)
+	if p["midpoints"] : vs = f.stack_midpoints(vs)
+	if p["center"] : vs = f.stack_center(vs)
+	heap = Rule(p["ln"],p["offset"],p["sym"])
+	T = f.to_array(T, vs.shape[0])
+	if prev_was_fast and not need_full_update:
+		if N > fast_prev_N:
+			try:
+				x0,y0,_ = fast_prev_pts[fast_prev_N-1]
+			except IndexError:
+				try:
+					x0,y0,_ = fast_prev_pts[fast_prev_N-2]
+				except IndexError:
+					x0,y0,_ = fast_prev_pts[fast_prev_N-1001]
+			N_new = N - fast_prev_N
+			pts = f.getPointsV(vs, x0, y0, N_new+1, None, T, heap)[1:]
+			pts = np.append(fast_prev_pts, pts, axis=0)
+		elif N < fast_prev_N:
+			pts = fast_prev_pts[:N-1]
+		else:
+			raise PreventUpdate
+	else:
+		pts = f.getPointsV(vs, 0., 0., N, None, T, heap)
+	df = pd.DataFrame(data=pts[:,:2], columns=["x", "y"])
+	xbounds = (pts[:, 0].min()-0.2, pts[:, 0].max()+0.2)
+	ybounds = (pts[:, 1].min()-0.2, pts[:, 1].max()+0.2)
+	cvs = ds.Canvas(plot_width=1500, plot_height=1500, x_range=xbounds, y_range=ybounds)
+	agg = cvs.points(df, 'x', 'y')
+	img = ds.tf.set_background(ds.tf.shade(agg, how="log", cmap=cc.fire), "black").to_pil()
+	fig = px.imshow(img)
+	fig.update_layout(paper_bgcolor='rgb(0,0,0)',plot_bgcolor='rgb(0,0,0)',xaxis_zeroline=False, yaxis_zeroline=False)
+	fig.update_xaxes(showticklabels=False,showgrid=False)
+	fig.update_yaxes(showticklabels=False,showgrid=False)
+	set_fast_globals(N, pts)
+	return fig
+
+
 
 #VARIABLES
 default_params = {"poly": 3, "N": 10000, "ln": 0, "sym": False, "offset": 0, "jump": "1/2", "midpoints": False, "center": False, "fig_json":None }
@@ -165,9 +235,20 @@ header = html.Div(
 #APP INIT
 app = dash.Dash(__name__,external_stylesheets=[dbc.themes.SUPERHERO], title = "Fractal Gen")
 app.layout = dbc.Spinner(children = [html.Div(children = [header])], delay_show = 1000, size='md',fullscreen=False)
-
 server = app.server
+
 #CALLBACKS
+@app.callback(
+	Output('iterations_input', 'max'),
+	Output('iterations_input', 'step'),
+	Input('fast-plot', 'value'),
+	)
+def update_iterations_input(fast):
+	if fast:
+		return int(2e8),1000
+	else:
+		return 20000,1
+
 @app.callback(Output('GRAPH','figure'),
 	Input('polygon_input', 'value'),
 	Input('jump_input','invalid'),
@@ -179,20 +260,30 @@ server = app.server
 	Input('center_input','value'),
 	State('offset_input','value'),
 	State('jump_input','value'),
-	State('GRAPH','figure'))
-def update_graph(poly, inval_jump, N, ln, inval_offset, sym, midpoints, center,offset, jump,  fig_json):
+	State('GRAPH','figure'),
+	State('fast-plot', 'value'),
+	State('auto-update', 'value'))
+def update_graph(poly, inval_jump, N, ln, inval_offset, sym, midpoints, center,offset, jump,  
+	fig_json, fast, update):
+	global prev_was_fast
 	if fig_json == None : return raw_figure(f.sierpt)
-	if inval_offset or inval_jump or jump == None or poly == None or N == None or ln == None: return fig_json
+	if inval_offset or inval_jump or jump == None or poly == None or N == None or ln == None: raise PreventUpdate
 	jump = eval(jump)
 	params = {"poly": poly, "N": N, "ln": ln, "sym": sym, "offset": offset, "jump": jump, "midpoints": midpoints, "center": center, "fig_json":fig_json }
 	ctx = dash.callback_context
 	trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
-	if trigger_id == "iterations_input": return iterations_callback(params)
-	else : return update_fig(params) 
+	if not update:
+		raise PreventUpdate
+	if fast:
+		return fast_plot_chaos_game(params, trigger_id != "iterations_input")
+	else:
+		if trigger_id == "iterations_input" and not prev_was_fast: 
+			return iterations_callback(params)
+		else : 
+			return update_fig(params) 
 
 #CHECK VALIDITY OF JUMP INPUT
-@app.callback(Output('jump_input','invalid'),
-	Input('jump_input','value'))
+@app.callback(Output('jump_input','invalid'),Input('jump_input','value'))
 def jump_validate(jump):
 	if jump == None: return True
 	try : jump = eval(jump)
@@ -269,11 +360,11 @@ def load_preset(value):
 	State('args-txt', 'value'),
 	State('probs-txt', 'value'),
 	State('parse-type', 'value'),
-	State('iters', 'value'),
+	Input('iters', 'value'),
 	State('color-dropdown', 'value'),
 	prevent_initial_call=False)
 def draw_ifs(_, args, probs, parse, N, color):
-	if args == None or probs == None: raise PreventUpdate
+	if args == None or probs == None:raise PreventUpdate
 	params = np.array(trc.read_args_from_string(args))
 	probs = trc.read_probs_from_string(probs)
 	chooser = njit(lambda _: mtec.random_choice_fix(len(params), probs))

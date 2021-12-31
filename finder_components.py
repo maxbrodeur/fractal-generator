@@ -30,7 +30,7 @@ iterations = html.Div(
 		children = [
 		html.Label(
 			className = "my_label",
-			children = ['Iterations (in thousands)',
+			children = ['Plot Iterations (in thousands)',
 			dbc.Input(
 				className='input',
 				id='find-iterations-input',
@@ -60,7 +60,7 @@ test = html.Div(
 		children = [
 		html.Label(
 			className = "my_label",
-			children = ['Number of maps to check: ',
+			children = ['Map Iterations (For Lyapunov): ',
 			dbc.Input(
 				id='find-test-input',
 				className = "input",

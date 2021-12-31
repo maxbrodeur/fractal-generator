@@ -177,6 +177,38 @@ center = html.Div(
 
 ])
 
+display_mode = html.Div(
+	className = "input_boolean_frame",
+	children = [
+		html.Label(
+			className = "my_label",
+			children = [
+						"Fast plotting: ", 
+						dbc.Switch(
+							className="switch",
+							id = 'fast-plot',
+							value = False
+						)]
+					)
+
+])
+
+allow = html.Div(
+	className = "input_boolean_frame",
+	children = [
+		html.Label(
+			className = "my_label",
+			children = [
+						"Auto update: ", 
+						dbc.Switch(
+							className="switch",
+							id = 'auto-update',
+							value = True
+						)]
+					)
+
+])
+
 graph = dcc.Graph(id='GRAPH',style={'height': '100vh'})
 
 tab1 = html.Div(className="CHAOS-GAME",
@@ -193,7 +225,9 @@ tab1 = html.Div(className="CHAOS-GAME",
 										offset, 
 										sym, 
 										midpoints, 
-										center]	
+										center,
+										display_mode,
+										allow]	
 										)], 
 							        title="PARAMETERS"),
 							    start_collapsed = True),
