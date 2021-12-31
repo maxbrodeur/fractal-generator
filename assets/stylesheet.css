@@ -2,8 +2,13 @@ h1 {
 	padding-right: 100px;
 }
 
+.tab {
+        tab-size: 4;
+    }
+
 .elements {
 	display: inline-flex;
+	position: relative;
 	width: 100%;
 }
 
@@ -12,13 +17,18 @@ h1 {
 	width: 100%;
 }
 
+.tabs { 
+	position: absolute;
+	top: 2px;
+	right: 2px;
+}
 .tab .tabs {
 	position: relative;
 	float: right;
 }
 
 
-.CHAOS-GAME, .TRANSFORMATIONS {
+.CHAOS-GAME, .TRANSFORMATIONS, .CHAOS-FINDER, .ABOUT{
 	position: absolute;
 	top: 60px;
 	left: 0px;
@@ -49,6 +59,17 @@ h1 {
 	width: 17%;
 }
 
+.input_frame_find, #find-button{
+	border-style: solid;
+	border-width: 1px;
+	display: inline-flex;
+	height: 90px;
+	width: 16.66%;
+}
+#find-map-info{
+	height: 90px;
+	width: 100%;
+}
 #plot-button {
 	position: relative;
 	text-align: center !important;
@@ -93,6 +114,11 @@ h1 {
 	flex-wrap: wrap;
 }
 
+.finder {
+	display: flex;
+	flex-wrap: wrap;
+}
+
 .dropdown {
 	margin: 0 auto;
 	width: 90%;
@@ -128,5 +154,11 @@ h1 {
 #parse-type {
 	position: relative;
 	left: 15%;
+	width: 100%;
+}
+
+#kind-radio {
+	position: relative;
+	top: 10%;
 	width: 100%;
 }
