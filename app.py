@@ -163,7 +163,7 @@ header = html.Div(
 		)
 
 #APP INIT
-app = dash.Dash(__name__,external_stylesheets=[dbc.themes.SUPERHERO])
+app = dash.Dash(__name__,external_stylesheets=[dbc.themes.SUPERHERO], title = "Fractal Gen")
 app.layout = dbc.Spinner(children = [html.Div(children = [header])], delay_show = 1000, size='md',fullscreen=False)
 
 server = app.server
