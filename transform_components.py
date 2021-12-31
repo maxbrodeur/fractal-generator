@@ -44,7 +44,6 @@ SIERPT += '0.5,0.0,0.5,0.0,0.5,0.0\n'
 SIERPT += '0.5,0.0,0.0,0.0,0.5,0.5'
 SIERPT_PROBS = '1/3,1/3,1/3'
 
-
 presets = html.Div(
 		className = 'input_frame',
 		children = [
@@ -66,6 +65,7 @@ presets = html.Div(
 		placeholder='Select a preset...',
 		value = 'DRAGON'
 	)])])
+
 
 color_presets = html.Div(
 		className = 'input_frame',
@@ -96,7 +96,7 @@ parse_type = html.Div(
 		html.Label(
 			className = "my_label",
 			children = ['Parsing Type',
-			dcc.RadioItems(
+			dbc.RadioItems(
 			    id='parse-type',
 			    options=[
 			        {'label': 'a,b,c,d,e,f => xnew = ax + by + c, ynew = dx + ey + f', 'value': 'regular'},
@@ -128,7 +128,7 @@ arguments = dbc.Textarea(
 	className='txt_area',
 	id='args-txt',
 	placeholder='a,b,c,d,e,f\na,b,c,d,e,f\na,b,c,d,e,f\n...',
-	# value=DRAGON,
+	value=DRAGON,
 	#style={'width': '100%', 'height': 120}
 )
 arguments_div = html.Div(className='txt', children = ["Transformations: ", arguments])
@@ -137,21 +137,14 @@ probabilities = dbc.Textarea(
 	className='txt_area',
 	id='probs-txt',
 	placeholder='1,1,1\nNOTE: number of entries needs to equal number of supplied parameters',
-	# value=DRAGON_PROBS,
+	value=DRAGON_PROBS,
 	# style={'width': '100%'}
 	)
 probabilities_div = html.Div(className='txt', children = ["Probabilities: ",probabilities])
 
 plot_button = dbc.Button('Plot', id='plot-button')
 
-img = np.array([[[0,0,0], [0,0,0]],
-				[[0,0,0], [0,0,0]]], dtype=np.uint8)
-initial_fig = px.imshow(img)
-initial_fig.update_layout(paper_bgcolor='rgb(0,0,0)',plot_bgcolor='rgb(0,0,0)')
-initial_fig.update_xaxes(showticklabels=False)
-initial_fig.update_yaxes(showticklabels=False)
-
-graph = dcc.Graph(id='GRAPH2', figure=initial_fig,
+graph = dcc.Graph(id='GRAPH2',
 	style={'height': '100vh'})
 
 tab2 = html.Div(className = "TRANSFORMATIONS", 
@@ -167,8 +160,7 @@ tab2 = html.Div(className = "TRANSFORMATIONS",
 										iterations, 
 										plot_button,
 										arguments_div, 
-										probabilities_div 
-										]
+										probabilities_div]
 										)], 
 							        title="PARAMETERS"),
 							    start_collapsed = True),

@@ -3,6 +3,8 @@ from chaostech.Rule import *
 import components
 import transform_components as trc
 import chaostech.MathTech as mtec
+import finder_components as fic
+import ChaosFinder as cfind
 
 import dash
 from dash import dcc
@@ -20,6 +22,9 @@ import colorcet as cc
 import pandas as pd
 import numpy as np
 from numba import njit
+import scipy
+import math
+import sys
 
 #HELPERS
 def raw_figure(preset=None, poly=3, jump=0.5, N=10000, heap = None):
@@ -149,7 +154,9 @@ POLY_PT_SIZE = 2.5
 
 #MAIN COMPONENTS
 tabs = dbc.Tabs(className = "tabs", children=[dbc.Tab(components.tab1, className = "tab", label="Chaos Game"),
-												dbc.Tab(trc.tab2, className="tab", label="Transformations")])
+												dbc.Tab(trc.tab2, className="tab", label="Transformations"),
+												dbc.Tab(fic.tab3, className="tab", label="Random Chaos Finder"),
+												dbc.Tab(components.about, className="tab", label="About")])
 header = html.Div(
 	className = 'elements',
 	children = [html.H1("FRACTAL GENERATOR", className = "title"),tabs]
@@ -158,8 +165,6 @@ header = html.Div(
 #APP INIT
 app = dash.Dash(__name__,external_stylesheets=[dbc.themes.SUPERHERO])
 app.layout = dbc.Spinner(children = [html.Div(children = [header])], delay_show = 1000, size='md',fullscreen=False)
-
-server = app.server
 
 #CALLBACKS
 @app.callback(Output('GRAPH','figure'),
@@ -236,7 +241,8 @@ def update_presets(value, poly, jump, N, ln, offset, sym, midpoints, center):
 	Output('args-txt', 'value'),
 	Output('probs-txt', 'value'),
 	Output('parse-type', 'value'),
-	Input('presets-dropdown', 'value')
+	Input('presets-dropdown', 'value'),
+	prevent_initial_call=False
 	)
 def load_preset(value):
 	if value == 'MB_LIKE':
@@ -263,14 +269,12 @@ def load_preset(value):
 	State('probs-txt', 'value'),
 	State('parse-type', 'value'),
 	State('iters', 'value'),
-	State('color-dropdown', 'value'))
+	State('color-dropdown', 'value'),
+	prevent_initial_call=False)
 def draw_ifs(_, args, probs, parse, N, color):
-	if args == None or probs == None:
-		raise PreventUpdate
-
+	if args == None or probs == None: raise PreventUpdate
 	params = np.array(trc.read_args_from_string(args))
 	probs = trc.read_probs_from_string(probs)
-
 	chooser = njit(lambda _: mtec.random_choice_fix(len(params), probs))
 	selector = njit(lambda a,i: a[i])
 	iterator = njit(lambda x: x)
@@ -282,15 +286,13 @@ def draw_ifs(_, args, probs, parse, N, color):
 			x_ = a*x + b*y + c
 			y_ = d*x + e*y + f
 			return np.array([x_,y_,z])
-	elif parse == 'borke':
+	else :
 		@njit
 		def jump(args, x, y, z):
 			a,b,c,d,e,f = args
 			x_ = a*x + b*y + e
 			y_ = c*x + d*y + f
 			return np.array([x_,y_,z])
-	else:
-		raise PreventUpdate
 
 	if color != None:
 		cmap = eval(color)
@@ -299,9 +301,37 @@ def draw_ifs(_, args, probs, parse, N, color):
 
 	p0 = np.array([0.,0.,0.])
 	N = N * 1000
+	pts = f.getPointsAdv(N, p0, jump, params, chooser, selector, iterator, probs)
+	df = pd.DataFrame(data=pts[:,:2], columns=["x", "y"])
+	xbounds = (pts[:, 0].min()-0.2, pts[:, 0].max()+0.2)
+	ybounds = (pts[:, 1].min()-0.2, pts[:, 1].max()+0.2)
+	cvs = ds.Canvas(plot_width=1500, plot_height=1500, x_range=xbounds, y_range=ybounds)
+	agg = cvs.points(df, 'x', 'y')
+	img = ds.tf.set_background(ds.tf.shade(agg, how="log", cmap=cmap), "black").to_pil()
+	fig = px.imshow(img)
+	fig.update_layout(paper_bgcolor='rgb(0,0,0)',plot_bgcolor='rgb(0,0,0)',xaxis_zeroline=False, yaxis_zeroline=False)
+	fig.update_xaxes(showticklabels=False,showgrid=False)
+	fig.update_yaxes(showticklabels=False,showgrid=False)
+	return fig
 
-	pts = f.getPointsAdv(N, p0, jump, params, chooser, 
-		selector, iterator, probs)
+#FINDER CALLBACK
+@app.callback(
+	Output('find-graph', 'figure'),
+	Output('find-map-info', 'children'), [
+	Input('find-button', 'n_clicks'),
+	State('kind-radio', 'value'),
+	State('find-iterations-input', 'value'),
+	State('find-trans-input', 'value'),
+	State('find-test-input', 'value'),
+	State('find-randtype-dropdown', 'value')
+	], prevent_initial_call=False)
+def find_chaotic_map(_, kind, N_plot, N_trans, N_test, use_alphabet):
+	if N_trans == None or N_test == None or N_plot == None : raise PreventUpdate
+	use_alphabet = eval(use_alphabet) if use_alphabet != None else True
+
+	ret = cfind.dash_find_next_map(N_plot*1000, N_trans, N_test, use_alphabet, kind)
+
+	pts, args, max_le, min_le, fractal_dim = ret
 
 	df = pd.DataFrame(data=pts[:,:2], columns=["x", "y"])
 	xbounds = (pts[:, 0].min()-0.2, pts[:, 0].max()+0.2)
@@ -309,16 +339,20 @@ def draw_ifs(_, args, probs, parse, N, color):
 	cvs = ds.Canvas(plot_width=1500, plot_height=1500, 
 			x_range=xbounds, y_range=ybounds)
 	agg = cvs.points(df, 'x', 'y')
-	img = ds.tf.set_background(ds.tf.shade(agg, how="log", cmap=cmap), 
+	img = ds.tf.set_background(ds.tf.shade(agg, how="log", cmap=cc.fire), 
 			"black").to_pil()
 	fig = px.imshow(img)
-	fig.update_layout(paper_bgcolor='rgb(0,0,0)',plot_bgcolor='rgb(0,0,0)')
+	fig.update_layout(paper_bgcolor='rgb(0,0,0)',plot_bgcolor='rgb(0,0,0)',xaxis_zeroline=False, yaxis_zeroline=False)
 	fig.update_xaxes(showticklabels=False)
 	fig.update_yaxes(showticklabels=False)
-	return fig
 
+	map_info = fic.format_map_info(args, max_le, min_le, fractal_dim, use_alphabet)
+	return fig, map_info
 
-
+@app.callback(Output('trans','children'),
+	Input('find-trans-input','value'))
+def update_trans(value):
+	return value
 
 if __name__ == '__main__':
     app.run_server(debug=True)
