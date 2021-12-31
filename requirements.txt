@@ -22,7 +22,7 @@ dash-table==5.0.0
 dask==2021.3.0
 dataclasses==0.8
 datashader==0.13.0
-datashape==0.5.4
+datashape==0.5.2
 decorator==5.1.0
 distributed==2021.3.0
 Flask==2.0.2
