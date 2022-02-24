@@ -14,13 +14,13 @@ The game can formally be de􏰃ned as an IFS with the following three choices of
 * (xn+1, yn+1) = (0.5xn + 0.5, 0.5yn)
 * (xn+1, yn+1) = (0.5xn, 0.5yn + 0.5)
 which, after a suficient number of iterations and with initial conditions within the triangle, yields the sierpinski right triangle. Although the transformations are chosen at random, the system consistently forms the same fractal attractor.
-##### Figure 1: The sierpinski right triangle drawn with our website
+#### Figure 1: The sierpinski right triangle drawn with our website
 ![](./assets/sierpinski_triangle.png)
 Other fractals can be constructed using this method. As mentioned in the 1rst section, both the chaos game IFS abstraction and general IFS system fractal generation features are incoporated in the website. Also of note is the fact that both the fractal above and below can be generated using pre-loaded presets in our web application, along with many others.
 
-##### Figure 2: The "IFS Dragon" generated with our website
+#### Figure 2: The "IFS Dragon" generated with our website
 ![](./assets/IFS_dragon.png)
-## 3 Automatic Generation of Discrete Chaotic Attractors
+## 3. Automatic Generation of Discrete Chaotic Attractors
 1D discrete maps can exhibit chaotic behaviour if their lyapunov exponent is positive. Similarly, 2D discrete maps, which have two lyapunov exponents (one for each dimension), exhibit chaotic behaviour if one of their lyapunov exponents is positive.
 Our website includes a feature which automatically 􏰃nds quadratic and cubic chaotic 2D maps. When plotted, these systems often yield beautiful fractal shapes. Finding such maps consists of 􏰃rst generating a random map and calculating its lyapunov exponents. If one of them is positive and the map is bounded, it is chaotic. Otherwise, the process shall be repeated until the conditions are satis􏰃ed.
 The following pseudocode demonstrates the logic of the implemented algorithm for the automatic generation of a chaotic two-dimensional quadratic map:
@@ -50,13 +50,15 @@ The above process, similar to the 􏰀pull-back algorithm􏰁, is essentially an
 The process is almost identical for cubic maps, but more parameters must be generated.
 4
     
-Figure 3: Three chaotic attractors generated with our application (a) Silk
-(b) Star􏰃sh (c) Wave quasi-cycle
-4 Getting Started with our Application
+#### Figure 3: Three chaotic attractors generated with our application 
+* *Silk* ![](./assets/silk.png)
+* *Starfish* ![](./assets/starfish.png) 
+* *Wave quasi-cycle* ![](./assets/wave_quasi-circle.png)
+
+# 4. Getting Started with our Application
 Upon entering the website, the 􏰀Chaos Game􏰁 tab is visible. The following parameters are available for editing and manipulation:
-5
    
- Figure 4: Chaos game parameters hotbar
+#### Figure 4: Chaos game parameters hotbar ![](./assets/parameters.png)
 * Presets: A list of available attractors which, upon selection, load the appropriate parameters
 * Iterations: The number of points to plot
 * Jump: Compression ratio value (jump distance)
@@ -80,15 +82,16 @@ Length O􏰂set 3 1
 0 x 1 2
 1 0
      The user can also navigate to other sub-sections of our application by interacting with top right corner:
-Figure 5: The web application's tabs
-6
+#### Figure 5: The web application's tabs
+![](./assets/tabs.png)
 Symmetry True
 x False
 x
 the tabs present in the
  
 By default, the 􏰀Chaos Game􏰁 tab is selected. If the 􏰀Transformations􏰁 tab is selected, the following options are visible when the 􏰀Parameters􏰁 dropdown section is activated:
-Figure 6: Default 􏰀Transformations􏰁 tab parameters
+#### Figure 6: Default Transformations tab parameters
+![](./assets/transformations.png)
 * Transformation Presets: A list of available attractors which, upon selection, load the appropriate param- eters
 * Color Presets: Self-explanatory
 * Parsing Type: See 􏰀Transformations􏰁 below
@@ -98,7 +101,8 @@ A text area in which the user can specify the possible choices of parameters for
 * Probabilities:
 The relative probabilistic weights of each transformation/set of parameters. In the above example, there is an 80% chance that f1will be chosen, and a 20% chance that f2 will be chosen. If the user has supplied n transformations (i.e., there are n lines in the 􏰀Transformations􏰁 input), then n comma-separated values must be entered in the 􏰀Probabilities􏰁 section.
 If the 􏰀Random Chaos Finder􏰁 tab is selected, the following options are visible when the 􏰀Parameters􏰁 dropdown section is activated:
-Figure 7: Default 􏰀Random Chaos Finder􏰁 tab parameters
+#### Figure 7: Default 􏰀Random Chaos Finder􏰁 tab parameters
+![](./assets/parameters_3.png)
 * Chaotic Map Order: Wether quadratic or cubic chaotic maps are generated
 7
   
