@@ -59,12 +59,9 @@ n = length)
 | Rule description | Length | Offset | Symmetry |
 |------------------|--------|--------|----------|
 |The next vertex cannot be 1 vertex awayfrom the last vertex when the last 3 chosen vertices are equal | 3 | 1 | True |
-|------------------|--------|--------|----------|
 | No extra rules | 0 | x | x |
-|------------------|--------|--------|----------|
 | The next vertex cannot be 2 vertices 
 away (counterclockwise) as the last vertex | 1 | 2 | False |
-|------------------|--------|--------|----------|
 The next vertex cannot be the same as the last vertex | 1 | 0 | x |
 
 The user can also navigate to other sub-sections of our application by interacting with top right corner:
