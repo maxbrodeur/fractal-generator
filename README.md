@@ -14,16 +14,16 @@ The game can formally be de􏰃ned as an IFS with the following three choices of
 * (xn+1, yn+1) = (0.5xn + 0.5, 0.5yn)
 * (xn+1, yn+1) = (0.5xn, 0.5yn + 0.5)
 which, after a suficient number of iterations and with initial conditions within the triangle, yields the sierpinski right triangle. Although the transformations are chosen at random, the system consistently forms the same fractal attractor.
-Figure 1: The sierpinski right triangle drawn with our website
+##### Figure 1: The sierpinski right triangle drawn with our website
+![](./assets/sierpinski_triangle.png)
 Other fractals can be constructed using this method. As mentioned in the 1rst section, both the chaos game IFS abstraction and general IFS system fractal generation features are incoporated in the website. Also of note is the fact that both the fractal above and below can be generated using pre-loaded presets in our web application, along with many others.
 
-
-![](./assets/IFS_dragon.png "Figure 2: The  IFS Dragon generated with our website")
+##### Figure 2: The "IFS Dragon" generated with our website
+![](./assets/IFS_dragon.png)
 ## 3 Automatic Generation of Discrete Chaotic Attractors
 1D discrete maps can exhibit chaotic behaviour if their lyapunov exponent is positive. Similarly, 2D discrete maps, which have two lyapunov exponents (one for each dimension), exhibit chaotic behaviour if one of their lyapunov exponents is positive.
 Our website includes a feature which automatically 􏰃nds quadratic and cubic chaotic 2D maps. When plotted, these systems often yield beautiful fractal shapes. Finding such maps consists of 􏰃rst generating a random map and calculating its lyapunov exponents. If one of them is positive and the map is bounded, it is chaotic. Otherwise, the process shall be repeated until the conditions are satis􏰃ed.
 The following pseudocode demonstrates the logic of the implemented algorithm for the automatic generation of a chaotic two-dimensional quadratic map:
-3
 
  Algorithm 1 Finding a random chaotic discrete quadratic map randomly generate {a1, a2, ..., a12} : ai ∈ [−1.2, 1.2]
 letxn+1 =g(xn)=a1+a2x+a3x2+a4xy+a5y+a6y2 letyn+1 =h(yn)=a7+a8x+a9x2+a10xy+a11y+a12y2 let (xn+1,yn+1) = f(xn,yn) = (g(xn,yn), h(xn,yn))
