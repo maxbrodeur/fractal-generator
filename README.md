@@ -1,15 +1,15 @@
 # Final Project: [Chaos Game Web Application](https://fractal-generator.herokuapp.com/) (and more) Max Brodeur & Theo Fabi
 ## 1. Overview of our Project
-Built using Python, JavaScript and HTML, our web application includes many fractal generating functionalities. First and foremost, fractals such as the sierpinski triangle and the viscek square can be drawn using the chaos game feature. The user can choose the initial polygon, specify the compression ratio of each iteration, and incorporate extra rules to form a variety of attractors. The user can also select from a list of attractor presets which load the appropriate parameters for the attractor. Additionally, the application incorporates the more general concept of iterated function systems (IFSs), with which even more complex fractals can be constructed, wherein the user speci􏰃es a list of possible transformation parameters and their relative weights. Presets for the dragon curve, the barnsley fern and other such shapes can be loaded and drawn.
-Additionally, the application incorporates a feature which automatically 􏰃nds 2D chaotic discrete maps. The details of this functionality will be discussed in detail in Section 3.
+Built using Python, JavaScript and HTML, our web application includes many fractal generating functionalities. First and foremost, fractals such as the sierpinski triangle and the viscek square can be drawn using the chaos game feature. The user can choose the initial polygon, specify the compression ratio of each iteration, and incorporate extra rules to form a variety of attractors. The user can also select from a list of attractor presets which load the appropriate parameters for the attractor. Additionally, the application incorporates the more general concept of iterated function systems (IFSs), with which even more complex fractals can be constructed, wherein the user specifies a list of possible transformation parameters and their relative weights. Presets for the dragon curve, the barnsley fern and other such shapes can be loaded and drawn.
+Additionally, the application incorporates a feature which automatically finds 2D chaotic discrete maps. The details of this functionality will be discussed in detail in Section 3.
 The website can be accessed [here](https://fractal-generator.herokuapp.com/).
 ## 2. Brief Overview of Iterated Function Systems & Chaos Game
-An Iterated Function System (IFS) is a 􏰃nite set of contractive functions which are applied iteratively on an initial point ad in􏰃nitum. At every iteration, one transformation among the set is chosen at random and applied to the previous point, yielding the next input for the next iteration. Often, these systems form self-similar fractals, as an arbitrary point at an arbitrary iteration is subject to the same conditions as any other point. In general, it is required that these transformations be contractive, otherwise solutions may be unbounded. However, the general requirement is that the entire system must be contractive on average.
+An Iterated Function System (IFS) is a fonite set of contractive functions which are applied iteratively on an initial point ad infinitum. At every iteration, one transformation among the set is chosen at random and applied to the previous point, yielding the next input for the next iteration. Often, these systems form self-similar fractals, as an arbitrary point at an arbitrary iteration is subject to the same conditions as any other point. In general, it is required that these transformations be contractive, otherwise solutions may be unbounded. However, the general requirement is that the entire system must be contractive on average.
 The chaos game is an example of an IFS. In brief, the classical version of the process consists of choosing a random point within an equilateral triangle and repeatedly applying the following procedure:
 1. Randomly choose one of the vertices of the triangle
 2. Jump half-way from the previous point to the chosen vertex
 3. Repeat with the newly drawn point
-The game can formally be de􏰃ned as an IFS with the following three choices of transformations: 
+The game can formally be defined as an IFS with the following three choices of transformations: 
 * (xn+1,yn+1)=(0.5xn,0.5yn)
 * (xn+1, yn+1) = (0.5xn + 0.5, 0.5yn)
 * (xn+1, yn+1) = (0.5xn, 0.5yn + 0.5)
@@ -22,33 +22,13 @@ Other fractals can be constructed using this method. As mentioned in the 1rst se
 ![](./assets/IFS_dragon.png)
 ## 3. Automatic Generation of Discrete Chaotic Attractors
 1D discrete maps can exhibit chaotic behaviour if their lyapunov exponent is positive. Similarly, 2D discrete maps, which have two lyapunov exponents (one for each dimension), exhibit chaotic behaviour if one of their lyapunov exponents is positive.
-Our website includes a feature which automatically 􏰃nds quadratic and cubic chaotic 2D maps. When plotted, these systems often yield beautiful fractal shapes. Finding such maps consists of 􏰃rst generating a random map and calculating its lyapunov exponents. If one of them is positive and the map is bounded, it is chaotic. Otherwise, the process shall be repeated until the conditions are satis􏰃ed.
+Our website includes a feature which automatically finds quadratic and cubic chaotic 2D maps. When plotted, these systems often yield beautiful fractal shapes. Finding such maps consists of first generating a random map and calculating its lyapunov exponents. If one of them is positive and the map is bounded, it is chaotic. Otherwise, the process shall be repeated until the conditions are satisfied.
 The following pseudocode demonstrates the logic of the implemented algorithm for the automatic generation of a chaotic two-dimensional quadratic map:
 
- Algorithm 1 Finding a random chaotic discrete quadratic map randomly generate {a1, a2, ..., a12} : ai ∈ [−1.2, 1.2]
-letxn+1 =g(xn)=a1+a2x+a3x2+a4xy+a5y+a6y2 letyn+1 =h(yn)=a7+a8x+a9x2+a10xy+a11y+a12y2 let (xn+1,yn+1) = f(xn,yn) = (g(xn,yn), h(xn,yn))
-(x0, y0) = (0.05, 0.05)
-v1=􏰆1 0􏰇 v2=􏰆0 1􏰇 λmax = 0
-λmin = 0 while n < N :
-compute (xn+1, yn+1)
-if (xn+1, yn+1) >unboundedthreshold:
-restart algorithm
-compute local Jacobian J(f) |(xn+1,yn+1) v1 = J · v1
-v2 = J · v2
-λmax = λmax + log(norm(v1))
-λmin = λmin + log(norm(v2))
-perform Gram-Schmidt process:
-v2 =v2 −⟨v1,v2⟩v1 normalize v1 normalize v2
-n=n+1 λmax = λmax
-N
-λmin = λmin N
-if λmax < 0:
-restart algorithm
-else:
-return {a1, a2, ..., a12}
+![](./assets/algorithm_1.png)
+
 The above process, similar to the *pull-back algorithm*, is essentially analoguous to the *classical* computation of the lyapunov exponents of a map. However, instead of computing λ in terms of a perturbation δ, it uses the tangent space map J (f ) and displacement vectors v1 and v2 . The displacement vectors are orthogonalized after each iteration so as to let each vector align with the corresponding eigendirections/lyapunov directions, and normalized so as to prevent huge computations. It must be noted that the lyapunov exponents are updated before the orthonormalization process.
 The process is almost identical for cubic maps, but more parameters must be generated.
-4
     
 #### Figure 3: Three chaotic attractors generated with our application 
 | Silk | Starfish  | Wave quasi-cycle  | 
@@ -93,7 +73,7 @@ By default, the *Chaos Game* tab is selected. If the *Transformations* tab is se
 * Parsing Type: See *Transformations* below
 * Iterations: The number of iterations to plot (Note: since datashading is used, this does not directly corre- spond to the number of visible points)
 * Transformations:
-A text area in which the user can specify the possible choices of parameters for the IFS. Every line needs to correspond to one speci􏰃c transformation choice. The input should follow general *CSV* 􏰃le for- matting. Every parameter within a speci􏰃c transformation choice must be separated by a comma, and every transformation must be separated by a linebreak. In the above example, one of the following two transfor- mations can be chosen at every iteration (with the parameters truncated to two decimal places): f1(x,y) = (0.82x + 0.28y − 0.21, 0.86x − 1.88y − 0.11) and f2(x, y) = (0.088x + 0.52y − 0.46, −0.377x + 0.78y + 8.09). The Parsing Type section dictates how the comma-separated parameters are ordered for de􏰃ning the functions. The Parsing Type option is simply a convenience setting to facilitate copy-pasting parameters from other sources, since some sources may list the parameters in a di􏰂erent order.
+A text area in which the user can specify the possible choices of parameters for the IFS. Every line needs to correspond to one specific transformation choice. The input should follow general *CSV* file for- matting. Every parameter within a specific transformation choice must be separated by a comma, and every transformation must be separated by a linebreak. In the above example, one of the following two transfor- mations can be chosen at every iteration (with the parameters truncated to two decimal places): f1(x,y) = (0.82x + 0.28y − 0.21, 0.86x − 1.88y − 0.11) and f2(x, y) = (0.088x + 0.52y − 0.46, −0.377x + 0.78y + 8.09). The Parsing Type section dictates how the comma-separated parameters are ordered for defining the functions. The Parsing Type option is simply a convenience setting to facilitate copy-pasting parameters from other sources, since some sources may list the parameters in a di􏰂erent order.
 * Probabilities:
 The relative probabilistic weights of each transformation/set of parameters. In the above example, there is an 80% chance that f1will be chosen, and a 20% chance that f2 will be chosen. If the user has supplied n transformations (i.e., there are n lines in the *Transformations* input), then n comma-separated values must be entered in the *Probabilities* section.
 If the *Random Chaos Finder* tab is selected, the following options are visible when the *Parameters* dropdown section is activated:
@@ -103,7 +83,7 @@ If the *Random Chaos Finder* tab is selected, the following options are visible 
 7
   
 * Plot Iterations: The number of iterations in thousands to plot (with datashading)
-* Discard the 􏰃rst n points when testing: The number of transients, i.e. the number of iterations after which the algorithm should assume the state is within the attractor
+* Discard the first n points when testing: The number of transients, i.e. the number of iterations after which the algorithm should assume the state is within the attractor
 * Map iterations:
 The number of *test iterations*, i.e. the number of iterations the algorithm should use to numerically approximate the lyapunov exponents. In the above example, the lyapunov exponents are calculated over 70,000 iterations. After 70,000 iterations, the program checks wether the largest lyapunov exponent is positive. If it is, the fractal is then plotted with n iterations, where n = Plot Iterations. Otherwise, the algorithm is repeated until a satisfactory system is found.
 * Randomization type:
