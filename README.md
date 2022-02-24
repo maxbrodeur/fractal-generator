@@ -51,9 +51,10 @@ The process is almost identical for cubic maps, but more parameters must be gene
 4
     
 #### Figure 3: Three chaotic attractors generated with our application 
-* *Silk* ![](./assets/silk.png)
-* *Starfish* ![](./assets/starfish.png) 
-* *Wave quasi-cycle* ![](./assets/wave_quasi-circle.png)
+| Silk | Starfish  | Wave quasi-cycle  | 
+|------|-----------|-------------------|
+|![](./assets/silk.png)|![](./assets/starfish.png) |![](./assets/wave_quasi-cycle.png)|
+
 
 # 4. Getting Started with our Application
 Upon entering the website, the 􏰀Chaos Game􏰁 tab is visible. The following parameters are available for editing and manipulation:
