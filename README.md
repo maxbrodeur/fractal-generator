@@ -1,6 +1,8 @@
 # Final Project: [Chaos Game Web Application](https://fractal-generator.herokuapp.com/) (and more) Max Brodeur & [Theo Fabi](https://github.com/theofabilous)
 ## 1. Overview of our Project
 
+Note: This research project was an optional part of the MATH326 - Nonlinear Dynamics & Chaos course at McGill during the Fall 2021 semester. 
+
 Built using Python, HTML and CSS, our web application includes many fractal generating functionalities. First and foremost, fractals such as the sierpinski triangle and the viscek square can be drawn using the chaos game feature. The user can choose the initial polygon, specify the compression ratio of each iteration, and incorporate extra rules to form a variety of attractors. The user can also select from a list of attractor presets which load the appropriate parameters for the attractor. Additionally, the application incorporates the more general concept of iterated function systems (IFSs), with which even more complex fractals can be constructed, wherein the user specifies a list of possible transformation parameters and their relative weights. Presets for the dragon curve, the barnsley fern and other such shapes can be loaded and drawn.
 Additionally, the application incorporates a feature which automatically finds 2D chaotic discrete maps. The details of this functionality will be discussed in detail in Section 3.
 
