@@ -236,7 +236,8 @@ tab1 = html.Div(className="CHAOS-GAME",
 
 
 about = html.Div(className="ABOUT",
-				children = [dbc.Nav([dbc.NavLink("GITHUB", href="https://github.com/maxbrodeur/fractal-generator")])])
+				children = [dbc.Nav([dbc.NavLink("GITHUB", href="https://github.com/maxbrodeur/fractal-generator")]),
+							dbc.Nav([dbc.NavLink("BLOG POST", href="https://maxbrodeur.github.io/fractals/index.html")])])
 
 
 
