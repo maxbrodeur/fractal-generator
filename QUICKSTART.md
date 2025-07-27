@@ -35,11 +35,16 @@ python3 -m http.server 8000
 
 ## What You'll See
 
-- **Interactive Fractal Generator** with real-time controls
+- **Interactive Fractal Generator** with organized controls for different algorithms
 - **Performance Benchmarks** showing 10-100x speedup over Python
-- **Multiple Algorithms**: Chaos Game, IFS, Escape-time fractals  
-- **7 Color Schemes**: Fire, Jet, Prism, Turbo, and more
-- **Live Rendering** of Sierpinski Triangle, Dragon Curve, Mandelbrot Set, etc.
+- **Three Fractal Categories**:
+  - **Chaos Game**: Sierpinski Triangle with rule-based vertex selection
+  - **IFS (Iterated Function Systems)**: Dragon Curve, Barnsley Fern, etc.
+  - **Escape-time Fractals**: Mandelbrot Set, Julia Set, Burning Ship
+  - **Random Chaos Finder**: Parameter UI ready (full implementation pending)
+- **7 Color Schemes**: Fire, Jet, Prism, Turbo, Color Wheel, GNU Plot, BMY
+- **Enhanced Visibility**: Improved color density mapping for crisp, vibrant fractals
+- **Responsive Canvas**: 400x400, 600x600, or 800x800 pixel rendering
 
 ## Need Help?
 
