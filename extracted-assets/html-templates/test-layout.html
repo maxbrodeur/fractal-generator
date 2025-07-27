@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Generator - Test Layout</title>
+    
+    <!-- Bootstrap CSS (SUPERHERO theme) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.1.3/dist/superhero/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/fractal-styles.css">
+    
+    <style>
+        /* Test-specific styles */
+        .test-graph {
+            background: #000;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffdf80;
+            border: 1px solid #444;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #444;
+            border-radius: 5px;
+        }
+        
+        body {
+            background: var(--theme-color);
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="text-center my-4">Fractal Generator - UI Component Test</h1>
+        
+        <!-- Test Chaos Game Components -->
+        <div class="test-section">
+            <h2>Chaos Game Components</h2>
+            <div class="numbers">
+                <!-- Preset dropdown -->
+                <div class="dropdown_frame">
+                    <label class="my_label">
+                        Presets
+                        <select class="form-select dropdown">
+                            <option selected>sierpt</option>
+                            <option>sierpc</option>
+                            <option>vicsek</option>
+                        </select>
+                    </label>
+                </div>
+
+                <!-- Iterations -->
+                <div class="input_number_frame">
+                    <label class="my_label">
+                        Iterations:
+                        <input type="number" class="form-control input" value="10000" min="0" max="20000">
+                    </label>
+                </div>
+
+                <!-- Jump -->
+                <div class="input_number_frame">
+                    <label class="my_label">
+                        Jump:
+                        <input type="text" class="form-control input" value="1/2">
+                    </label>
+                </div>
+
+                <!-- Polygon -->
+                <div class="input_number_frame">
+                    <label class="my_label">
+                        Polygon:
+                        <input type="number" class="form-control input" value="3" min="1" max="200">
+                    </label>
+                </div>
+
+                <!-- Switches -->
+                <div class="input_boolean_frame">
+                    <label class="my_label">
+                        Symmetry:
+                        <div class="form-check form-switch">
+                            <input class="form-check-input switch" type="checkbox">
+                        </div>
+                    </label>
+                </div>
+
+                <div class="input_boolean_frame">
+                    <label class="my_label">
+                        Fast plotting:
+                        <div class="form-check form-switch">
+                            <input class="form-check-input switch" type="checkbox">
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="test-graph mt-3">
+                [Chaos Game Graph Placeholder - Plotly.js integration point]
+            </div>
+        </div>
+
+        <!-- Test Transformations Components -->
+        <div class="test-section">
+            <h2>Transformations Components</h2>
+            <div class="transfos">
+                <!-- Presets -->
+                <div class="input_frame">
+                    <label class="my_label">
+                        Transformation Presets
+                        <select class="form-select dropdown">
+                            <option>Mandelbrot-like</option>
+                            <option selected>Dragon</option>
+                            <option>Fern</option>
+                        </select>
+                    </label>
+                </div>
+
+                <!-- Parse type -->
+                <div class="input_frame" id="PARSE-SELECT">
+                    <label class="my_label">
+                        Parsing Type
+                        <div id="parse-type">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="parseTest" checked>
+                                <label class="form-check-label">Regular</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="parseTest">
+                                <label class="form-check-label">Borke</label>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Iterations -->
+                <div class="input_frame">
+                    <label class="my_label">
+                        Iterations (thousands)
+                        <input type="number" class="form-control input" value="1000">
+                    </label>
+                </div>
+
+                <!-- Plot button -->
+                <button class="btn btn-primary" id="plot-button">Plot</button>
+
+                <!-- Text areas -->
+                <div class="txt">
+                    <label>Transformations:</label>
+                    <textarea class="form-control txt_area" rows="3">0.824074,0.281428,-0.212346,0.864198,-1.882290,-0.110607
+0.088272,0.520988,-0.463889,-0.377778,0.785360,8.095795</textarea>
+                </div>
+
+                <div class="txt">
+                    <label>Probabilities:</label>
+                    <textarea class="form-control txt_area" rows="2">0.8,0.2</textarea>
+                </div>
+            </div>
+            
+            <div class="test-graph mt-3">
+                [IFS Transformation Graph Placeholder - High-resolution fractal rendering]
+            </div>
+        </div>
+
+        <!-- Test Chaos Finder Components -->
+        <div class="test-section">
+            <h2>Chaos Finder Components</h2>
+            <div class="finder">
+                <!-- Map order -->
+                <div class="input_frame_find">
+                    <label class="my_label">
+                        Chaotic Map Order
+                        <div id="kind-radio">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="mapTest" checked>
+                                <label class="form-check-label">Quadratic</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="mapTest">
+                                <label class="form-check-label">Cubic</label>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Iterations -->
+                <div class="input_frame_find">
+                    <label class="my_label">
+                        Plot Iterations (thousands)
+                        <input type="number" class="form-control input" value="1000">
+                    </label>
+                </div>
+
+                <!-- Transient -->
+                <div class="input_frame_find">
+                    <label class="my_label">
+                        Discard first <span id="trans">800</span> points
+                        <input type="number" class="form-control input" value="800" 
+                               onchange="document.getElementById('trans').textContent = this.value">
+                    </label>
+                </div>
+
+                <!-- Find button -->
+                <button class="btn btn-success" id="find-button">Find next chaotic map</button>
+
+                <!-- Map info -->
+                <div id="find-map-info">
+                    <strong>Example Map Info:</strong><br>
+                    Parameters: ABCDEF<br>
+                    Maximum lyapunov exponent: 0.234<br>
+                    Minimum lyapunov exponent: -1.456<br>
+                    Estimated Kaplan-Yorke dimension: 1.67
+                </div>
+            </div>
+            
+            <div class="test-graph mt-3">
+                [Chaos Analysis Graph Placeholder - Real-time attractor discovery]
+            </div>
+        </div>
+
+        <!-- Test About Components -->
+        <div class="test-section">
+            <h2>About Components</h2>
+            <div class="ABOUT">
+                <nav class="nav">
+                    <a class="nav-link" href="#" target="_blank">GITHUB</a>
+                </nav>
+                <nav class="nav">
+                    <a class="nav-link" href="#" target="_blank">BLOG POST</a>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Asset Gallery -->
+        <div class="test-section">
+            <h2>Available Assets</h2>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <img src="../assets/sierpinski_triangle.png" class="img-fluid" alt="Sierpinski Triangle">
+                    <p class="text-center mt-2">Sierpinski Triangle</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <img src="../assets/IFS_dragon.png" class="img-fluid" alt="IFS Dragon">
+                    <p class="text-center mt-2">IFS Dragon</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <img src="../assets/starfish.png" class="img-fluid" alt="Starfish Fractal">
+                    <p class="text-center mt-2">Starfish Fractal</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        console.log('Fractal Generator UI Test loaded successfully');
+        console.log('All components rendered with extracted styling');
+        console.log('Ready for WebAssembly algorithm integration');
+    </script>
+</body>
+</html>
