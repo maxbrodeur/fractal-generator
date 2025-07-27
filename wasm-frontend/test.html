@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Generator Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            margin: 20px;
+        }
+        
+        canvas {
+            border: 1px solid #444;
+            background: black;
+            margin: 20px 0;
+        }
+        
+        .test-info {
+            background: #333;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .loading {
+            color: #ffc107;
+        }
+        
+        .success {
+            color: #28a745;
+        }
+        
+        .error {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fractal Generator WebAssembly Test</h1>
+    
+    <div class="test-info">
+        <h3>Status: <span id="status" class="loading">Initializing...</span></h3>
+        <p id="details">Loading WebAssembly module...</p>
+    </div>
+    
+    <div>
+        <button id="test-sierpinski" disabled>Test Sierpinski Triangle</button>
+        <button id="test-dragon" disabled>Test Dragon Curve</button>
+        <button id="test-chaos-finder" disabled>Test Chaos Finder</button>
+    </div>
+    
+    <canvas id="test-canvas" width="800" height="600"></canvas>
+    
+    <div class="test-info">
+        <h4>Performance:</h4>
+        <p id="performance">Waiting for test...</p>
+    </div>
+
+    <script type="module">
+        import init, { 
+            FractalGenerator, 
+            Rule, 
+            ColorScheme, 
+            FractalPresets 
+        } from './fractal-wasm/pkg/fractal_wasm.js';
+
+        let generator = null;
+        let canvas = null;
+        let ctx = null;
+
+        async function initTest() {
+            try {
+                document.getElementById('status').textContent = 'Loading WebAssembly...';
+                
+                await init();
+                generator = new FractalGenerator();
+                
+                canvas = document.getElementById('test-canvas');
+                ctx = canvas.getContext('2d');
+                
+                document.getElementById('status').textContent = 'Ready';
+                document.getElementById('status').className = 'success';
+                document.getElementById('details').textContent = 'WebAssembly module loaded successfully!';
+                
+                // Enable buttons
+                document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+                
+                console.log('✅ Test environment initialized');
+                
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error';
+                document.getElementById('status').className = 'error';
+                document.getElementById('details').textContent = 'Failed to load WebAssembly: ' + error.message;
+                console.error('❌ Initialization failed:', error);
+            }
+        }
+
+        function generatePolygonVertices(n) {
+            const vertices = [];
+            for (let i = 0; i < n; i++) {
+                const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+                const x = Math.cos(angle);
+                const y = Math.sin(angle);
+                vertices.push([x, y]);
+            }
+            return vertices;
+        }
+
+        function renderPointsToCanvas(points) {
+            if (!points || points.length === 0) return;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Use WebAssembly to convert points to RGBA data
+            const rgbaData = generator.points_to_rgba(points, width, height, ColorScheme.Fire);
+            
+            // Create ImageData and render to canvas
+            const imageData = new ImageData(new Uint8ClampedArray(rgbaData), width, height);
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        async function testSierpinski() {
+            document.getElementById('details').textContent = 'Generating Sierpinski Triangle...';
+            const startTime = performance.now();
+            
+            try {
+                const vertices = generatePolygonVertices(3);
+                const transforms = Array(3).fill([0.5, 0]);
+                const rule = new Rule(1, 0, false);
+                
+                const points = generator.chaos_game(vertices, 0.0, 0.0, 50000, transforms, rule);
+                renderPointsToCanvas(points);
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                document.getElementById('details').textContent = `Sierpinski Triangle rendered successfully!`;
+                document.getElementById('performance').textContent = 
+                    `${points.length / 2} points in ${duration.toFixed(1)}ms (${((points.length / 2) / (duration / 1000)).toFixed(0)} pts/sec)`;
+                
+                console.log('✅ Sierpinski test passed');
+                
+            } catch (error) {
+                document.getElementById('details').textContent = 'Sierpinski test failed: ' + error.message;
+                console.error('❌ Sierpinski test failed:', error);
+            }
+        }
+
+        async function testDragon() {
+            document.getElementById('details').textContent = 'Generating Dragon Curve...';
+            const startTime = performance.now();
+            
+            try {
+                const transforms = FractalPresets.dragon_curve();
+                const probabilities = FractalPresets.dragon_curve_probs();
+                
+                const points = generator.ifs_fractal(0.0, 0.0, 50000, transforms, probabilities, 'borke');
+                renderPointsToCanvas(points);
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                document.getElementById('details').textContent = `Dragon Curve rendered successfully!`;
+                document.getElementById('performance').textContent = 
+                    `${points.length / 2} points in ${duration.toFixed(1)}ms (${((points.length / 2) / (duration / 1000)).toFixed(0)} pts/sec)`;
+                
+                console.log('✅ Dragon test passed');
+                
+            } catch (error) {
+                document.getElementById('details').textContent = 'Dragon test failed: ' + error.message;
+                console.error('❌ Dragon test failed:', error);
+            }
+        }
+
+        async function testChaosFinder() {
+            document.getElementById('details').textContent = 'Searching for chaotic patterns...';
+            const startTime = performance.now();
+            
+            try {
+                const points = generator.find_random_chaos(5000, 10000, false);
+                
+                if (points && points.length > 0) {
+                    renderPointsToCanvas(points);
+                    
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    
+                    document.getElementById('details').textContent = `Chaotic pattern found and rendered!`;
+                    document.getElementById('performance').textContent = 
+                        `${points.length / 2} points in ${duration.toFixed(1)}ms (${((points.length / 2) / (duration / 1000)).toFixed(0)} pts/sec)`;
+                    
+                    console.log('✅ Chaos finder test passed');
+                } else {
+                    document.getElementById('details').textContent = 'No chaotic patterns found in this iteration.';
+                    document.getElementById('performance').textContent = 'No data to display';
+                }
+                
+            } catch (error) {
+                document.getElementById('details').textContent = 'Chaos finder test failed: ' + error.message;
+                console.error('❌ Chaos finder test failed:', error);
+            }
+        }
+
+        // Set up event listeners
+        document.getElementById('test-sierpinski').addEventListener('click', testSierpinski);
+        document.getElementById('test-dragon').addEventListener('click', testDragon);
+        document.getElementById('test-chaos-finder').addEventListener('click', testChaosFinder);
+
+        // Initialize on load
+        initTest();
+    </script>
+</body>
+</html>

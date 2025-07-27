@@ -385,74 +385,13 @@
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
+            <div class="mt-2 text-center">
+                <span id="loading-message">Loading...</span>
+            </div>
         </div>
     </div>
 
-    <!-- JavaScript for basic functionality -->
-    <script>
-        // Basic tab functionality is handled by Bootstrap
-        // Placeholder for future WebAssembly integration
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize placeholder graphs
-            initializePlaceholderGraphs();
-            
-            // Add event listeners for buttons
-            document.getElementById('generate_chaos_button').addEventListener('click', function() {
-                showLoadingOverlay();
-                // Placeholder for chaos game generation
-                setTimeout(hideLoadingOverlay, 2000);
-            });
-            
-            document.getElementById('generate_ifs_button').addEventListener('click', function() {
-                showLoadingOverlay();
-                // Placeholder for IFS generation
-                setTimeout(hideLoadingOverlay, 2000);
-            });
-            
-            document.getElementById('search_chaos_button').addEventListener('click', function() {
-                showLoadingOverlay();
-                // Placeholder for chaos search
-                setTimeout(hideLoadingOverlay, 3000);
-            });
-        });
-        
-        function initializePlaceholderGraphs() {
-            // Initialize empty Plotly graphs
-            const graphConfig = {responsive: true, displayModeBar: false};
-            
-            Plotly.newPlot('chaos_game_graph', [], {
-                title: 'Chaos Game Fractal',
-                xaxis: {title: 'X'},
-                yaxis: {title: 'Y'},
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)'
-            }, graphConfig);
-            
-            Plotly.newPlot('ifs_graph', [], {
-                title: 'IFS Fractal',
-                xaxis: {title: 'X'},
-                yaxis: {title: 'Y'},
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)'
-            }, graphConfig);
-            
-            Plotly.newPlot('chaos_finder_graph', [], {
-                title: 'Chaos Search Results',
-                xaxis: {title: 'X'},
-                yaxis: {title: 'Y'},
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)'
-            }, graphConfig);
-        }
-        
-        function showLoadingOverlay() {
-            document.getElementById('loading-overlay').style.display = 'flex';
-        }
-        
-        function hideLoadingOverlay() {
-            document.getElementById('loading-overlay').style.display = 'none';
-        }
-    </script>
+    <!-- Main Fractal Generator JavaScript -->
+    <script type="module" src="fractal.js"></script>
 </body>
 </html>
