@@ -1,0 +1,1 @@
+/home/runner/work/fractal-generator/fractal-generator/fractal-wasm/target/wasm32-unknown-unknown/release/fractal_wasm.wasm: /home/runner/work/fractal-generator/fractal-generator/fractal-wasm/src/lib.rs
