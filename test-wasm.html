@@ -290,9 +290,23 @@
                     const iterCounts = generator.burning_ship(canvasSize, canvasSize, -2.5, 1.0, -2.0, 1.0, 100);
                     result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, 100, colorScheme);
                 } else if (fractalType === 'random_chaos') {
-                    // Random Chaos Finder - Placeholder implementation
-                    showStatus("Random Chaos Finder is not yet implemented. This feature requires complex Lyapunov exponent calculations and dynamic parameter search algorithms from the Python codebase.", true);
-                    return;
+                    // Random Chaos Finder
+                    const chaosOrder = document.getElementById('chaosOrder').value;
+                    const plotPoints = parseInt(document.getElementById('chaosPlotPoints').value);
+                    const testPoints = parseInt(document.getElementById('chaosTestPoints').value);
+                    const isCubic = chaosOrder === 'cubic';
+                    
+                    showStatus(`Searching for chaotic map (${chaosOrder})...`);
+                    
+                    const startTime = performance.now();
+                    const points = generator.find_random_chaos(plotPoints, testPoints, isCubic);
+                    const endTime = performance.now();
+                    
+                    // Convert points to RGBA for display
+                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                    
+                    const searchTime = ((endTime - startTime) / 1000).toFixed(2);
+                    showStatus(`Found chaotic ${chaosOrder} map in ${searchTime}s with ${plotPoints} points`);
                 }
                 
                 // Display on canvas

@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 use js_sys::Array;
 use rand::prelude::*;
+use rand::thread_rng;
 use std::f64::consts::PI;
 
 // Console logging for debugging
@@ -971,5 +972,286 @@ impl FractalPresets {
         probs.push(&0.25.into());
         probs.push(&0.25.into());
         probs
+    }
+}
+
+// Random Chaos Finder implementation
+#[wasm_bindgen]
+impl FractalGenerator {
+    /// Generate random arguments between -1.2 and 1.2
+    fn get_random_args(&self, n: usize) -> Vec<f64> {
+        let mut rng = thread_rng();
+        (0..n).map(|_| 2.4 * rng.gen::<f64>() - 1.2).collect()
+    }
+
+    /// Quadratic map function: f(x,y) = a + bx + cx² + dxy + ey + fy²
+    fn f_quadratic(&self, args: &[f64], x: f64, y: f64) -> f64 {
+        let (a, b, c, d, e, f) = (args[0], args[1], args[2], args[3], args[4], args[5]);
+        a + b*x + c*(x*x) + d*(x*y) + e*y + f*(y*y)
+    }
+
+    /// Cubic map function
+    fn f_cubic(&self, args: &[f64], x: f64, y: f64) -> f64 {
+        args[0] + args[1]*x + args[2]*x*x + args[3]*x*x*x +
+        args[4]*x*x*y + args[5]*x*y + args[6]*x*y*y + args[7]*y +
+        args[8]*y*y + args[9]*y*y*y
+    }
+
+    /// Jacobian matrix for quadratic map
+    fn jacobian_quadratic(&self, args1: &[f64], args2: &[f64], x: f64, y: f64) -> [[f64; 2]; 2] {
+        let (_a1, b1, c1, d1, e1, f1) = (args1[0], args1[1], args1[2], args1[3], args1[4], args1[5]);
+        let (_a2, b2, c2, d2, e2, f2) = (args2[0], args2[1], args2[2], args2[3], args2[4], args2[5]);
+        
+        [
+            [2.0*c1*x + d1*y + b1, d1*x + 2.0*f1*y + e1],
+            [2.0*c2*x + d2*y + b2, d2*x + 2.0*f2*y + e2]
+        ]
+    }
+
+    /// Jacobian matrix for cubic map
+    fn jacobian_cubic(&self, args1: &[f64], args2: &[f64], x: f64, y: f64) -> [[f64; 2]; 2] {
+        let (_a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) = 
+            (args1[0], args1[1], args1[2], args1[3], args1[4], args1[5], args1[6], args1[7], args1[8], args1[9]);
+        let (_b1, b2, b3, b4, b5, b6, b7, b8, b9, b10) = 
+            (args2[0], args2[1], args2[2], args2[3], args2[4], args2[5], args2[6], args2[7], args2[8], args2[9]);
+
+        [
+            [a2 + 2.0*a3*x + 3.0*a4*(x*x) + 2.0*a5*y*x + a6*y + a7*(y*y),
+             a5*(x*x) + a6*x + a7*x*2.0*y + a8 + 2.0*a9*y + 3.0*a10*y*y],
+            [b2 + 2.0*b3*x + 3.0*b4*(x*x) + 2.0*b5*y*x + b6*y + b7*(y*y),
+             b5*(x*x) + b6*x + b7*x*2.0*y + b8 + 2.0*b9*y + 3.0*b10*y*y]
+        ]
+    }
+
+    /// Calculate fractal dimension using Kaplan-Yorke conjecture
+    fn fractal_dimension(&self, max_le: f64, min_le: f64) -> f64 {
+        if max_le < 0.0 {
+            0.0
+        } else {
+            let sum = max_le + min_le;
+            let (j, pos_sum) = if sum > 0.0 {
+                (2.0, sum)
+            } else {
+                (1.0, max_le)
+            };
+            j + (pos_sum / min_le.abs())
+        }
+    }
+
+    /// Check if point is unbounded
+    fn check_unbounded(&self, x: f64, y: f64, thresh: f64) -> bool {
+        x.abs() > thresh || y.abs() > thresh || x.is_nan() || y.is_nan() || x.is_infinite() || y.is_infinite()
+    }
+
+    /// Check if point has moved (to rule out fixed points)
+    fn check_movement(&self, x: f64, y: f64, xp: f64, yp: f64) -> bool {
+        (x - xp).abs() < 1e-16 || (y - yp).abs() < 1e-16
+    }
+
+    /// Matrix-vector multiplication for 2x2 matrix and 2D vector
+    fn mat_vec_mult(&self, mat: [[f64; 2]; 2], vec: [f64; 2]) -> [f64; 2] {
+        [
+            mat[0][0] * vec[0] + mat[0][1] * vec[1],
+            mat[1][0] * vec[0] + mat[1][1] * vec[1]
+        ]
+    }
+
+    /// Dot product of two 2D vectors
+    fn dot_product(&self, v1: [f64; 2], v2: [f64; 2]) -> f64 {
+        v1[0] * v2[0] + v1[1] * v2[1]
+    }
+
+    /// Calculate determinant of 2x2 matrix
+    fn determinant(&self, mat: [[f64; 2]; 2]) -> f64 {
+        mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0]
+    }
+
+    /// Test for chaos by computing Lyapunov exponents
+    fn test_chaos(&self, args1: &[f64], args2: &[f64], n_trans: usize, n_test: usize, thresh: f64, is_cubic: bool) -> (f64, f64, f64) {
+        let mut x = 0.05;
+        let mut y = 0.05;
+        let mut v1 = [1.0, 0.0];
+        let mut v2 = [0.0, 1.0];
+
+        // Discard transient points
+        for _ in 0..n_trans {
+            let (xp, yp) = (x, y);
+            if is_cubic {
+                x = self.f_cubic(args1, xp, yp);
+                y = self.f_cubic(args2, xp, yp);
+                let m = self.jacobian_cubic(args1, args2, x, y);
+                v1 = self.mat_vec_mult(m, v1);
+                v2 = self.mat_vec_mult(m, v2);
+            } else {
+                x = self.f_quadratic(args1, xp, yp);
+                y = self.f_quadratic(args2, xp, yp);
+                let m = self.jacobian_quadratic(args1, args2, x, y);
+                v1 = self.mat_vec_mult(m, v1);
+                v2 = self.mat_vec_mult(m, v2);
+            }
+
+            // Gram-Schmidt orthogonalization
+            let dot_11 = self.dot_product(v1, v1);
+            let dot_12 = self.dot_product(v1, v2);
+            let dot_22 = self.dot_product(v2, v2);
+
+            v2[0] -= (dot_12 / dot_11) * v1[0];
+            v2[1] -= (dot_12 / dot_11) * v1[1];
+
+            let sqrt_dot_11 = dot_11.sqrt();
+            let sqrt_dot_22 = dot_22.sqrt();
+            v1[0] /= sqrt_dot_11;
+            v1[1] /= sqrt_dot_11;
+            v2[0] /= sqrt_dot_22;
+            v2[1] /= sqrt_dot_22;
+        }
+
+        let mut max_le = 0.0;
+        let mut min_le = 0.0;
+        let mut c = 0.0;
+        let mut count = 0;
+
+        // Begin Lyapunov exponent estimation
+        for _ in 0..n_test {
+            let (xp, yp) = (x, y);
+            let m = if is_cubic {
+                x = self.f_cubic(args1, xp, yp);
+                y = self.f_cubic(args2, xp, yp);
+                self.jacobian_cubic(args1, args2, x, y)
+            } else {
+                x = self.f_quadratic(args1, xp, yp);
+                y = self.f_quadratic(args2, xp, yp);
+                self.jacobian_quadratic(args1, args2, x, y)
+            };
+
+            // Check if bounded
+            if self.check_unbounded(x, y, thresh) {
+                return (-1.0, -1.0, -1.0);
+            }
+
+            // Check for fixed points
+            if self.check_movement(x, y, xp, yp) {
+                count += 1;
+                if count >= 15 {
+                    return (-1.0, -1.0, -1.0);
+                }
+            } else if count > 0 {
+                count -= 1;
+            }
+
+            v1 = self.mat_vec_mult(m, v1);
+            v2 = self.mat_vec_mult(m, v2);
+
+            let dot_11 = self.dot_product(v1, v1);
+            let dot_12 = self.dot_product(v1, v2);
+            let dot_22 = self.dot_product(v2, v2);
+
+            let sqrt_dot_11 = dot_11.sqrt();
+            let sqrt_dot_22 = dot_22.sqrt();
+
+            // Gram-Schmidt orthogonalization
+            v2[0] -= (dot_12 / dot_11) * v1[0];
+            v2[1] -= (dot_12 / dot_11) * v1[1];
+
+            v1[0] /= sqrt_dot_11;
+            v1[1] /= sqrt_dot_11;
+            v2[0] /= sqrt_dot_22;
+            v2[1] /= sqrt_dot_22;
+
+            max_le += sqrt_dot_11.ln();
+            min_le += sqrt_dot_22.ln();
+            c += self.determinant(m).abs().ln();
+        }
+
+        let n_test_f = n_test as f64;
+        let log2 = 2.0_f64.ln();
+
+        max_le = max_le / n_test_f / log2;
+        min_le = min_le / n_test_f / log2;
+        c = c / n_test_f / log2;
+
+        (max_le, min_le, c)
+    }
+
+    /// Generate trajectory points for visualization
+    fn iterate_map(&self, args1: &[f64], args2: &[f64], n_points: usize, is_cubic: bool) -> Vec<[f64; 2]> {
+        let mut x = 0.05;
+        let mut y = 0.05;
+        let mut points = Vec::with_capacity(n_points);
+
+        for _ in 0..n_points {
+            let (xp, yp) = (x, y);
+            if is_cubic {
+                x = self.f_cubic(args1, xp, yp);
+                y = self.f_cubic(args2, xp, yp);
+            } else {
+                x = self.f_quadratic(args1, xp, yp);
+                y = self.f_quadratic(args2, xp, yp);
+            }
+            points.push([x, y]);
+        }
+
+        points
+    }
+
+    /// Check exclusion criteria for quadratic maps
+    fn exclude_quadratic(&self, max_le: f64, _min_le: f64, _c: f64, fd: f64, thresh: f64) -> bool {
+        max_le <= thresh || (fd - 1.0).abs() < 0.11
+    }
+
+    /// Check exclusion criteria for cubic maps
+    fn exclude_cubic(&self, max_le: f64, _min_le: f64, _c: f64, fd: f64, thresh: f64) -> bool {
+        let mut exclude = max_le <= thresh;
+        for i in [1.0, 2.0] {
+            exclude = exclude || (fd - i).abs() < 0.11;
+        }
+        exclude
+    }
+
+    /// Find a random chaotic map
+    #[wasm_bindgen]
+    pub fn find_random_chaos(&self, n_plot: usize, n_test: usize, is_cubic: bool) -> Array {
+        let n_trans = 1000;
+        let thresh = 1e6;
+        let le_thresh = 1e-4;
+
+        let param_count = if is_cubic { 10 } else { 6 };
+        
+        // Keep searching until we find a chaotic map
+        loop {
+            let args1 = self.get_random_args(param_count);
+            let args2 = self.get_random_args(param_count);
+
+            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, n_test, thresh, is_cubic);
+            
+            if max_le == -1.0 {
+                continue; // Try again if test failed
+            }
+
+            let fd = self.fractal_dimension(max_le, min_le);
+
+            let exclude = if is_cubic {
+                self.exclude_cubic(max_le, min_le, c, fd, le_thresh)
+            } else {
+                self.exclude_quadratic(max_le, min_le, c, fd, le_thresh)
+            };
+
+            if !exclude {
+                // Found a good chaotic map!
+                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                
+                // Convert to JavaScript array format
+                let result = Array::new();
+                for point in points {
+                    let point_array = Array::new();
+                    point_array.push(&point[0].into());
+                    point_array.push(&point[1].into());
+                    result.push(&point_array);
+                }
+
+                console_log!("Found chaotic map! Max LE: {:.4}, Min LE: {:.4}, FD: {:.4}", max_le, min_le, fd);
+                return result;
+            }
+        }
     }
 }
