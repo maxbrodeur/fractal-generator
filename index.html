@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/stylesheet.css">
+</head>
+<body class="bg-dark text-light">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="elements">
+            <h1 class="title text-warning">FRACTAL GENERATOR</h1>
+            <ul class="nav nav-tabs tabs" id="mainTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active tab" id="chaos-game-tab" data-bs-toggle="tab" data-bs-target="#chaos-game" type="button" role="tab">Chaos Game</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tab" id="transformations-tab" data-bs-toggle="tab" data-bs-target="#transformations" type="button" role="tab">Transformations</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tab" id="chaos-finder-tab" data-bs-toggle="tab" data-bs-target="#chaos-finder" type="button" role="tab">Random Chaos Finder</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tab" id="about-tab" data-bs-toggle="tab" data-bs-target="#about" type="button" role="tab">About</button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- Chaos Game Tab -->
+            <div class="tab-pane fade show active CHAOS-GAME" id="chaos-game" role="tabpanel">
+                <div class="accordion" id="parametersAccordion">
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header" id="parametersHeading">
+                            <button class="accordion-button collapsed bg-secondary text-light" type="button" data-bs-toggle="collapse" data-bs-target="#parametersCollapse">
+                                PARAMETERS
+                            </button>
+                        </h2>
+                        <div id="parametersCollapse" class="accordion-collapse collapse" data-bs-parent="#parametersAccordion">
+                            <div class="accordion-body">
+                                <div class="numbers">
+                                    <!-- Presets Dropdown -->
+                                    <div class="dropdown_frame">
+                                        <label class="my_label">
+                                            Presets
+                                            <select class="form-select dropdown bg-dark text-light" id="presets_dropdown">
+                                                <option value="sierpt" selected>sierpt</option>
+                                                <option value="sierpc">sierpc</option>
+                                                <option value="vicsek">vicsek</option>
+                                                <option value="tsquare">tsquare</option>
+                                                <option value="techs">techs</option>
+                                                <option value="webs">webs</option>
+                                                <option value="XTREME">XTREME</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <!-- Iterations -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Iterations:
+                                            <input type="number" class="form-control input bg-dark text-light" id="iterations_input" min="0" max="200000" step="1" value="10000">
+                                        </label>
+                                    </div>
+
+                                    <!-- Jump -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Jump:
+                                            <input type="text" class="form-control input bg-dark text-light" id="jump_input" value="1/2">
+                                        </label>
+                                    </div>
+
+                                    <!-- Polygon -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Polygon:
+                                            <input type="number" class="form-control input bg-dark text-light" id="polygon_input" min="1" max="200" step="1" value="3">
+                                        </label>
+                                    </div>
+
+                                    <!-- Length -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Length:
+                                            <input type="number" class="form-control input bg-dark text-light" id="length_input" min="0" value="0">
+                                        </label>
+                                    </div>
+
+                                    <!-- Offset -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Offset:
+                                            <input type="number" class="form-control input bg-dark text-light" id="offset_input" value="0">
+                                        </label>
+                                    </div>
+
+                                    <!-- Symmetry -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Symmetry:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input switch" type="checkbox" id="symmetry_input">
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Stack Midpoints -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Stack Midpoints:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input switch" type="checkbox" id="midpoints_input">
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Stack Center -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Stack Center:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input switch" type="checkbox" id="center_input">
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Fast Plotting -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Fast plotting:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input switch" type="checkbox" id="fast_plot">
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Auto Update -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Auto update:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input switch" type="checkbox" id="auto_update" checked>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Canvas for fractal rendering -->
+                <div class="graph-container" style="height: calc(100vh - 120px);">
+                    <canvas id="fractalCanvas" width="1500" height="1500" style="width: 100%; height: 100%; background: black; cursor: crosshair;"></canvas>
+                    <div id="loadingSpinner" class="d-none">
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Rendering...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transformations Tab -->
+            <div class="tab-pane fade TRANSFORMATIONS" id="transformations" role="tabpanel">
+                <div class="accordion">
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed bg-secondary text-light" type="button" data-bs-toggle="collapse" data-bs-target="#transformationsParams">
+                                PARAMETERS
+                            </button>
+                        </h2>
+                        <div id="transformationsParams" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <div class="transfos">
+                                    <div class="input_frame">
+                                        <label class="my_label">
+                                            Transformation Presets:
+                                            <select class="form-select bg-dark text-light" id="transform_presets">
+                                                <option value="MB_LIKE">MB_LIKE</option>
+                                                <option value="SPIRAL">SPIRAL</option>
+                                                <option value="DRAGON">DRAGON</option>
+                                                <option value="XMAS">XMAS</option>
+                                                <option value="FERN">FERN</option>
+                                                <option value="LEAF">LEAF</option>
+                                                <option value="SIERPT">SIERPT</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div class="input_frame">
+                                        <label class="my_label">
+                                            Color Presets:
+                                            <select class="form-select bg-dark text-light" id="color_presets">
+                                                <option value="cc.fire">Fire</option>
+                                                <option value="cc.rainbow">Rainbow</option>
+                                                <option value="cc.plasma">Plasma</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div class="input_frame">
+                                        <label class="my_label">
+                                            Parsing Type:
+                                            <select class="form-select bg-dark text-light" id="parse_type">
+                                                <option value="regular">Regular</option>
+                                                <option value="borke">Borke</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div class="input_frame">
+                                        <label class="my_label">
+                                            Iterations:
+                                            <input type="number" class="form-control bg-dark text-light" id="transform_iterations" min="1" value="50">
+                                        </label>
+                                    </div>
+                                    <div id="plot-button" class="btn btn-primary">
+                                        Plot
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-6">
+                                        <label for="transform_args">Transformations:</label>
+                                        <textarea class="form-control bg-dark text-light txt_area" id="transform_args" rows="10"></textarea>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="transform_probs">Probabilities:</label>
+                                        <textarea class="form-control bg-dark text-light txt_area" id="transform_probs" rows="10"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="transformCanvas" width="1500" height="1500" style="width: 100%; height: calc(100vh - 200px); background: black;"></canvas>
+            </div>
+
+            <!-- Random Chaos Finder Tab -->
+            <div class="tab-pane fade CHAOS-FINDER" id="chaos-finder" role="tabpanel">
+                <div class="accordion">
+                    <div class="accordion-item bg-dark">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed bg-secondary text-light" type="button" data-bs-toggle="collapse" data-bs-target="#finderParams">
+                                PARAMETERS
+                            </button>
+                        </h2>
+                        <div id="finderParams" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <div class="finder">
+                                    <div class="input_frame_find">
+                                        <label class="my_label">
+                                            Chaotic Map Order:
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="mapOrder" id="quadratic" value="quadratic" checked>
+                                                <label class="form-check-label" for="quadratic">Quadratic</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="mapOrder" id="cubic" value="cubic">
+                                                <label class="form-check-label" for="cubic">Cubic</label>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="input_frame_find">
+                                        <label class="my_label">
+                                            Plot Iterations:
+                                            <input type="number" class="form-control bg-dark text-light" id="plot_iterations" min="1" value="50">
+                                        </label>
+                                    </div>
+                                    <div class="input_frame_find">
+                                        <label class="my_label">
+                                            Discard first n points:
+                                            <input type="number" class="form-control bg-dark text-light" id="discard_points" min="0" value="1000">
+                                        </label>
+                                    </div>
+                                    <div class="input_frame_find">
+                                        <label class="my_label">
+                                            Map iterations:
+                                            <input type="number" class="form-control bg-dark text-light" id="map_iterations" min="1000" value="70000">
+                                        </label>
+                                    </div>
+                                    <div class="input_frame_find">
+                                        <label class="my_label">
+                                            Randomization type:
+                                            <select class="form-select bg-dark text-light" id="randomization_type">
+                                                <option value="continuous">Continuous</option>
+                                                <option value="discrete">Discrete</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div id="find-button" class="btn btn-primary">
+                                        Find next chaotic map
+                                    </div>
+                                </div>
+                                <div id="find-map-info" class="mt-3 p-3 bg-secondary rounded">
+                                    <!-- Map information will be displayed here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="finderCanvas" width="1500" height="1500" style="width: 100%; height: calc(100vh - 200px); background: black;"></canvas>
+            </div>
+
+            <!-- About Tab -->
+            <div class="tab-pane fade ABOUT" id="about" role="tabpanel">
+                <div class="nav-links p-4">
+                    <a href="https://github.com/maxbrodeur/fractal-generator" class="btn btn-outline-primary me-3" target="_blank">GITHUB</a>
+                    <a href="https://maxbrodeur.github.io/fractals/index.html" class="btn btn-outline-primary" target="_blank">BLOG POST</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Main JavaScript -->
+    <script src="fractal.js"></script>
+</body>
+</html>
