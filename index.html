@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Generator</title>
+    
+    <!-- Bootstrap CSS (SUPERHERO theme) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.1.3/dist/superhero/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap fallback for when CDN is blocked -->
+    <link rel="stylesheet" href="vendor/css/bootstrap-superhero-fallback.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Plotly.js for graph components -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Plotly.js fallback for when CDN is blocked -->
+    <script src="vendor/js/plotly-fallback.js"></script>
+    
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <!-- Main application container -->
+    <div class="container-fluid">
+        <!-- Header with title and tabs -->
+        <div class="elements">
+            <h1 class="title">FRACTAL GENERATOR</h1>
+            
+            <!-- Tab navigation -->
+            <ul class="nav nav-tabs tabs" id="mainTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active tab" id="chaos-game-tab" data-bs-toggle="tab" 
+                            data-bs-target="#chaos-game" type="button" role="tab">Chaos Game</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tab" id="transformations-tab" data-bs-toggle="tab" 
+                            data-bs-target="#transformations" type="button" role="tab">Transformations</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tab" id="finder-tab" data-bs-toggle="tab" 
+                            data-bs-target="#chaos-finder" type="button" role="tab">Random Chaos Finder</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link tab" id="about-tab" data-bs-toggle="tab" 
+                            data-bs-target="#about" type="button" role="tab">About</button>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Tab content -->
+        <div class="tab-content" id="mainTabsContent">
+            <!-- Chaos Game Tab -->
+            <div class="tab-pane fade show active CHAOS-GAME" id="chaos-game" role="tabpanel">
+                <!-- Parameters accordion -->
+                <div class="accordion" id="chaosGameAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#chaosGameParams">
+                                PARAMETERS
+                            </button>
+                        </h2>
+                        <div id="chaosGameParams" class="accordion-collapse collapse" data-bs-parent="#chaosGameAccordion">
+                            <div class="accordion-body">
+                                <div class="numbers">
+                                    <!-- Preset dropdown -->
+                                    <div class="dropdown_frame">
+                                        <label class="my_label">
+                                            Presets
+                                            <select class="form-select dropdown" id="presets_dropdown">
+                                                <option value="sierpt" selected>sierpt</option>
+                                                <option value="sierpc">sierpc</option>
+                                                <option value="vicsek">vicsek</option>
+                                                <option value="tsquare">tsquare</option>
+                                                <option value="techs">techs</option>
+                                                <option value="webs">webs</option>
+                                                <option value="XTREME">XTREME</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <!-- Iterations -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Iterations:
+                                            <input type="number" class="form-control input" id="iterations_input" 
+                                                   min="0" max="20000" step="1" value="10000">
+                                        </label>
+                                    </div>
+
+                                    <!-- Jump -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Jump:
+                                            <input type="text" class="form-control input" id="jump_input" value="1/2">
+                                        </label>
+                                    </div>
+
+                                    <!-- Polygon -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Polygon:
+                                            <input type="number" class="form-control input" id="polygon_input" 
+                                                   min="3" max="20" step="1" value="3">
+                                        </label>
+                                    </div>
+
+                                    <!-- Skip -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Skip:
+                                            <input type="number" class="form-control input" id="skip_input" 
+                                                   min="0" max="20" step="1" value="0">
+                                        </label>
+                                    </div>
+
+                                    <!-- Starting Point X -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Starting Point X:
+                                            <input type="number" class="form-control input" id="start_x_input" 
+                                                   step="0.01" value="0">
+                                        </label>
+                                    </div>
+
+                                    <!-- Starting Point Y -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Starting Point Y:
+                                            <input type="number" class="form-control input" id="start_y_input" 
+                                                   step="0.01" value="0">
+                                        </label>
+                                    </div>
+
+                                    <!-- Speed Toggle -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Speed:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input boolean_switch" type="checkbox" 
+                                                       id="speed_switch" checked>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Auto Center Toggle -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Auto Center:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input boolean_switch" type="checkbox" 
+                                                       id="auto_center_switch" checked>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Generate Button -->
+                                <div class="d-flex justify-content-center mt-3">
+                                    <button type="button" class="btn btn-primary" id="generate_chaos_button">
+                                        Generate Fractal
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph Container -->
+                <div class="graph-container mt-4">
+                    <div id="chaos_game_graph" class="plotly-graph"></div>
+                </div>
+            </div>
+
+            <!-- Transformations Tab -->
+            <div class="tab-pane fade TRANSFORMATIONS" id="transformations" role="tabpanel">
+                <!-- Parameters accordion -->
+                <div class="accordion" id="transformationsAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#transformationsParams">
+                                PARAMETERS
+                            </button>
+                        </h2>
+                        <div id="transformationsParams" class="accordion-collapse collapse" data-bs-parent="#transformationsAccordion">
+                            <div class="accordion-body">
+                                <div class="numbers">
+                                    <!-- IFS Presets -->
+                                    <div class="dropdown_frame">
+                                        <label class="my_label">
+                                            IFS Presets
+                                            <select class="form-select dropdown" id="ifs_presets_dropdown">
+                                                <option value="sierpinski" selected>sierpinski</option>
+                                                <option value="fern">fern</option>
+                                                <option value="dragon">dragon</option>
+                                                <option value="custom">custom</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <!-- Iterations -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Iterations:
+                                            <input type="number" class="form-control input" id="ifs_iterations_input" 
+                                                   min="0" max="200000" step="1" value="100000">
+                                        </label>
+                                    </div>
+
+                                    <!-- Transformation Matrix Input -->
+                                    <div class="matrix-input mt-3">
+                                        <h5>Transformation Matrices:</h5>
+                                        <div id="transformation_matrices">
+                                            <!-- Matrix inputs will be dynamically generated here -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Speed Toggle -->
+                                    <div class="input_boolean_frame">
+                                        <label class="my_label">
+                                            Speed:
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input boolean_switch" type="checkbox" 
+                                                       id="ifs_speed_switch" checked>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Generate Button -->
+                                <div class="d-flex justify-content-center mt-3">
+                                    <button type="button" class="btn btn-primary" id="generate_ifs_button">
+                                        Generate IFS Fractal
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph Container -->
+                <div class="graph-container mt-4">
+                    <div id="ifs_graph" class="plotly-graph"></div>
+                </div>
+            </div>
+
+            <!-- Random Chaos Finder Tab -->
+            <div class="tab-pane fade CHAOS-FINDER" id="chaos-finder" role="tabpanel">
+                <!-- Parameters accordion -->
+                <div class="accordion" id="chaosFinderAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#chaosFinderParams">
+                                PARAMETERS
+                            </button>
+                        </h2>
+                        <div id="chaosFinderParams" class="accordion-collapse collapse" data-bs-parent="#chaosFinderAccordion">
+                            <div class="accordion-body">
+                                <div class="numbers">
+                                    <!-- Method Selection -->
+                                    <div class="dropdown_frame">
+                                        <label class="my_label">
+                                            Method
+                                            <select class="form-select dropdown" id="method_dropdown">
+                                                <option value="lyapunov" selected>lyapunov</option>
+                                                <option value="random">random</option>
+                                                <option value="genetic">genetic</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <!-- Search Iterations -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Search Iterations:
+                                            <input type="number" class="form-control input" id="search_iterations_input" 
+                                                   min="10" max="10000" step="10" value="1000">
+                                        </label>
+                                    </div>
+
+                                    <!-- Test Iterations -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Test Iterations:
+                                            <input type="number" class="form-control input" id="test_iterations_input" 
+                                                   min="100" max="50000" step="100" value="10000">
+                                        </label>
+                                    </div>
+
+                                    <!-- Polygon Range -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Min Polygon:
+                                            <input type="number" class="form-control input" id="min_polygon_input" 
+                                                   min="3" max="10" step="1" value="3">
+                                        </label>
+                                    </div>
+
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Max Polygon:
+                                            <input type="number" class="form-control input" id="max_polygon_input" 
+                                                   min="3" max="20" step="1" value="8">
+                                        </label>
+                                    </div>
+
+                                    <!-- Threshold -->
+                                    <div class="input_number_frame">
+                                        <label class="my_label">
+                                            Chaos Threshold:
+                                            <input type="number" class="form-control input" id="threshold_input" 
+                                                   step="0.01" value="0.5">
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Search Button -->
+                                <div class="d-flex justify-content-center mt-3">
+                                    <button type="button" class="btn btn-warning" id="search_chaos_button">
+                                        Search for Chaos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Container -->
+                <div class="results-container mt-4">
+                    <div id="chaos_finder_results" class="chaos-results"></div>
+                    <div id="chaos_finder_graph" class="plotly-graph mt-3"></div>
+                </div>
+            </div>
+
+            <!-- About Tab -->
+            <div class="tab-pane fade ABOUT" id="about" role="tabpanel">
+                <div class="about-content">
+                    <h2>About Fractal Generator</h2>
+                    <p>This application generates beautiful fractals using various mathematical algorithms:</p>
+                    
+                    <h3>Chaos Game</h3>
+                    <p>The Chaos Game is a method of creating fractals using a polygon and a simple iterative process. 
+                       Starting from a random point, we repeatedly choose a random vertex of the polygon and move 
+                       partway toward it according to the jump ratio.</p>
+                    
+                    <h3>IFS (Iterated Function Systems)</h3>
+                    <p>IFS fractals are created by applying a set of transformation functions repeatedly. 
+                       Each transformation is defined by a matrix that scales, rotates, and translates points 
+                       in the plane.</p>
+                    
+                    <h3>Random Chaos Finder</h3>
+                    <p>This tool searches for interesting chaotic patterns by systematically exploring 
+                       parameter space and analyzing the resulting patterns using chaos theory metrics 
+                       such as Lyapunov exponents.</p>
+                    
+                    <div class="mt-4">
+                        <h4>Sample Images:</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <img src="assets/sierpinski_triangle.png" class="img-fluid" alt="Sierpinski Triangle">
+                                <p class="text-center"><small>Sierpinski Triangle</small></p>
+                            </div>
+                            <div class="col-md-4">
+                                <img src="assets/IFS_dragon.png" class="img-fluid" alt="IFS Dragon">
+                                <p class="text-center"><small>IFS Dragon</small></p>
+                            </div>
+                            <div class="col-md-4">
+                                <img src="assets/starfish.png" class="img-fluid" alt="Starfish Pattern">
+                                <p class="text-center"><small>Starfish Pattern</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay (initially hidden) -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loader">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for basic functionality -->
+    <script>
+        // Basic tab functionality is handled by Bootstrap
+        // Placeholder for future WebAssembly integration
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize placeholder graphs
+            initializePlaceholderGraphs();
+            
+            // Add event listeners for buttons
+            document.getElementById('generate_chaos_button').addEventListener('click', function() {
+                showLoadingOverlay();
+                // Placeholder for chaos game generation
+                setTimeout(hideLoadingOverlay, 2000);
+            });
+            
+            document.getElementById('generate_ifs_button').addEventListener('click', function() {
+                showLoadingOverlay();
+                // Placeholder for IFS generation
+                setTimeout(hideLoadingOverlay, 2000);
+            });
+            
+            document.getElementById('search_chaos_button').addEventListener('click', function() {
+                showLoadingOverlay();
+                // Placeholder for chaos search
+                setTimeout(hideLoadingOverlay, 3000);
+            });
+        });
+        
+        function initializePlaceholderGraphs() {
+            // Initialize empty Plotly graphs
+            const graphConfig = {responsive: true, displayModeBar: false};
+            
+            Plotly.newPlot('chaos_game_graph', [], {
+                title: 'Chaos Game Fractal',
+                xaxis: {title: 'X'},
+                yaxis: {title: 'Y'},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            }, graphConfig);
+            
+            Plotly.newPlot('ifs_graph', [], {
+                title: 'IFS Fractal',
+                xaxis: {title: 'X'},
+                yaxis: {title: 'Y'},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            }, graphConfig);
+            
+            Plotly.newPlot('chaos_finder_graph', [], {
+                title: 'Chaos Search Results',
+                xaxis: {title: 'X'},
+                yaxis: {title: 'Y'},
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            }, graphConfig);
+        }
+        
+        function showLoadingOverlay() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+        
+        function hideLoadingOverlay() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
