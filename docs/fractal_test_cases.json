@@ -1,0 +1,328 @@
+{
+  "chaos_game": [
+    {
+      "name": "sierpinski_triangle_basic",
+      "description": "Basic Sierpinski triangle with standard parameters",
+      "input_params": {
+        "vertices": [
+          [0.0, 0.8660254037844387],
+          [-0.5, 0.0],
+          [0.5, 0.0]
+        ],
+        "initial_point": [0.0, 0.0],
+        "iterations": 10000,
+        "compression_ratio": 0.5,
+        "rotation_angle": 0.0,
+        "rule_length": 0,
+        "rule_offset": 0,
+        "rule_symmetry": false
+      },
+      "expected_output": {
+        "point_count": 10000,
+        "bounding_box": {
+          "min_x": -0.5,
+          "max_x": 0.5,
+          "min_y": 0.0,
+          "max_y": 0.8660254037844387
+        },
+        "fractal_dimension_approx": 1.585,
+        "self_similarity": true,
+        "convergence_iterations": 1000
+      },
+      "validation_criteria": {
+        "all_points_in_bounds": true,
+        "triangular_pattern": true,
+        "three_main_regions": true,
+        "fractal_gaps": true,
+        "dimension_tolerance": 0.1
+      }
+    },
+    {
+      "name": "sierpinski_triangle_large",
+      "description": "Sierpinski triangle with 1M iterations for performance testing",
+      "input_params": {
+        "vertices": [
+          [0.0, 0.8660254037844387],
+          [-0.5, 0.0],
+          [0.5, 0.0]
+        ],
+        "initial_point": [0.0, 0.0],
+        "iterations": 1000000,
+        "compression_ratio": 0.5,
+        "rotation_angle": 0.0,
+        "rule_length": 0,
+        "rule_offset": 0,
+        "rule_symmetry": false
+      },
+      "expected_output": {
+        "point_count": 1000000,
+        "max_memory_mb": 100,
+        "max_generation_time_sec": 10.0
+      },
+      "validation_criteria": {}
+    },
+    {
+      "name": "vicsek_square",
+      "description": "Vicsek square with center point and 2/3 compression",
+      "input_params": {
+        "vertices": [
+          [-0.5, -0.5],
+          [0.5, -0.5],
+          [0.5, 0.5],
+          [-0.5, 0.5],
+          [0.0, 0.0]
+        ],
+        "initial_point": [0.0, 0.0],
+        "iterations": 50000,
+        "compression_ratio": 0.6666666666666666,
+        "rotation_angle": 0.0,
+        "rule_length": 0,
+        "rule_offset": 0,
+        "rule_symmetry": false
+      },
+      "expected_output": {
+        "point_count": 50000,
+        "plus_sign_pattern": true,
+        "five_main_regions": true,
+        "square_symmetry": true
+      },
+      "validation_criteria": {}
+    },
+    {
+      "name": "t_square_with_rules",
+      "description": "T-square fractal with rule preventing jumps 2 vertices away",
+      "input_params": {
+        "vertices": [
+          [-0.5, -0.5],
+          [0.5, -0.5],
+          [0.5, 0.5],
+          [-0.5, 0.5]
+        ],
+        "initial_point": [0.0, 0.0],
+        "iterations": 25000,
+        "compression_ratio": 0.5,
+        "rotation_angle": 0.0,
+        "rule_length": 1,
+        "rule_offset": 2,
+        "rule_symmetry": false
+      },
+      "expected_output": {
+        "point_count": 25000,
+        "t_shaped_pattern": true,
+        "rule_compliance": true,
+        "no_opposite_jumps": true
+      },
+      "validation_criteria": {
+        "vertex_selection_rule": "Cannot select vertex 2 positions away from last selected",
+        "pattern_recognition": "T-square fractal structure"
+      }
+    }
+  ],
+  "ifs": [
+    {
+      "name": "barnsley_fern",
+      "description": "Barnsley fern with standard 4-transformation IFS",
+      "input_params": {
+        "transformations": [
+          [0.0, 0.0, 0.0, 0.16, 0.0, 0.0],
+          [0.2, -0.26, 0.23, 0.22, 0.0, 1.6],
+          [-0.15, 0.28, 0.26, 0.24, 0.0, 0.44],
+          [0.85, 0.04, -0.04, 0.85, 0.0, 1.6]
+        ],
+        "probabilities": [0.01, 0.07, 0.07, 0.85],
+        "initial_point": [0.0, 0.0, 0.0],
+        "iterations": 100000,
+        "parsing_mode": "borke"
+      },
+      "expected_output": {
+        "point_count": 100000,
+        "bounding_box": {
+          "min_x": -3.0,
+          "max_x": 3.0,
+          "min_y": -0.5,
+          "max_y": 10.0
+        },
+        "fern_like_structure": true,
+        "vertical_orientation": true,
+        "self_similar_branches": true
+      },
+      "validation_criteria": {
+        "transformation_probabilities": "Should follow [1%, 7%, 7%, 85%] distribution",
+        "botanical_appearance": "Should resemble natural fern structure",
+        "fractal_detail": "Fine detail visible at multiple zoom levels"
+      }
+    },
+    {
+      "name": "dragon_curve",
+      "description": "Dragon curve using 2-transformation IFS",
+      "input_params": {
+        "transformations": [
+          [0.824074, 0.281428, -0.212346, 0.864198, -1.88229, -0.110607],
+          [0.088272, 0.520988, -0.463889, -0.377778, 0.78536, 8.095795]
+        ],
+        "probabilities": [0.8, 0.2],
+        "initial_point": [0.0, 0.0, 0.0],
+        "iterations": 200000,
+        "parsing_mode": "borke"
+      },
+      "expected_output": {
+        "point_count": 200000,
+        "connected_curve": true,
+        "no_self_intersections": true,
+        "dragon_like_shape": true,
+        "finite_area": true
+      },
+      "validation_criteria": {}
+    },
+    {
+      "name": "sierpinski_ifs",
+      "description": "Sierpinski triangle using IFS transformations",
+      "input_params": {
+        "transformations": [
+          [0.5, 0.0, 0.0, 0.0, 0.5, 0.0],
+          [0.5, 0.0, 0.5, 0.0, 0.5, 0.0],
+          [0.5, 0.0, 0.0, 0.0, 0.5, 0.5]
+        ],
+        "probabilities": [0.3333333333333333, 0.3333333333333333, 0.3333333333333333],
+        "initial_point": [0.0, 0.0, 0.0],
+        "iterations": 50000,
+        "parsing_mode": "regular"
+      },
+      "expected_output": {
+        "point_count": 50000,
+        "triangular_pattern": true,
+        "matches_chaos_game": true,
+        "fractal_dimension_approx": 1.585
+      },
+      "validation_criteria": {
+        "consistency_check": "Should produce same pattern as chaos game method",
+        "transformation_equivalence": "IFS transformations equivalent to chaos game jumps"
+      }
+    }
+  ],
+  "chaotic_maps": [
+    {
+      "name": "quadratic_map_known_chaotic",
+      "description": "Pre-validated chaotic quadratic map with known properties",
+      "input_params": {
+        "x_coefficients": [0.202, -0.805, -0.373, -0.689, -0.342, -0.653],
+        "y_coefficients": [0.138, 0.665, 0.66, -0.502, -0.222, -0.277],
+        "initial_point": [0.05, 0.05],
+        "transient_iterations": 1000,
+        "lyapunov_iterations": 70000,
+        "plot_iterations": 50000,
+        "unbounded_threshold": 1000000.0
+      },
+      "expected_output": {
+        "max_lyapunov_exponent": 0.42,
+        "min_lyapunov_exponent": -1.15,
+        "fractal_dimension": 1.37,
+        "is_chaotic": true,
+        "is_bounded": true,
+        "point_count": 50000
+      },
+      "validation_criteria": {
+        "lyapunov_positivity": "Maximum Lyapunov exponent > 0.0001",
+        "dimension_range": "Fractal dimension between 1.0 and 2.0",
+        "boundedness": "All trajectory points within [-100, 100] range",
+        "non_periodicity": "Should not converge to fixed points or cycles"
+      }
+    },
+    {
+      "name": "cubic_map_generation",
+      "description": "Generate and validate cubic chaotic map",
+      "input_params": {
+        "map_order": "cubic",
+        "parameter_count": 20,
+        "parameter_range": [-1.2, 1.2],
+        "generation_mode": "continuous",
+        "max_search_attempts": 10000,
+        "lyapunov_threshold": 0.0001
+      },
+      "expected_output": {
+        "generation_success": true,
+        "max_lyapunov_positive": true,
+        "fractal_dimension_valid": true,
+        "bounded_attractor": true,
+        "generation_time_reasonable": true
+      },
+      "validation_criteria": {}
+    },
+    {
+      "name": "lyapunov_calculation_accuracy",
+      "description": "Validate Lyapunov exponent calculation against known values",
+      "input_params": {
+        "henon_a": 1.4,
+        "henon_b": 0.3,
+        "iterations": 100000,
+        "known_max_le": 0.419,
+        "known_min_le": -1.623,
+        "tolerance": 0.05
+      },
+      "expected_output": {
+        "calculated_max_le": 0.419,
+        "calculated_min_le": -1.623,
+        "accuracy_within_tolerance": true
+      },
+      "validation_criteria": {}
+    }
+  ],
+  "color_mapping": [
+    {
+      "name": "datashader_integration",
+      "description": "Validate datashader color mapping with various point densities",
+      "input_params": {
+        "point_cloud_sizes": [1000, 10000, 100000, 1000000],
+        "canvas_resolution": [500, 1000, 1500],
+        "color_maps": ["fire", "jet", "viridis", "plasma"],
+        "aggregation_method": "log",
+        "background_color": "black"
+      },
+      "expected_output": {
+        "image_generation_success": true,
+        "proper_color_scaling": true,
+        "density_representation": true,
+        "performance_acceptable": true
+      },
+      "validation_criteria": {
+        "color_accuracy": "Colors should match specified colormap",
+        "density_mapping": "Higher point density should show brighter colors",
+        "edge_handling": "Image boundaries should be handled correctly",
+        "memory_efficiency": "Should handle large point clouds without excessive memory"
+      }
+    }
+  ],
+  "performance": [
+    {
+      "name": "numba_optimization_validation",
+      "description": "Compare performance with and without Numba optimization",
+      "input_params": {
+        "algorithms": ["sierpinski", "barnsley_fern", "lyapunov_calculation"],
+        "iteration_counts": [10000, 100000, 1000000],
+        "numba_enabled": [true, false],
+        "repetitions": 5
+      },
+      "expected_output": {
+        "speedup_factor_min": 10,
+        "memory_usage_similar": true,
+        "numerical_accuracy_maintained": true
+      },
+      "validation_criteria": {}
+    },
+    {
+      "name": "memory_efficiency",
+      "description": "Validate memory usage for large-scale fractal generation",
+      "input_params": {
+        "max_iterations": 10000000,
+        "algorithms": ["chaos_game", "ifs", "chaotic_map"],
+        "memory_monitoring": true
+      },
+      "expected_output": {
+        "max_memory_gb": 2.0,
+        "memory_growth_linear": true,
+        "no_memory_leaks": true
+      },
+      "validation_criteria": {}
+    }
+  ]
+}
