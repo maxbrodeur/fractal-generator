@@ -73,16 +73,25 @@
             <div class="control-group">
                 <label>Fractal Type:</label>
                 <select id="fractalType">
-                    <option value="sierpinski">Sierpinski Triangle (Chaos Game)</option>
-                    <option value="dragon">Dragon Curve (IFS)</option>
-                    <option value="fern">Barnsley Fern (IFS)</option>
-                    <option value="mandelbrot_like">Mandelbrot-like (IFS)</option>
-                    <option value="spiral">Spiral (IFS)</option>
-                    <option value="christmas">Christmas Tree (IFS)</option>
-                    <option value="leaf">Maple Leaf (IFS)</option>
-                    <option value="mandelbrot">Mandelbrot Set</option>
-                    <option value="julia">Julia Set</option>
-                    <option value="burning_ship">Burning Ship</option>
+                    <optgroup label="Chaos Game">
+                        <option value="sierpinski">Sierpinski Triangle</option>
+                    </optgroup>
+                    <optgroup label="IFS (Iterated Function Systems)">
+                        <option value="dragon">Dragon Curve</option>
+                        <option value="fern">Barnsley Fern</option>
+                        <option value="mandelbrot_like">Mandelbrot-like</option>
+                        <option value="spiral">Spiral</option>
+                        <option value="christmas">Christmas Tree</option>
+                        <option value="leaf">Maple Leaf</option>
+                    </optgroup>
+                    <optgroup label="Escape-time Fractals">
+                        <option value="mandelbrot">Mandelbrot Set</option>
+                        <option value="julia">Julia Set</option>
+                        <option value="burning_ship">Burning Ship</option>
+                    </optgroup>
+                    <optgroup label="Random Chaos Finder">
+                        <option value="random_chaos">Random Chaotic Map</option>
+                    </optgroup>
                 </select>
             </div>
             
@@ -90,6 +99,20 @@
                 <label>Julia C:</label>
                 <input type="number" id="juliaReal" value="-0.7" step="0.1"> + 
                 <input type="number" id="juliaImag" value="0.27015" step="0.1">i
+            </div>
+            
+            <div class="control-group" id="chaosControls" style="display: none;">
+                <label>Map Order:</label>
+                <select id="chaosOrder">
+                    <option value="quadratic">Quadratic</option>
+                    <option value="cubic">Cubic</option>
+                </select>
+                <br>
+                <label>Plot Points:</label>
+                <input type="number" id="chaosPlotPoints" value="100000" min="10000" max="1000000" step="10000">
+                <br>
+                <label>Test Points:</label>
+                <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
             </div>
             
             <div class="control-group">
@@ -120,7 +143,6 @@
             </div>
             
             <button onclick="generateFractal()">Generate Fractal</button>
-            <button onclick="compareWithPython()">Compare with Python</button>
         </div>
         
         <div id="status" class="status" style="display: none;"></div>
@@ -267,6 +289,10 @@
                     // Burning Ship
                     const iterCounts = generator.burning_ship(canvasSize, canvasSize, -2.5, 1.0, -2.0, 1.0, 100);
                     result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, 100, colorScheme);
+                } else if (fractalType === 'random_chaos') {
+                    // Random Chaos Finder - Placeholder implementation
+                    showStatus("Random Chaos Finder is not yet implemented. This feature requires complex Lyapunov exponent calculations and dynamic parameter search algorithms from the Python codebase.", true);
+                    return;
                 }
                 
                 // Display on canvas
@@ -296,10 +322,6 @@
             }
         };
 
-        window.compareWithPython = function() {
-            showStatus("Python comparison not available in this demo - would require server-side Python execution", true);
-        };
-
         // Initialize when page loads
         initWasm();
         
@@ -316,13 +338,20 @@
             document.getElementById('info').textContent = "Canvas resized. Click 'Generate Fractal' to render.";
         });
         
-        // Show/hide Julia controls when Julia set is selected
+        // Show/hide specific controls based on fractal type
         document.getElementById('fractalType').addEventListener('change', function() {
             const juliaControls = document.getElementById('juliaControls');
+            const chaosControls = document.getElementById('chaosControls');
+            
+            // Hide all special controls first
+            juliaControls.style.display = 'none';
+            chaosControls.style.display = 'none';
+            
+            // Show relevant controls
             if (this.value === 'julia') {
                 juliaControls.style.display = 'block';
-            } else {
-                juliaControls.style.display = 'none';
+            } else if (this.value === 'random_chaos') {
+                chaosControls.style.display = 'block';
             }
         });
     </script>

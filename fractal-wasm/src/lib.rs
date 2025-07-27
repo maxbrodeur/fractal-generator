@@ -487,7 +487,13 @@ impl FractalGenerator {
         
         for i in 0..density.len() {
             let normalized = if max_density > 0.0 {
-                (density[i] as f64 / max_density).ln_1p() / (max_density.ln_1p())
+                let linear_norm = density[i] as f64 / max_density;
+                // Use a softer logarithmic mapping for better visibility
+                if linear_norm > 0.0 {
+                    (linear_norm * 10.0).ln_1p() / 10.0_f64.ln_1p()
+                } else {
+                    0.0
+                }
             } else {
                 0.0
             };
