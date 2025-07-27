@@ -2,6 +2,8 @@
 
 Want to test the high-performance WebAssembly fractal generator? Here's the fastest way to get started:
 
+> **📋 For comprehensive installation instructions and UI testing procedures, see the [Complete Installation & Testing Guide](./INSTALL.md)**
+
 ## Option 1: Automated Setup (Recommended)
 
 ```bash

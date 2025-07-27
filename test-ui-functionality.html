@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🧪 WebAssembly Fractal Generator - Automated UI Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .test-pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .test-fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-pending {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        #canvas {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .performance-info {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 WebAssembly Fractal Generator - Automated UI Test</h1>
+        <p>This page automatically tests the WebAssembly fractal generator functionality to verify installation.</p>
+        
+        <div class="test-section">
+            <h2>📋 Test Results</h2>
+            <div id="test-results">
+                <div class="test-result test-pending">⏳ Initializing tests...</div>
+            </div>
+            
+            <button onclick="runAllTests()" id="runTestsBtn">🚀 Run All Tests</button>
+            <button onclick="clearResults()" id="clearBtn">🧹 Clear Results</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🎨 Live Test Canvas</h2>
+            <canvas id="canvas" width="400" height="400"></canvas>
+            <div id="performance-info" class="performance-info">
+                Performance metrics will appear here during tests.
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 Test Progress</h2>
+            <div id="progress-log" style="font-family: monospace; background-color: #f8f9fa; padding: 10px; height: 200px; overflow-y: scroll;">
+                Ready to run tests...
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { 
+            FractalGenerator, 
+            Rule, 
+            ColorScheme, 
+            FractalPresets 
+        } from './fractal-wasm/pkg/fractal_wasm.js';
+
+        let generator;
+        let wasmLoaded = false;
+        let testResults = [];
+        
+        // Logging function
+        function log(message) {
+            const progressLog = document.getElementById('progress-log');
+            const timestamp = new Date().toLocaleTimeString();
+            progressLog.innerHTML += `[${timestamp}] ${message}\n`;
+            progressLog.scrollTop = progressLog.scrollHeight;
+            console.log(`[Test] ${message}`);
+        }
+        
+        // Test result display
+        function addTestResult(testName, passed, details = '') {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? 'test-pass' : 'test-fail'}`;
+            resultDiv.innerHTML = `${passed ? '✅' : '❌'} ${testName}${details ? ': ' + details : ''}`;
+            
+            const resultsContainer = document.getElementById('test-results');
+            resultsContainer.appendChild(resultDiv);
+            
+            testResults.push({ testName, passed, details });
+            log(`${passed ? 'PASS' : 'FAIL'}: ${testName} ${details}`);
+        }
+        
+        // Performance tracking
+        function updatePerformanceInfo(info) {
+            document.getElementById('performance-info').innerHTML = info;
+        }
+        
+        // Initialize WASM
+        async function initializeWasm() {
+            try {
+                log('Loading WebAssembly module...');
+                await init();
+                generator = new FractalGenerator();
+                wasmLoaded = true;
+                addTestResult('WebAssembly Module Loading', true, 'Module loaded successfully');
+                return true;
+            } catch (error) {
+                addTestResult('WebAssembly Module Loading', false, error.message);
+                log(`ERROR: ${error.message}`);
+                return false;
+            }
+        }
+        
+        // Test fractal generation
+        async function testFractalGeneration(type, config) {
+            if (!wasmLoaded) {
+                addTestResult(`${type} Generation`, false, 'WASM not loaded');
+                return false;
+            }
+            
+            try {
+                log(`Testing ${type} fractal generation...`);
+                const startTime = performance.now();
+                
+                let result;
+                const canvas = document.getElementById('canvas');
+                const canvasSize = 400;
+                
+                switch(type) {
+                    case 'Sierpinski Triangle':
+                        const vertices = FractalPresets.sierpinski_triangle();
+                        const transforms = [[0.5, 0], [0.5, 0], [0.5, 0]];
+                        const rule = new Rule(0, 0, false);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, config.iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, 0);
+                        break;
+                        
+                    case 'Dragon Curve':
+                        const dragonTransforms = FractalPresets.dragon_curve();
+                        const dragonProbs = FractalPresets.dragon_curve_probs();
+                        const dragonPoints = generator.ifs_fractal(0.0, 0.0, config.iterations, dragonTransforms, dragonProbs, "borke");
+                        result = generator.points_to_rgba(dragonPoints, canvasSize, canvasSize, 1);
+                        break;
+                        
+                    case 'Mandelbrot Set':
+                        const iterCounts = generator.mandelbrot_set(canvasSize, canvasSize, -2.5, 1.0, -1.25, 1.25, 100);
+                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, 100, 2);
+                        break;
+                        
+                    default:
+                        throw new Error(`Unknown fractal type: ${type}`);
+                }
+                
+                // Render to canvas
+                const ctx = canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasSize, canvasSize);
+                ctx.putImageData(imageData, 0, 0);
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                const performance_metric = type === 'Mandelbrot Set' 
+                    ? `${(canvasSize * canvasSize / duration * 1000).toFixed(0)} pixels/sec`
+                    : `${(config.iterations / duration * 1000).toFixed(0)} points/sec`;
+                
+                updatePerformanceInfo(`${type}: ${duration.toFixed(2)}ms, ${performance_metric}`);
+                addTestResult(`${type} Generation`, true, `${duration.toFixed(2)}ms, ${performance_metric}`);
+                
+                return true;
+            } catch (error) {
+                addTestResult(`${type} Generation`, false, error.message);
+                log(`ERROR in ${type}: ${error.message}`);
+                return false;
+            }
+        }
+        
+        // Test canvas functionality
+        function testCanvasRendering() {
+            try {
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Test basic canvas operations
+                ctx.fillStyle = '#007bff';
+                ctx.fillRect(10, 10, 50, 50);
+                
+                // Test ImageData creation
+                const testData = new Uint8ClampedArray(16); // 2x2 pixels
+                for (let i = 0; i < 16; i += 4) {
+                    testData[i] = 255;     // Red
+                    testData[i + 1] = 0;   // Green
+                    testData[i + 2] = 0;   // Blue
+                    testData[i + 3] = 255; // Alpha
+                }
+                const imageData = new ImageData(testData, 2, 2);
+                ctx.putImageData(imageData, 100, 100);
+                
+                addTestResult('Canvas Rendering', true, 'Basic rendering operations work');
+                return true;
+            } catch (error) {
+                addTestResult('Canvas Rendering', false, error.message);
+                return false;
+            }
+        }
+        
+        // Test performance benchmarks
+        async function testPerformanceBenchmarks() {
+            if (!wasmLoaded) {
+                addTestResult('Performance Benchmarks', false, 'WASM not loaded');
+                return false;
+            }
+            
+            try {
+                log('Running performance benchmarks...');
+                
+                // Quick Sierpinski test
+                const startTime = performance.now();
+                const vertices = FractalPresets.sierpinski_triangle();
+                const transforms = [[0.5, 0], [0.5, 0], [0.5, 0]];
+                const rule = new Rule(0, 0, false);
+                const points = generator.chaos_game(vertices, 0.0, 0.0, 10000, transforms, rule);
+                const endTime = performance.now();
+                
+                const pointsPerSecond = 10000 / (endTime - startTime) * 1000;
+                const meetsBenchmark = pointsPerSecond > 100000; // Expect > 100k points/sec
+                
+                addTestResult('Performance Benchmarks', meetsBenchmark, 
+                    `${pointsPerSecond.toFixed(0)} points/sec (${meetsBenchmark ? 'GOOD' : 'LOW'})`);
+                
+                return meetsBenchmark;
+            } catch (error) {
+                addTestResult('Performance Benchmarks', false, error.message);
+                return false;
+            }
+        }
+        
+        // Clear test results
+        window.clearResults = function() {
+            document.getElementById('test-results').innerHTML = 
+                '<div class="test-result test-pending">⏳ Ready to run tests...</div>';
+            document.getElementById('progress-log').innerHTML = 'Ready to run tests...\n';
+            document.getElementById('performance-info').innerHTML = 'Performance metrics will appear here during tests.';
+            
+            // Clear canvas
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            testResults = [];
+        };
+        
+        // Run all tests
+        window.runAllTests = async function() {
+            const runBtn = document.getElementById('runTestsBtn');
+            runBtn.disabled = true;
+            runBtn.textContent = '🏃 Running Tests...';
+            
+            // Clear previous results
+            clearResults();
+            log('Starting automated UI tests...');
+            
+            // Test sequence
+            const wasmOk = await initializeWasm();
+            
+            if (wasmOk) {
+                testCanvasRendering();
+                
+                await testFractalGeneration('Sierpinski Triangle', { iterations: 25000 });
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
+                
+                await testFractalGeneration('Dragon Curve', { iterations: 25000 });
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await testFractalGeneration('Mandelbrot Set', { iterations: 0 });
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await testPerformanceBenchmarks();
+            }
+            
+            // Summary
+            const passedTests = testResults.filter(t => t.passed).length;
+            const totalTests = testResults.length;
+            const allPassed = passedTests === totalTests;
+            
+            log(`\n=== TEST SUMMARY ===`);
+            log(`Passed: ${passedTests}/${totalTests} tests`);
+            log(`Status: ${allPassed ? 'ALL TESTS PASSED ✅' : 'SOME TESTS FAILED ❌'}`);
+            
+            if (allPassed) {
+                addTestResult('🎉 Overall Status', true, `All ${totalTests} tests passed!`);
+                updatePerformanceInfo('🎉 Installation verified! All functionality working correctly.');
+            } else {
+                addTestResult('⚠️ Overall Status', false, `${totalTests - passedTests} tests failed`);
+                updatePerformanceInfo('⚠️ Some tests failed. Check installation and try manual testing.');
+            }
+            
+            runBtn.disabled = false;
+            runBtn.textContent = '🚀 Run All Tests';
+        };
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            log('Automated test page loaded. Click "Run All Tests" to begin verification.');
+        });
+    </script>
+</body>
+</html>

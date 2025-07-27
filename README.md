@@ -13,7 +13,7 @@ python3 -m http.server 8000
 # Visit http://localhost:8000/test-wasm.html
 ```
 
-**📋 [Complete Setup Guide](./QUICKSTART.md)** | **📁 [Full Documentation](./fractal-wasm/README.md)**
+**📋 [Complete Installation & Testing Guide](./INSTALL.md)** | **⚡ [Quick Start](./QUICKSTART.md)** | **📁 [Full Documentation](./fractal-wasm/README.md)**
 
 ### ⚡ Performance Highlights
 - **Sierpinski Triangle**: 787,402 points/sec (50x faster than Python)
