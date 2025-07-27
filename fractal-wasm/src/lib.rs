@@ -1210,7 +1210,7 @@ impl FractalGenerator {
 
     /// Find a random chaotic map
     #[wasm_bindgen]
-    pub fn find_random_chaos(&self, n_plot: usize, n_test: usize, is_cubic: bool) -> Array {
+    pub fn find_random_chaos(&self, n_plot: usize, n_test: usize, is_cubic: bool) -> Vec<f64> {
         let n_trans = 1000;
         let thresh = 1e6;
         let le_thresh = 1e-4;
@@ -1240,13 +1240,11 @@ impl FractalGenerator {
                 // Found a good chaotic map!
                 let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
                 
-                // Convert to JavaScript array format
-                let result = Array::new();
+                // Convert to flat array format for points_to_rgba compatibility
+                let mut result = Vec::with_capacity(points.len() * 2);
                 for point in points {
-                    let point_array = Array::new();
-                    point_array.push(&point[0].into());
-                    point_array.push(&point[1].into());
-                    result.push(&point_array);
+                    result.push(point[0]);
+                    result.push(point[1]);
                 }
 
                 console_log!("Found chaotic map! Max LE: {:.4}, Min LE: {:.4}, FD: {:.4}", max_le, min_le, fd);
