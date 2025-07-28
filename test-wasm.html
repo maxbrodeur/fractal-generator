@@ -153,6 +153,9 @@
         </div>
     </div>
 
+    <!-- Debug Helpers -->
+    <script src="debug-helpers.js"></script>
+
     <script type="module">
         import init, { 
             FractalGenerator, 
@@ -167,12 +170,38 @@
         async function initWasm() {
             try {
                 wasm = await init();
+                
+                // Make classes globally available for debug helpers
+                window.FractalGenerator = FractalGenerator;
+                window.Rule = Rule;
+                window.ColorScheme = ColorScheme;
+                window.FractalPresets = FractalPresets;
+                
                 generator = new FractalGenerator();
                 showStatus("WebAssembly module loaded successfully!", false);
-                console.log("WASM initialized successfully");
+                console.log("✅ WASM initialized successfully");
+                console.log("🔧 Debug tools available at window.debugFractal");
+                
+                // Run automatic verification
+                if (window.debugFractal) {
+                    setTimeout(() => {
+                        console.log('🧪 Running automatic module verification...');
+                        window.debugFractal.checkModuleStatus();
+                    }, 1000);
+                }
             } catch (error) {
+                console.error("❌ WASM initialization failed:", error);
                 showStatus("Failed to load WebAssembly module: " + error.message, true);
-                console.error("WASM initialization failed:", error);
+                
+                // Enhanced error reporting
+                if (window.debugFractal) {
+                    window.debugFractal.logError('WASM_INIT_FAILURE', error.message);
+                }
+                
+                console.log('💡 Troubleshooting tips:');
+                console.log('  1. Ensure you\'re using http://localhost:8000 (not file://)');
+                console.log('  2. Check that WebAssembly files are built: npm run build');
+                console.log('  3. Use window.debugFractal.generateDebugReport() for detailed info');
             }
         }
 
