@@ -1,13 +1,16 @@
 {
   "name": "fractal-generator",
   "version": "1.0.0",
+  "type": "module",
   "description": "High-performance WebAssembly fractal generator with simplified build process",
   "main": "index.html",
   "scripts": {
     "build": "node build.js",
     "serve": "http-server dist -p 8000 -c-1 -o",
     "deploy": "npm run build && gh-pages -d dist",
-    "dev": "npm run build && npm run serve"
+    "dev": "npm run build && npm run serve",
+    "test": "node wasm-integration-test.js",
+    "test:debug": "node wasm-integration-test.js --verbose"
   },
   "repository": {
     "type": "git",

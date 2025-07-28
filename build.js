@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Colors for console output
 const colors = {
@@ -189,9 +193,14 @@ function build() {
 
     // Create a simple manifest file
     logStep('Creating build manifest');
+    
+    // Read package.json as ES module
+    const packageJsonPath = path.join(__dirname, 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    
     const manifest = {
         buildTime: new Date().toISOString(),
-        version: require('./package.json').version,
+        version: packageJson.version,
         files: fs.readdirSync(distDir, { recursive: true })
     };
     
@@ -221,8 +230,8 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Run build
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     build();
 }
 
-module.exports = { build };
+export { build };

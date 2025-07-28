@@ -636,6 +636,9 @@
         </main>
     </div>
 
+    <!-- Debug Helpers - Load before main script -->
+    <script src="debug-helpers.js"></script>
+    
     <script>
         // Application State
         let generator = null;
@@ -714,12 +717,14 @@
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
         async function initWasm() {
+            console.log('🔧 Initializing WebAssembly module...');
+            
             try {
                 const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
                 await wasmModule.default();
                 const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
                 
-                // Store globally for use in other functions
+                // Store globally for use in other functions and debug helpers
                 window.FractalGenerator = FractalGenerator;
                 window.Rule = Rule;
                 window.ColorScheme = ColorScheme;
@@ -729,11 +734,56 @@
                 hideOverlay();
                 showNotification('WebAssembly loaded successfully!', 'success');
                 updateStatus();
-                console.log('WASM initialized successfully');
+                
+                console.log('✅ WASM initialized successfully');
+                console.log('🔧 Debug tools available at window.debugFractal');
+                
+                // Run basic functionality check
+                if (window.debugFractal) {
+                    setTimeout(() => {
+                        console.log('🧪 Running automatic module verification...');
+                        window.debugFractal.checkModuleStatus();
+                    }, 1000);
+                }
+                
             } catch (error) {
+                console.error('❌ WebAssembly initialization failed:', error);
                 hideOverlay();
-                showNotification(`WebAssembly not available (${error.message}). UI demo mode.`, 'info');
-                console.log('WASM initialization failed, running in UI demo mode:', error);
+                
+                // Enhanced error reporting
+                const errorDetails = {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    url: window.location.href
+                };
+                
+                // Log detailed error for debugging
+                if (window.debugFractal) {
+                    window.debugFractal.logError('WASM_INIT_FAILURE', JSON.stringify(errorDetails));
+                }
+                
+                // User-friendly error message with actionable advice
+                let userMessage = 'WebAssembly failed to load. ';
+                
+                if (window.location.protocol === 'file:') {
+                    userMessage += 'Please use a web server (not file://) to run this application.';
+                } else if (error.message.includes('CORS')) {
+                    userMessage += 'CORS issue detected. Ensure you\'re running from a proper web server.';
+                } else if (error.message.includes('fetch')) {
+                    userMessage += 'Network error. Check your internet connection and try refreshing.';
+                } else {
+                    userMessage += 'Check browser console for details or try refreshing the page.';
+                }
+                
+                showNotification(userMessage, 'error');
+                console.log('💡 Troubleshooting tips:');
+                console.log('  1. Ensure you\'re using http://localhost:8000 (not file://)');
+                console.log('  2. Check that the WebAssembly files were built correctly');
+                console.log('  3. Try running: npm run build');
+                console.log('  4. Use window.debugFractal.generateDebugReport() for detailed info');
             }
         }
 
@@ -781,12 +831,19 @@
             }
         }
 
-        // Fractal Generation
+        // Fractal Generation with enhanced error handling and logging
         async function generateFractal() {
             if (isLoading) return;
             
+            // Enhanced pre-flight checks
             if (!generator) {
-                showNotification('WebAssembly not loaded. Please check setup instructions.', 'error');
+                const errorMsg = 'WebAssembly not loaded. Please check setup instructions or refresh the page.';
+                showNotification(errorMsg, 'error');
+                console.error('❌ Generation failed:', errorMsg);
+                
+                if (window.debugFractal) {
+                    console.log('💡 Run window.debugFractal.checkModuleStatus() for detailed diagnostics');
+                }
                 return;
             }
 
@@ -796,6 +853,26 @@
             const canvasSize = parseInt(elements.canvasSize.value);
             const aspectRatio = elements.aspectRatio.value;
             const colorScheme = parseInt(elements.colorScheme.value);
+
+            // Parameter validation with detailed feedback
+            const paramValidation = {
+                iterations: iterations > 0 && iterations <= 10000000,
+                canvasSize: canvasSize > 0 && canvasSize <= 8192,
+                colorScheme: colorScheme >= 0 && colorScheme <= 6
+            };
+            
+            const invalidParams = Object.entries(paramValidation)
+                .filter(([param, valid]) => !valid)
+                .map(([param]) => param);
+                
+            if (invalidParams.length > 0) {
+                const errorMsg = `Invalid parameters: ${invalidParams.join(', ')}. Please check your input values.`;
+                showNotification(errorMsg, 'error');
+                console.error('❌ Parameter validation failed:', { 
+                    method, fractalType, iterations, canvasSize, colorScheme 
+                });
+                return;
+            }
 
             // Calculate canvas dimensions based on aspect ratio
             let canvasWidth = canvasSize;
@@ -815,6 +892,21 @@
 
             setLoading(true);
             showOverlay();
+            
+            // Enhanced logging for generation start
+            console.log('🚀 Starting fractal generation:', {
+                method,
+                fractalType,
+                iterations,
+                canvasSize: `${canvasWidth}x${canvasHeight}`,
+                colorScheme
+            });
+
+            // Start performance monitoring if debug helpers available
+            let startMemory = 0;
+            if (window.debugFractal && performance.memory) {
+                startMemory = performance.memory.usedJSHeapSize;
+            }
 
             try {
                 const startTime = performance.now();
@@ -828,8 +920,12 @@
                     // Escape-time fractals (Mandelbrot, Julia, Burning Ship)
                     actualPointsUsed = `${canvasWidth}x${canvasHeight} pixels`;
                     
+                    console.log(`🔢 Generating ${fractalType} fractal...`);
+                    
                     if (fractalType === 'mandelbrot') {
                         const bounds = getMandelbrotBounds(Math.max(canvasWidth, canvasHeight));
+                        console.log('📐 Mandelbrot bounds:', bounds);
+                        
                         const iterCounts = generator.mandelbrot_set(
                             canvasWidth, canvasHeight, 
                             bounds.xMin, bounds.xMax, 
@@ -842,6 +938,9 @@
                         const bounds = getJuliaBounds(Math.max(canvasWidth, canvasHeight));
                         const real = parseFloat(elements.juliaReal.value);
                         const imag = parseFloat(elements.juliaImag.value);
+                        
+                        console.log('🌀 Julia parameters:', { real, imag, bounds });
+                        
                         const iterCounts = generator.julia_set(
                             canvasWidth, canvasHeight,
                             bounds.xMin, bounds.xMax,
@@ -852,6 +951,8 @@
                         
                     } else if (fractalType === 'burning_ship') {
                         const bounds = getBurningShipBounds(Math.max(canvasWidth, canvasHeight));
+                        console.log('🚢 Burning Ship bounds:', bounds);
+                        
                         const iterCounts = generator.burning_ship(
                             canvasWidth, canvasHeight,
                             bounds.xMin, bounds.xMax,
@@ -879,6 +980,16 @@
                     if (fractalType === 'techs') {
                         ruleOffset = parseInt(elements.techsSkew.value);
                     }
+                    
+                    console.log('🎯 Chaos game parameters:', {
+                        fractalType,
+                        scaledIterations,
+                        compressionRatio,
+                        rotationAngle,
+                        ruleLength,
+                        ruleOffset,
+                        ruleSymmetry
+                    });
                     
                     const transforms = [[compressionRatio, rotationAngle]];
                     const rule = new Rule(ruleLength, ruleOffset, ruleSymmetry);
@@ -925,11 +1036,21 @@
                     const startX = parseFloat(elements.ifsStartX.value);
                     const startY = parseFloat(elements.ifsStartY.value);
                     
+                    console.log('🔄 IFS parameters:', {
+                        fractalType,
+                        startX,
+                        startY,
+                        scaledIterations
+                    });
+                    
                     try {
                         const { transforms, probabilities, parseMode } = getIFSParameters();
+                        console.log('🔧 IFS configuration:', { transforms, probabilities, parseMode });
+                        
                         const points = generator.ifs_fractal(startX, startY, scaledIterations, transforms, probabilities, parseMode);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
+                        console.error('❌ IFS parameter error:', error);
                         showNotification(`IFS Error: ${error.message}`, 'error');
                         setLoading(false);
                         return;
@@ -950,6 +1071,15 @@
                     const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
                     const isCubic = chaosType === 'cubic';
                     
+                    console.log('🎲 Random chaos parameters:', {
+                        chaosType,
+                        scaledPlotPoints,
+                        testPoints,
+                        discardPoints,
+                        useAlphabet,
+                        isCubic
+                    });
+                    
                     showOverlay(`Searching for chaotic ${chaosType} map...`);
                     
                     // Try to call extended WebAssembly function with new parameters, fallback if not available
@@ -962,11 +1092,20 @@
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
                         // Fallback to original function if extended one is not available
-                        console.warn('Extended chaos finder not available, using basic version:', error);
+                        console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
                         const points = generator.find_random_chaos(scaledPlotPoints, testPoints, isCubic);
                         
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
+                }
+
+                // Validate result
+                if (!result || result.length === 0) {
+                    throw new Error('WebAssembly function returned empty result');
+                }
+                
+                if (result.length !== canvasWidth * canvasHeight * 4) {
+                    console.warn(`⚠️ Result size mismatch: expected ${canvasWidth * canvasHeight * 4}, got ${result.length}`);
                 }
 
                 // Display result
@@ -977,8 +1116,27 @@
                 const endTime = performance.now();
                 const duration = (endTime - startTime).toFixed(2);
                 
-                // Update status
+                // Enhanced performance and memory logging
+                let memoryUsed = 0;
+                if (window.debugFractal && performance.memory) {
+                    const endMemory = performance.memory.usedJSHeapSize;
+                    memoryUsed = (endMemory - startMemory) / 1024 / 1024; // MB
+                }
+                
+                // Update status with detailed metrics
                 const pointInfo = typeof actualPointsUsed === 'string' ? actualPointsUsed : `${actualPointsUsed.toLocaleString()} points`;
+                const throughput = typeof actualPointsUsed === 'number' 
+                    ? (actualPointsUsed / duration * 1000).toFixed(0) + ' points/sec'
+                    : ((canvasWidth * canvasHeight) / duration * 1000).toFixed(0) + ' pixels/sec';
+                    
+                console.log('✅ Generation completed:', {
+                    fractalType,
+                    pointInfo,
+                    duration: `${duration}ms`,
+                    throughput,
+                    memoryUsed: memoryUsed > 0 ? `${memoryUsed.toFixed(2)} MB` : 'N/A',
+                    resultSize: result.length
+                });
                     
                 showNotification(`Fractal generated successfully! (${pointInfo} in ${duration}ms)`, 'success');
                 
@@ -990,14 +1148,51 @@
                     method: method,
                     imageData: result,
                     width: canvasWidth,
-                    height: canvasHeight
+                    height: canvasHeight,
+                    generationTime: duration,
+                    throughput: throughput
                 };
                 
                 viewState.fractalType = fractalType;
 
             } catch (error) {
-                showNotification(`Error generating fractal: ${error.message}`, 'error');
-                console.error('Generation error:', error);
+                console.error('❌ Fractal generation failed:', error);
+                
+                // Enhanced error reporting with context
+                const errorContext = {
+                    method,
+                    fractalType,
+                    iterations,
+                    canvasSize: `${canvasWidth}x${canvasHeight}`,
+                    errorMessage: error.message,
+                    errorStack: error.stack,
+                    timestamp: new Date().toISOString()
+                };
+                
+                if (window.debugFractal) {
+                    window.debugFractal.logError('GENERATION_FAILURE', JSON.stringify(errorContext));
+                }
+                
+                // User-friendly error messages based on error type
+                let userMessage = 'Error generating fractal. ';
+                
+                if (error.message.includes('memory')) {
+                    userMessage += 'Try reducing the number of iterations or canvas size.';
+                } else if (error.message.includes('parameter')) {
+                    userMessage += 'Check your parameter values and try again.';
+                } else if (error.message.includes('timeout')) {
+                    userMessage += 'Generation took too long. Try simpler parameters.';
+                } else {
+                    userMessage += 'Check the browser console for details.';
+                }
+                
+                showNotification(userMessage, 'error');
+                
+                console.log('💡 Troubleshooting suggestions:');
+                console.log('  1. Try reducing iterations or canvas size');
+                console.log('  2. Use window.debugFractal.validateParameters() to check inputs');
+                console.log('  3. Run window.debugFractal.runBasicTests() to verify functionality');
+                
             } finally {
                 setLoading(false);
                 hideOverlay();
