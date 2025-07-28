@@ -919,13 +919,32 @@
                 el.classList.remove('active');
             });
             
-            // Show relevant controls
+            // Show relevant controls and set defaults
             if (fractalType === 'julia') {
                 elements.juliaControls.classList.add('active');
             } else if (fractalType === 'random_chaos') {
                 elements.chaosControls.classList.add('active');
             } else if (['sierpinski_carpet', 'vicsek', 't_square', 'techs', 'webs'].includes(fractalType)) {
                 elements.chaosGameControls.classList.add('active');
+                
+                // Set appropriate defaults for different fractals
+                if (fractalType === 't_square') {
+                    elements.ruleLength.value = 1;
+                    elements.ruleOffset.value = 2;
+                    elements.ruleSymmetry.value = 'false';
+                } else if (fractalType === 'webs') {
+                    elements.ruleLength.value = 2;
+                    elements.ruleOffset.value = -1;
+                    elements.ruleSymmetry.value = 'true';
+                } else if (fractalType === 'techs') {
+                    elements.ruleLength.value = 1;
+                    elements.ruleOffset.value = 0;
+                    elements.ruleSymmetry.value = 'false';
+                } else {
+                    elements.ruleLength.value = 0;
+                    elements.ruleOffset.value = 0;
+                    elements.ruleSymmetry.value = 'false';
+                }
             }
         }
 

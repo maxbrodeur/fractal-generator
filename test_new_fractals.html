@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test New Fractal Types</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Testing New Fractal Types</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        import init, { FractalGenerator, FractalPresets, Rule, ColorScheme } from './fractal-wasm/pkg/fractal_wasm.js';
+        
+        async function testFractals() {
+            try {
+                await init();
+                const generator = new FractalGenerator();
+                const results = document.getElementById('results');
+                
+                // Test new presets
+                const tests = [
+                    {
+                        name: 'Sierpinski Carpet',
+                        test: () => {
+                            const vertices = FractalPresets.sierpinski_carpet();
+                            const transforms = FractalPresets.sierpinski_carpet_transforms();
+                            return vertices && transforms;
+                        }
+                    },
+                    {
+                        name: 'Vicsek Square',
+                        test: () => {
+                            const vertices = FractalPresets.vicsek_square();
+                            const transforms = FractalPresets.vicsek_square_transforms();
+                            return vertices && transforms;
+                        }
+                    },
+                    {
+                        name: 'T-Square',
+                        test: () => {
+                            const vertices = FractalPresets.t_square();
+                            const transforms = FractalPresets.t_square_transforms();
+                            return vertices && transforms;
+                        }
+                    },
+                    {
+                        name: 'Techs Pattern',
+                        test: () => {
+                            const vertices = FractalPresets.techs_pattern();
+                            const transforms = FractalPresets.techs_pattern_transforms();
+                            return vertices && transforms;
+                        }
+                    },
+                    {
+                        name: 'Web Pattern',
+                        test: () => {
+                            const vertices = FractalPresets.web_pattern();
+                            const transforms = FractalPresets.web_pattern_transforms();
+                            return vertices && transforms;
+                        }
+                    },
+                    {
+                        name: 'Chaos Game Generation',
+                        test: () => {
+                            const vertices = FractalPresets.sierpinski_triangle();
+                            const transforms = FractalPresets.sierpinski_triangle_transforms();
+                            const rule = new Rule(0, 0, false);
+                            const points = generator.chaos_game(vertices, 0.0, 0.0, 1000, transforms, rule);
+                            return points && points.length > 0;
+                        }
+                    }
+                ];
+                
+                for (const test of tests) {
+                    try {
+                        const success = test.test();
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = success ? 'test-result success' : 'test-result error';
+                        resultDiv.textContent = `${test.name}: ${success ? 'PASS' : 'FAIL'}`;
+                        results.appendChild(resultDiv);
+                    } catch (error) {
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'test-result error';
+                        resultDiv.textContent = `${test.name}: ERROR - ${error.message}`;
+                        results.appendChild(resultDiv);
+                    }
+                }
+                
+            } catch (error) {
+                const results = document.getElementById('results');
+                results.innerHTML = `<div class="test-result error">Failed to initialize WASM: ${error.message}</div>`;
+            }
+        }
+        
+        testFractals();
+    </script>
+</body>
+</html>
