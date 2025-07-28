@@ -251,6 +251,16 @@
             display: block;
         }
         
+        .method-presets {
+            margin-top: 1rem;
+        }
+        
+        .method-controls {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+        
         .julia-controls .input-group {
             justify-content: space-between;
         }
@@ -358,25 +368,59 @@
         
         <aside class="sidebar">
             <div class="control-section">
-                <h3>Fractal Type</h3>
+                <h3>Generation Method</h3>
                 <div class="control-group">
-                    <select id="fractalType">
+                    <select id="fractalMethod">
+                        <option value="escape_time">Escape-Time Fractals</option>
+                        <option value="chaos_game">Chaos Game</option>
+                        <option value="ifs">Iterated Function Systems (IFS)</option>
+                        <option value="random_chaos">Random Chaos Finder</option>
+                    </select>
+                </div>
+                
+                <!-- Escape-Time Fractal Presets -->
+                <div id="escapeTimePresets" class="control-group method-presets">
+                    <label>Fractal Type</label>
+                    <select id="escapeTimeType">
                         <option value="mandelbrot">Mandelbrot Set</option>
                         <option value="julia">Julia Set</option>
                         <option value="burning_ship">Burning Ship</option>
+                    </select>
+                </div>
+                
+                <!-- Chaos Game Presets -->
+                <div id="chaosGamePresets" class="control-group method-presets" style="display: none;">
+                    <label>Chaos Game Pattern</label>
+                    <select id="chaosGameType">
                         <option value="sierpinski">Sierpinski Triangle</option>
                         <option value="sierpinski_carpet">Sierpinski Carpet</option>
                         <option value="vicsek">Vicsek Square</option>
                         <option value="t_square">T-Square</option>
                         <option value="techs">Techs Pattern</option>
                         <option value="webs">Web Pattern</option>
-                        <option value="dragon">Dragon Curve</option>
+                    </select>
+                </div>
+                
+                <!-- IFS Presets -->
+                <div id="ifsPresets" class="control-group method-presets" style="display: none;">
+                    <label>IFS Pattern</label>
+                    <select id="ifsType">
                         <option value="fern">Barnsley Fern</option>
-                        <option value="mandelbrot_like">Mandelbrot-like IFS</option>
-                        <option value="spiral">Spiral</option>
-                        <option value="christmas">Christmas Tree</option>
+                        <option value="dragon">Dragon Curve</option>
                         <option value="leaf">Maple Leaf</option>
-                        <option value="random_chaos">Random Chaos</option>
+                        <option value="christmas">Christmas Tree</option>
+                        <option value="spiral">Spiral</option>
+                        <option value="mandelbrot_like">Mandelbrot-like IFS</option>
+                        <option value="sierpinski_ifs">Sierpinski Triangle (IFS)</option>
+                    </select>
+                </div>
+                
+                <!-- Random Chaos Methods -->
+                <div id="chaosFinderMethods" class="control-group method-presets" style="display: none;">
+                    <label>Map Type</label>
+                    <select id="chaosFinderType">
+                        <option value="quadratic">Quadratic Map</option>
+                        <option value="cubic">Cubic Map</option>
                     </select>
                 </div>
             </div>
@@ -384,9 +428,11 @@
             <div class="control-section">
                 <h3>Parameters</h3>
                 
+                <!-- Universal Parameters -->
                 <div class="control-group">
                     <label>Iterations</label>
                     <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
+                    <small id="iterationsHelp">Number of iterations or points to generate</small>
                 </div>
                 
                 <div class="control-group">
@@ -399,25 +445,39 @@
                     </select>
                 </div>
                 
-                <!-- Julia Set Controls -->
-                <div id="juliaControls" class="dynamic-controls julia-controls">
-                    <div class="control-group">
-                        <label>Complex Parameter</label>
-                        <div class="input-group">
-                            <input type="number" id="juliaReal" value="-0.7" step="0.01">
-                            <span>+</span>
-                            <input type="number" id="juliaImag" value="0.27015" step="0.01">
-                            <span>i</span>
+                <!-- Escape-Time Fractal Controls -->
+                <div id="escapeTimeControls" class="method-controls">
+                    <!-- Julia Set Controls -->
+                    <div id="juliaControls" class="dynamic-controls julia-controls">
+                        <div class="control-group">
+                            <label>Complex Parameter</label>
+                            <div class="input-group">
+                                <input type="number" id="juliaReal" value="-0.7" step="0.01">
+                                <span>+</span>
+                                <input type="number" id="juliaImag" value="0.27015" step="0.01">
+                                <span>i</span>
+                            </div>
+                            <small>Real and imaginary components of Julia set parameter</small>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Chaos Game Advanced Controls -->
-                <div id="chaosGameControls" class="dynamic-controls">
+                <!-- Chaos Game Controls -->
+                <div id="chaosGameControls" class="method-controls" style="display: none;">
+                    <div class="control-group">
+                        <label>Compression Ratio</label>
+                        <input type="number" id="compressionRatio" value="0.5" min="0.1" max="1.0" step="0.05">
+                        <small>Fraction of distance to jump toward vertex (0.1-1.0)</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Rotation Angle</label>
+                        <input type="number" id="rotationAngle" value="0" min="-3.14" max="3.14" step="0.1">
+                        <small>Rotation angle in radians</small>
+                    </div>
                     <div class="control-group">
                         <label>Rule Length</label>
                         <input type="number" id="ruleLength" value="0" min="0" max="10" step="1">
-                        <small>Number of previous choices to track</small>
+                        <small>Number of previous vertex choices to track</small>
                     </div>
                     <div class="control-group">
                         <label>Rule Offset</label>
@@ -430,31 +490,45 @@
                             <option value="false">No</option>
                             <option value="true">Yes</option>
                         </select>
-                        <small>Apply symmetric restrictions</small>
+                        <small>Apply symmetric vertex selection restrictions</small>
                     </div>
-                    <div class="control-group">
+                    <div class="control-group" id="techsSkewGroup" style="display: none;">
                         <label>Techs Skew</label>
                         <input type="number" id="techsSkew" value="0" min="-3" max="3" step="1">
-                        <small>Variable offset for Techs pattern</small>
+                        <small>Variable offset parameter for Techs pattern</small>
                     </div>
                 </div>
                 
-                <!-- Random Chaos Controls -->
-                <div id="chaosControls" class="dynamic-controls">
+                <!-- IFS Controls -->
+                <div id="ifsControls" class="method-controls" style="display: none;">
                     <div class="control-group">
-                        <label>Map Order</label>
-                        <select id="chaosOrder">
-                            <option value="quadratic">Quadratic</option>
-                            <option value="cubic">Cubic</option>
-                        </select>
+                        <label>Starting Point X</label>
+                        <input type="number" id="ifsStartX" value="0" step="0.1">
+                        <small>Initial X coordinate for IFS iteration</small>
                     </div>
+                    <div class="control-group">
+                        <label>Starting Point Y</label>
+                        <input type="number" id="ifsStartY" value="0" step="0.1">
+                        <small>Initial Y coordinate for IFS iteration</small>
+                    </div>
+                </div>
+                
+                <!-- Random Chaos Finder Controls -->
+                <div id="chaosFinderControls" class="method-controls" style="display: none;">
                     <div class="control-group">
                         <label>Plot Points</label>
                         <input type="number" id="chaosPlotPoints" value="100000" min="10000" max="1000000" step="10000">
+                        <small>Number of points to plot for discovered map</small>
                     </div>
                     <div class="control-group">
                         <label>Test Points</label>
                         <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
+                        <small>Number of points for Lyapunov exponent calculation</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Search Attempts</label>
+                        <input type="number" id="searchAttempts" value="1000" min="100" max="10000" step="100">
+                        <small>Maximum attempts to find chaotic map</small>
                     </div>
                 </div>
             </div>
@@ -511,14 +585,7 @@
         </footer>
     </div>
 
-    <script type="module">
-        import init, { 
-            FractalGenerator, 
-            Rule, 
-            ColorScheme, 
-            FractalPresets 
-        } from './fractal-wasm/pkg/fractal_wasm.js';
-
+    <script>
         // Application State
         let generator = null;
         let isLoading = false;
@@ -539,42 +606,84 @@
             container: document.getElementById('canvasContainer'),
             generateBtn: document.getElementById('generateBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
-            fractalType: document.getElementById('fractalType'),
+            
+            // Method and preset selectors
+            fractalMethod: document.getElementById('fractalMethod'),
+            escapeTimePresets: document.getElementById('escapeTimePresets'),
+            chaosGamePresets: document.getElementById('chaosGamePresets'),
+            ifsPresets: document.getElementById('ifsPresets'),
+            chaosFinderMethods: document.getElementById('chaosFinderMethods'),
+            escapeTimeType: document.getElementById('escapeTimeType'),
+            chaosGameType: document.getElementById('chaosGameType'),
+            ifsType: document.getElementById('ifsType'),
+            chaosFinderType: document.getElementById('chaosFinderType'),
+            
+            // Universal parameters
             iterations: document.getElementById('iterations'),
             canvasSize: document.getElementById('canvasSize'),
             colorScheme: document.getElementById('colorScheme'),
+            iterationsHelp: document.getElementById('iterationsHelp'),
+            
+            // Method-specific control sections
+            escapeTimeControls: document.getElementById('escapeTimeControls'),
+            chaosGameControls: document.getElementById('chaosGameControls'),
+            ifsControls: document.getElementById('ifsControls'),
+            chaosFinderControls: document.getElementById('chaosFinderControls'),
+            
+            // Escape-time fractal controls
+            juliaControls: document.getElementById('juliaControls'),
+            juliaReal: document.getElementById('juliaReal'),
+            juliaImag: document.getElementById('juliaImag'),
+            
+            // Chaos game controls
+            compressionRatio: document.getElementById('compressionRatio'),
+            rotationAngle: document.getElementById('rotationAngle'),
+            ruleLength: document.getElementById('ruleLength'),
+            ruleOffset: document.getElementById('ruleOffset'),
+            ruleSymmetry: document.getElementById('ruleSymmetry'),
+            techsSkew: document.getElementById('techsSkew'),
+            techsSkewGroup: document.getElementById('techsSkewGroup'),
+            
+            // IFS controls
+            ifsStartX: document.getElementById('ifsStartX'),
+            ifsStartY: document.getElementById('ifsStartY'),
+            
+            // Chaos finder controls
+            chaosPlotPoints: document.getElementById('chaosPlotPoints'),
+            chaosTestPoints: document.getElementById('chaosTestPoints'),
+            searchAttempts: document.getElementById('searchAttempts'),
+            
+            // Status and zoom controls
             positionStatus: document.getElementById('positionStatus'),
             zoomStatus: document.getElementById('zoomStatus'),
             timeStatus: document.getElementById('timeStatus'),
             zoomInBtn: document.getElementById('zoomInBtn'),
             zoomOutBtn: document.getElementById('zoomOutBtn'),
-            resetViewBtn: document.getElementById('resetViewBtn'),
-            juliaControls: document.getElementById('juliaControls'),
-            chaosGameControls: document.getElementById('chaosGameControls'),
-            chaosControls: document.getElementById('chaosControls'),
-            juliaReal: document.getElementById('juliaReal'),
-            juliaImag: document.getElementById('juliaImag'),
-            ruleLength: document.getElementById('ruleLength'),
-            ruleOffset: document.getElementById('ruleOffset'),
-            ruleSymmetry: document.getElementById('ruleSymmetry'),
-            techsSkew: document.getElementById('techsSkew'),
-            chaosOrder: document.getElementById('chaosOrder'),
-            chaosPlotPoints: document.getElementById('chaosPlotPoints'),
-            chaosTestPoints: document.getElementById('chaosTestPoints')
+            resetViewBtn: document.getElementById('resetViewBtn')
         };
 
-        // Initialize WebAssembly
+        // Initialize WebAssembly (attempt to load, handle gracefully if not available)
         async function initWasm() {
             try {
-                await init();
+                const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
+                await wasmModule.default();
+                const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
+                
+                // Store globally for use in other functions
+                window.FractalGenerator = FractalGenerator;
+                window.Rule = Rule;
+                window.ColorScheme = ColorScheme;
+                window.FractalPresets = FractalPresets;
+                
                 generator = new FractalGenerator();
                 hideOverlay();
                 showNotification('WebAssembly loaded successfully!', 'success');
                 updateStatus();
                 console.log('WASM initialized successfully');
             } catch (error) {
-                showNotification(`Failed to load WebAssembly: ${error.message}`, 'error');
-                console.error('WASM initialization failed:', error);
+                hideOverlay();
+                showNotification(`WebAssembly not available (${error.message}). UI demo mode.`, 'info');
+                console.log('WASM initialization failed, running in UI demo mode:', error);
             }
         }
 
@@ -625,9 +734,15 @@
 
         // Fractal Generation
         async function generateFractal() {
-            if (!generator || isLoading) return;
+            if (isLoading) return;
+            
+            if (!generator) {
+                showNotification('WebAssembly not loaded. Please check setup instructions.', 'error');
+                return;
+            }
 
-            const fractalType = elements.fractalType.value;
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
             const iterations = parseInt(elements.iterations.value);
             const canvasSize = parseInt(elements.canvasSize.value);
             const colorScheme = parseInt(elements.colorScheme.value);
@@ -643,126 +758,147 @@
                 const startTime = performance.now();
                 let result;
                 
-                // Generate fractal based on type
-                if (fractalType === 'mandelbrot') {
-                    const bounds = getMandelbrotBounds(canvasSize);
-                    const iterCounts = generator.mandelbrot_set(
-                        canvasSize, canvasSize, 
-                        bounds.xMin, bounds.xMax, 
-                        bounds.yMin, bounds.yMax, 
-                        100
-                    );
-                    result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, 100, colorScheme);
+                // Get WASM classes from global scope
+                const { Rule, FractalPresets } = window;
+                
+                if (method === 'escape_time') {
+                    // Escape-time fractals (Mandelbrot, Julia, Burning Ship)
+                    if (fractalType === 'mandelbrot') {
+                        const bounds = getMandelbrotBounds(canvasSize);
+                        const iterCounts = generator.mandelbrot_set(
+                            canvasSize, canvasSize, 
+                            bounds.xMin, bounds.xMax, 
+                            bounds.yMin, bounds.yMax, 
+                            iterations
+                        );
+                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, iterations, colorScheme);
+                        
+                    } else if (fractalType === 'julia') {
+                        const bounds = getJuliaBounds(canvasSize);
+                        const real = parseFloat(elements.juliaReal.value);
+                        const imag = parseFloat(elements.juliaImag.value);
+                        const iterCounts = generator.julia_set(
+                            canvasSize, canvasSize,
+                            bounds.xMin, bounds.xMax,
+                            bounds.yMin, bounds.yMax,
+                            real, imag, iterations
+                        );
+                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, iterations, colorScheme);
+                        
+                    } else if (fractalType === 'burning_ship') {
+                        const bounds = getBurningShipBounds(canvasSize);
+                        const iterCounts = generator.burning_ship(
+                            canvasSize, canvasSize,
+                            bounds.xMin, bounds.xMax,
+                            bounds.yMin, bounds.yMax,
+                            iterations
+                        );
+                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, iterations, colorScheme);
+                    }
                     
-                } else if (fractalType === 'julia') {
-                    const juliaReal = parseFloat(elements.juliaReal.value);
-                    const juliaImag = parseFloat(elements.juliaImag.value);
-                    const bounds = getJuliaBounds(canvasSize);
+                } else if (method === 'chaos_game') {
+                    // Chaos game fractals
+                    const compressionRatio = parseFloat(elements.compressionRatio.value);
+                    const rotationAngle = parseFloat(elements.rotationAngle.value);
+                    const ruleLength = parseInt(elements.ruleLength.value);
+                    let ruleOffset = parseInt(elements.ruleOffset.value);
+                    const ruleSymmetry = elements.ruleSymmetry.value === 'true';
                     
-                    const iterCounts = generator.julia_set(
-                        canvasSize, canvasSize,
-                        bounds.xMin, bounds.xMax,
-                        bounds.yMin, bounds.yMax,
-                        juliaReal, juliaImag, 100
-                    );
-                    result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, 100, colorScheme);
+                    // For techs pattern, use techs skew as offset
+                    if (fractalType === 'techs') {
+                        ruleOffset = parseInt(elements.techsSkew.value);
+                    }
                     
-                } else if (fractalType === 'burning_ship') {
-                    const bounds = getBurningShipBounds(canvasSize);
-                    const iterCounts = generator.burning_ship(
-                        canvasSize, canvasSize,
-                        bounds.xMin, bounds.xMax,
-                        bounds.yMin, bounds.yMax,
-                        100
-                    );
-                    result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, 100, colorScheme);
+                    const transforms = [[compressionRatio, rotationAngle]];
+                    const rule = new Rule(ruleLength, ruleOffset, ruleSymmetry);
                     
-                } else if (fractalType === 'sierpinski') {
-                    const vertices = FractalPresets.sierpinski_triangle();
-                    const transforms = FractalPresets.sierpinski_triangle_transforms();
-                    const rule = new Rule(0, 0, false);
-                    const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                    if (fractalType === 'sierpinski') {
+                        const vertices = FractalPresets.sierpinski_triangle();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'sierpinski_carpet') {
+                        const vertices = FractalPresets.sierpinski_carpet();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'vicsek') {
+                        const vertices = FractalPresets.vicsek_square();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 't_square') {
+                        const vertices = FractalPresets.t_square();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'techs') {
+                        const vertices = FractalPresets.techs_pattern();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'webs') {
+                        const vertices = FractalPresets.web_pattern();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                    }
                     
-                } else if (fractalType === 'sierpinski_carpet') {
-                    const vertices = FractalPresets.sierpinski_carpet();
-                    const transforms = FractalPresets.sierpinski_carpet_transforms();
-                    const rule = new Rule(0, 0, false);
-                    const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                } else if (method === 'ifs') {
+                    // IFS fractals
+                    const startX = parseFloat(elements.ifsStartX.value);
+                    const startY = parseFloat(elements.ifsStartY.value);
                     
-                } else if (fractalType === 'vicsek') {
-                    const vertices = FractalPresets.vicsek_square();
-                    const transforms = FractalPresets.vicsek_square_transforms();
-                    const rule = new Rule(0, 0, false);
-                    const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                    if (fractalType === 'fern') {
+                        const transforms = FractalPresets.barnsley_fern();
+                        const probabilities = FractalPresets.barnsley_fern_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "borke");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'dragon') {
+                        const transforms = FractalPresets.dragon_curve();
+                        const probabilities = FractalPresets.dragon_curve_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "borke");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'leaf') {
+                        const transforms = FractalPresets.maple_leaf();
+                        const probabilities = FractalPresets.maple_leaf_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "borke");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'christmas') {
+                        const transforms = FractalPresets.christmas_tree();
+                        const probabilities = FractalPresets.christmas_tree_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "borke");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'spiral') {
+                        const transforms = FractalPresets.spiral();
+                        const probabilities = FractalPresets.spiral_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "borke");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'mandelbrot_like') {
+                        const transforms = FractalPresets.mandelbrot_like();
+                        const probabilities = FractalPresets.mandelbrot_like_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "regular");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        
+                    } else if (fractalType === 'sierpinski_ifs') {
+                        const transforms = FractalPresets.sierpinski_triangle_ifs();
+                        const probabilities = FractalPresets.sierpinski_triangle_ifs_probs();
+                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, "regular");
+                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                    }
                     
-                } else if (fractalType === 't_square') {
-                    const vertices = FractalPresets.t_square();
-                    const transforms = FractalPresets.t_square_transforms();
-                    const rule = new Rule(1, 2, false); // Default T-square rule: length=1, offset=2, symmetry=false
-                    const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'techs') {
-                    const vertices = FractalPresets.techs_pattern();
-                    const transforms = FractalPresets.techs_pattern_transforms();
-                    const skew = parseInt(elements.techsSkew.value) || 0;
-                    const rule = new Rule(1, skew, false); // Techs rule with variable skew
-                    const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'webs') {
-                    const vertices = FractalPresets.web_pattern();
-                    const transforms = FractalPresets.web_pattern_transforms();
-                    const rule = new Rule(2, -1, true); // Web rule: length=2, offset=-1, symmetry=true
-                    const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'dragon') {
-                    const transforms = FractalPresets.dragon_curve();
-                    const probabilities = FractalPresets.dragon_curve_probs();
-                    const points = generator.ifs_fractal(0.0, 0.0, iterations, transforms, probabilities, "borke");
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'fern') {
-                    const transforms = FractalPresets.barnsley_fern();
-                    const probabilities = FractalPresets.barnsley_fern_probs();
-                    const points = generator.ifs_fractal(0.0, 0.0, iterations, transforms, probabilities, "borke");
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'mandelbrot_like') {
-                    const transforms = FractalPresets.mandelbrot_like();
-                    const probabilities = FractalPresets.mandelbrot_like_probs();
-                    const points = generator.ifs_fractal(0.0, 0.0, iterations, transforms, probabilities, "regular");
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'spiral') {
-                    const transforms = FractalPresets.spiral();
-                    const probabilities = FractalPresets.spiral_probs();
-                    const points = generator.ifs_fractal(0.0, 0.0, iterations, transforms, probabilities, "borke");
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'christmas') {
-                    const transforms = FractalPresets.christmas_tree();
-                    const probabilities = FractalPresets.christmas_tree_probs();
-                    const points = generator.ifs_fractal(0.0, 0.0, iterations, transforms, probabilities, "borke");
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'leaf') {
-                    const transforms = FractalPresets.maple_leaf();
-                    const probabilities = FractalPresets.maple_leaf_probs();
-                    const points = generator.ifs_fractal(0.0, 0.0, iterations, transforms, probabilities, "borke");
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
-                    
-                } else if (fractalType === 'random_chaos') {
-                    const chaosOrder = elements.chaosOrder.value;
+                } else if (method === 'random_chaos') {
+                    // Random chaos finder
+                    const chaosType = elements.chaosFinderType.value;
                     const plotPoints = parseInt(elements.chaosPlotPoints.value);
                     const testPoints = parseInt(elements.chaosTestPoints.value);
-                    const isCubic = chaosOrder === 'cubic';
+                    const isCubic = chaosType === 'cubic';
                     
-                    showOverlay(`Searching for chaotic ${chaosOrder} map...`);
+                    showOverlay(`Searching for chaotic ${chaosType} map...`);
                     const points = generator.find_random_chaos(plotPoints, testPoints, isCubic);
                     result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
                 }
@@ -776,7 +912,7 @@
                 const duration = (endTime - startTime).toFixed(2);
                 
                 // Update status
-                const pointInfo = ['mandelbrot', 'julia', 'burning_ship'].includes(fractalType) 
+                const pointInfo = method === 'escape_time'
                     ? `${canvasSize}x${canvasSize} pixels` 
                     : `${iterations.toLocaleString()} points`;
                     
@@ -786,6 +922,7 @@
                 
                 currentFractal = {
                     type: fractalType,
+                    method: method,
                     imageData: result,
                     size: canvasSize
                 };
@@ -853,7 +990,14 @@
         }
 
         function canvasToFractalCoordinates(x, y) {
-            const fractalType = elements.fractalType.value;
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            
+            // Only escape-time fractals support coordinate-based interaction
+            if (method !== 'escape_time') {
+                return { x: 0, y: 0 }; // Non-coordinate fractals
+            }
+            
             let bounds;
             
             if (fractalType === 'mandelbrot') {
@@ -863,7 +1007,7 @@
             } else if (fractalType === 'burning_ship') {
                 bounds = getBurningShipBounds(elements.canvas.width);
             } else {
-                return { x: 0, y: 0 }; // Non-coordinate fractals
+                return { x: 0, y: 0 };
             }
             
             const fractalX = bounds.xMin + x * (bounds.xMax - bounds.xMin);
@@ -912,53 +1056,147 @@
 
         // Dynamic control visibility
         function updateControlVisibility() {
-            const fractalType = elements.fractalType.value;
+            const method = elements.fractalMethod.value;
             
-            // Hide all dynamic controls
-            document.querySelectorAll('.dynamic-controls').forEach(el => {
-                el.classList.remove('active');
-            });
+            // Hide all preset selectors
+            elements.escapeTimePresets.style.display = 'none';
+            elements.chaosGamePresets.style.display = 'none';
+            elements.ifsPresets.style.display = 'none';
+            elements.chaosFinderMethods.style.display = 'none';
             
-            // Show relevant controls and set defaults
+            // Hide all method control sections
+            elements.escapeTimeControls.style.display = 'none';
+            elements.chaosGameControls.style.display = 'none';
+            elements.ifsControls.style.display = 'none';
+            elements.chaosFinderControls.style.display = 'none';
+            
+            // Show relevant preset selector and controls
+            if (method === 'escape_time') {
+                elements.escapeTimePresets.style.display = 'block';
+                elements.escapeTimeControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Maximum iterations for escape-time calculation';
+                updateEscapeTimeControls();
+                
+            } else if (method === 'chaos_game') {
+                elements.chaosGamePresets.style.display = 'block';
+                elements.chaosGameControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Number of points to generate with chaos game';
+                updateChaosGameDefaults();
+                
+            } else if (method === 'ifs') {
+                elements.ifsPresets.style.display = 'block';
+                elements.ifsControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Number of points to generate with IFS';
+                
+            } else if (method === 'random_chaos') {
+                elements.chaosFinderMethods.style.display = 'block';
+                elements.chaosFinderControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
+            }
+        }
+        
+        function updateEscapeTimeControls() {
+            const fractalType = elements.escapeTimeType.value;
+            
+            // Hide all escape-time specific controls
+            elements.juliaControls.classList.remove('active');
+            
+            // Show relevant controls
             if (fractalType === 'julia') {
                 elements.juliaControls.classList.add('active');
-            } else if (fractalType === 'random_chaos') {
-                elements.chaosControls.classList.add('active');
-            } else if (['sierpinski_carpet', 'vicsek', 't_square', 'techs', 'webs'].includes(fractalType)) {
-                elements.chaosGameControls.classList.add('active');
+            }
+        }
+        
+        function getCurrentFractalType() {
+            const method = elements.fractalMethod.value;
+            
+            if (method === 'escape_time') {
+                return elements.escapeTimeType.value;
+            } else if (method === 'chaos_game') {
+                return elements.chaosGameType.value;
+            } else if (method === 'ifs') {
+                const ifsType = elements.ifsType.value;
+                // Map IFS types to internal names
+                if (ifsType === 'sierpinski_ifs') return 'sierpinski_ifs';
+                return ifsType;
+            } else if (method === 'random_chaos') {
+                return 'random_chaos';
+            }
+            
+            return 'mandelbrot'; // fallback
+        }
+
+        function updateChaosGameDefaults() {
+            const chaosType = elements.chaosGameType.value;
+            
+            // Hide techs-specific controls
+            elements.techsSkewGroup.style.display = 'none';
+            
+            // Set appropriate defaults for different chaos game patterns
+            if (chaosType === 'sierpinski') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 0;
+                elements.ruleOffset.value = 0;
+                elements.ruleSymmetry.value = 'false';
                 
-                // Set appropriate defaults for different fractals
-                if (fractalType === 't_square') {
-                    elements.ruleLength.value = 1;
-                    elements.ruleOffset.value = 2;
-                    elements.ruleSymmetry.value = 'false';
-                } else if (fractalType === 'webs') {
-                    elements.ruleLength.value = 2;
-                    elements.ruleOffset.value = -1;
-                    elements.ruleSymmetry.value = 'true';
-                } else if (fractalType === 'techs') {
-                    elements.ruleLength.value = 1;
-                    elements.ruleOffset.value = 0;
-                    elements.ruleSymmetry.value = 'false';
-                } else {
-                    elements.ruleLength.value = 0;
-                    elements.ruleOffset.value = 0;
-                    elements.ruleSymmetry.value = 'false';
-                }
+            } else if (chaosType === 'sierpinski_carpet') {
+                elements.compressionRatio.value = 0.67; // 2/3
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 0;
+                elements.ruleOffset.value = 0;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 'vicsek') {
+                elements.compressionRatio.value = 0.67; // 2/3
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 0;
+                elements.ruleOffset.value = 0;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 't_square') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 1;
+                elements.ruleOffset.value = 2;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 'techs') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 1;
+                elements.ruleOffset.value = 0; // Will be overridden by techsSkew
+                elements.ruleSymmetry.value = 'false';
+                elements.techsSkewGroup.style.display = 'block';
+                
+            } else if (chaosType === 'webs') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0.1;
+                elements.ruleLength.value = 2;
+                elements.ruleOffset.value = -1;
+                elements.ruleSymmetry.value = 'true';
             }
         }
 
         // Event Listeners
         elements.generateBtn.addEventListener('click', generateFractal);
         elements.downloadBtn.addEventListener('click', downloadPNG);
-        elements.fractalType.addEventListener('change', updateControlVisibility);
+        
+        // Method and preset change handlers
+        elements.fractalMethod.addEventListener('change', updateControlVisibility);
+        elements.escapeTimeType.addEventListener('change', updateEscapeTimeControls);
+        elements.chaosGameType.addEventListener('change', updateChaosGameDefaults);
+        
         elements.zoomInBtn.addEventListener('click', () => zoomIn());
         elements.zoomOutBtn.addEventListener('click', zoomOut);
         elements.resetViewBtn.addEventListener('click', resetView);
 
-        // Canvas click events
+        // Canvas click events - only for escape-time fractals
         elements.canvas.addEventListener('click', (e) => {
             if (isLoading) return;
+            
+            const method = elements.fractalMethod.value;
+            if (method !== 'escape_time') return; // Only escape-time fractals support zooming
             
             const rect = elements.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) / rect.width;
@@ -970,6 +1208,10 @@
         elements.canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             if (isLoading) return;
+            
+            const method = elements.fractalMethod.value;
+            if (method !== 'escape_time') return; // Only escape-time fractals support zooming
+            
             zoomOut();
         });
 
@@ -986,14 +1228,18 @@
 
         // Real-time parameter updates for Julia set
         elements.juliaReal.addEventListener('input', () => {
-            if (elements.fractalType.value === 'julia' && !isLoading) {
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            if (method === 'escape_time' && fractalType === 'julia' && !isLoading) {
                 clearTimeout(window.juliaTimeout);
                 window.juliaTimeout = setTimeout(generateFractal, 500);
             }
         });
 
         elements.juliaImag.addEventListener('input', () => {
-            if (elements.fractalType.value === 'julia' && !isLoading) {
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            if (method === 'escape_time' && fractalType === 'julia' && !isLoading) {
                 clearTimeout(window.juliaTimeout);
                 window.juliaTimeout = setTimeout(generateFractal, 500);
             }
