@@ -574,7 +574,7 @@
                 <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
                         <label>Plot Points</label>
-                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" max="100000000" step="100000">
+                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000">
                         <small>Number of points to plot for discovered map</small>
                     </div>
                     <div class="control-group">
@@ -1202,6 +1202,9 @@
                 elements.chaosFinderControls.style.display = 'block';
                 elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
             }
+            
+            // Update iterations visibility after all other updates
+            updateIterationsVisibility();
         }
         
         function updateEscapeTimeControls() {
@@ -1626,19 +1629,13 @@
             const method = elements.fractalMethod.value;
             const iterationsGroup = elements.iterations.closest('.control-group');
             
+            // Only hide iterations for Random Chaos Finder, show for all other methods
             if (method === 'random_chaos') {
                 iterationsGroup.style.display = 'none';
             } else {
                 iterationsGroup.style.display = 'block';
             }
         }
-        
-        // Update control visibility to include iterations visibility
-        const originalUpdateControlVisibility = updateControlVisibility;
-        updateControlVisibility = function() {
-            originalUpdateControlVisibility();
-            updateIterationsVisibility();
-        };
         
         initializeApp();
         initWasm();
