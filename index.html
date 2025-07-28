@@ -1254,8 +1254,8 @@
                     const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
                     
                     // Add safety limits to prevent memory allocation failures in WASM
-                    // Random chaos finder can handle up to ~10M points safely in WASM
-                    const maxSafePlotPoints = 10000000; // 10M points maximum
+                    // Random chaos finder can handle up to ~1B points safely in WASM
+                    const maxSafePlotPoints = 1_000_000_000; // 1B points maximum
                     const safePlotPoints = Math.min(scaledPlotPoints, maxSafePlotPoints);
                     
                     if (scaledPlotPoints > maxSafePlotPoints) {
