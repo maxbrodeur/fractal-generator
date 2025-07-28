@@ -156,7 +156,7 @@ function passArrayF64ToWasm0(arg, malloc) {
 }
 /**
  * Color mapping functions
- * @enum {0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14}
+ * @enum {0 | 1 | 2 | 3 | 4 | 5 | 6}
  */
 export const ColorScheme = Object.freeze({
     Fire: 0, "0": "Fire",
@@ -166,14 +166,6 @@ export const ColorScheme = Object.freeze({
     ColorWheel: 4, "4": "ColorWheel",
     GnuPlot: 5, "5": "GnuPlot",
     Bmy: 6, "6": "Bmy",
-    Plasma: 7, "7": "Plasma",
-    Viridis: 8, "8": "Viridis",
-    Inferno: 9, "9": "Inferno",
-    Magma: 10, "10": "Magma",
-    Ocean: 11, "11": "Ocean",
-    Rainbow: 12, "12": "Rainbow",
-    Cool: 13, "13": "Cool",
-    Hot: 14, "14": "Hot",
 });
 
 const FractalGeneratorFinalization = (typeof FinalizationRegistry === 'undefined')
