@@ -1,7 +1,8 @@
 {
-  "buildTime": "2025-07-28T18:05:56.175Z",
+  "buildTime": "2025-07-28T18:13:40.978Z",
   "version": "1.0.0",
   "files": [
+    ".nojekyll",
     "README.md",
     "assets",
     "debug-helpers.js",
