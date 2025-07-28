@@ -473,7 +473,7 @@ impl FractalGenerator {
         
         for point in point_pairs {
             let x = ((point.x - min_x) / (max_x - min_x) * width as f64) as usize;
-            let y = ((point.y - min_y) / (max_y - min_y) * height as f64) as usize;
+            let y = ((max_y - point.y) / (max_y - min_y) * height as f64) as usize; // Flip Y coordinate
             
             if x < width && y < height {
                 density[y * width + x] += 1;

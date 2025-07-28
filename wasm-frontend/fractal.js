@@ -690,8 +690,6 @@ class FractalApp {
             probabilities = customData.probabilities;
         }
 
-        console.log('🔧 Transform data:', { transforms, probabilities });
-        
         const result = this.generator.ifs_fractal(0, 0, iterations, transforms, probabilities, 'regular');
         console.log('📊 IFS result points:', result ? result.length : 'null');
         
