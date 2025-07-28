@@ -25,6 +25,11 @@
                 "sidebar main";
             height: 100vh;
             gap: 0;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        .app-container.sidebar-collapsed {
+            grid-template-columns: 40px 1fr;
         }
         
         .btn {
@@ -69,6 +74,40 @@
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .sidebar.collapsed {
+            width: 40px;
+            padding: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .sidebar.collapsed .sidebar-content {
+            display: none;
+        }
+        
+        .sidebar-toggle {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .sidebar-toggle:hover {
+            background: #5a67d8;
         }
         
         .sidebar-header {
@@ -331,18 +370,20 @@
 </head>
 <body>
     <div class="app-container">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h1>Fractal Generator</h1>
-                <div class="header-actions">
-                    <button class="btn" id="generateBtn" style="flex: 1;">
-                        Generate Fractal
-                    </button>
-                    <button class="btn btn-secondary" id="downloadBtn" disabled>
-                        Download PNG
-                    </button>
+        <aside class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle">←</button>
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h1>Fractal Generator</h1>
+                    <div class="header-actions">
+                        <button class="btn" id="generateBtn" style="flex: 1;">
+                            Generate Fractal
+                        </button>
+                        <button class="btn btn-secondary" id="downloadBtn" disabled>
+                            Download PNG
+                        </button>
+                    </div>
                 </div>
-            </div>
             <div class="control-section">
                 <h3>Generation Method</h3>
                 <div class="control-group">
@@ -415,10 +456,10 @@
                     <label>Canvas Size</label>
                     <select id="canvasSize">
                         <option value="400">400x400</option>
-                        <option value="600" selected>600x600</option>
+                        <option value="600">600x600</option>
                         <option value="800">800x800</option>
                         <option value="1024">1024x1024</option>
-                        <option value="2048">2048x2048 (2K)</option>
+                        <option value="2048" selected>2048x2048 (2K)</option>
                         <option value="4096">4096x4096 (4K)</option>
                         <option value="8192">8192x8192 (8K)</option>
                     </select>
@@ -427,9 +468,9 @@
                 <div class="control-group">
                     <label>Aspect Ratio</label>
                     <select id="aspectRatio">
-                        <option value="square" selected>Square (1:1)</option>
+                        <option value="square">Square (1:1)</option>
                         <option value="portrait">Portrait (3:4)</option>
-                        <option value="landscape">Landscape (4:3)</option>
+                        <option value="landscape" selected>Landscape (4:3)</option>
                     </select>
                 </div>
                 
@@ -533,7 +574,7 @@
                 <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
                         <label>Plot Points</label>
-                        <input type="number" id="chaosPlotPoints" value="100000" min="10000" max="1000000" step="10000">
+                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" max="100000000" step="100000">
                         <small>Number of points to plot for discovered map</small>
                     </div>
                     <div class="control-group">
@@ -578,20 +619,13 @@
                 </div>
             </div>
             
-            <!-- Map Equation Display (for Random Chaos Finder) -->
-            <div class="control-section" id="mapEquationSection" style="display: none;">
-                <h3>Discovered Map</h3>
-                <div class="control-group">
-                    <div id="mapEquationDisplay" style="background: #f7fafc; border: 1px solid #e2e8f0; padding: 0.75rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; max-height: 120px; overflow-y: auto;">
-                        No map discovered yet
-                    </div>
-                </div>
+            <!-- Map Equation Display (for Random Chaos Finder) - REMOVED -->
             </div>
         </aside>
         
         <main class="main-content">
             <div class="canvas-container" id="canvasContainer">
-                <canvas id="fractalCanvas" width="600" height="600"></canvas>
+                <canvas id="fractalCanvas" width="2048" height="2048"></canvas>
                 <div class="canvas-overlay" id="canvasOverlay">
                     <div>
                         <div class="loading-spinner"></div>
@@ -675,11 +709,7 @@
             chaosTestPoints: document.getElementById('chaosTestPoints'),
             chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
             chaosRandomizationType: document.getElementById('chaosRandomizationType'),
-            searchAttempts: document.getElementById('searchAttempts'),
-            
-            // Map equation display
-            mapEquationSection: document.getElementById('mapEquationSection'),
-            mapEquationDisplay: document.getElementById('mapEquationDisplay')
+            searchAttempts: document.getElementById('searchAttempts')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -789,12 +819,15 @@
             try {
                 const startTime = performance.now();
                 let result;
+                let actualPointsUsed = iterations; // Default for escape-time fractals
                 
                 // Get WASM classes from global scope
                 const { Rule, FractalPresets } = window;
                 
                 if (method === 'escape_time') {
                     // Escape-time fractals (Mandelbrot, Julia, Burning Ship)
+                    actualPointsUsed = `${canvasWidth}x${canvasHeight} pixels`;
+                    
                     if (fractalType === 'mandelbrot') {
                         const bounds = getMandelbrotBounds(Math.max(canvasWidth, canvasHeight));
                         const iterCounts = generator.mandelbrot_set(
@@ -829,7 +862,13 @@
                     }
                     
                 } else if (method === 'chaos_game') {
-                    // Chaos game fractals
+                    // Chaos game fractals - scale iterations with resolution for consistent brightness
+                    const baseResolution = 600 * 600; // Base resolution for scaling
+                    const currentResolution = canvasWidth * canvasHeight;
+                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    const scaledIterations = Math.round(iterations * scalingFactor);
+                    actualPointsUsed = scaledIterations;
+                    
                     const compressionRatio = parseFloat(elements.compressionRatio.value);
                     const rotationAngle = parseFloat(elements.rotationAngle.value);
                     const ruleLength = parseInt(elements.ruleLength.value);
@@ -846,43 +885,49 @@
                     
                     if (fractalType === 'sierpinski') {
                         const vertices = FractalPresets.sierpinski_triangle();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'sierpinski_carpet') {
                         const vertices = FractalPresets.sierpinski_carpet();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'vicsek') {
                         const vertices = FractalPresets.vicsek_square();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 't_square') {
                         const vertices = FractalPresets.t_square();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'techs') {
                         const vertices = FractalPresets.techs_pattern();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'webs') {
                         const vertices = FractalPresets.web_pattern();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
                     
                 } else if (method === 'ifs') {
-                    // IFS fractals using user-defined parameters
+                    // IFS fractals using user-defined parameters - scale iterations with resolution for consistent brightness
+                    const baseResolution = 600 * 600; // Base resolution for scaling
+                    const currentResolution = canvasWidth * canvasHeight;
+                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    const scaledIterations = Math.round(iterations * scalingFactor);
+                    actualPointsUsed = scaledIterations;
+                    
                     const startX = parseFloat(elements.ifsStartX.value);
                     const startY = parseFloat(elements.ifsStartY.value);
                     
                     try {
                         const { transforms, probabilities, parseMode } = getIFSParameters();
-                        const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, parseMode);
+                        const points = generator.ifs_fractal(startX, startY, scaledIterations, transforms, probabilities, parseMode);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
                         showNotification(`IFS Error: ${error.message}`, 'error');
@@ -891,9 +936,15 @@
                     }
                     
                 } else if (method === 'random_chaos') {
-                    // Random chaos finder
+                    // Random chaos finder - scale plot points with resolution for consistent brightness
+                    const baseResolution = 600 * 600; // Base resolution for scaling
+                    const currentResolution = canvasWidth * canvasHeight;
+                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
                     const chaosType = elements.chaosFinderType.value;
-                    const plotPoints = parseInt(elements.chaosPlotPoints.value);
+                    const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
+                    const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
+                    actualPointsUsed = scaledPlotPoints;
                     const testPoints = parseInt(elements.chaosTestPoints.value);
                     const discardPoints = parseInt(elements.chaosDiscardPoints.value);
                     const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
@@ -903,23 +954,16 @@
                     
                     // Try to call extended WebAssembly function with new parameters, fallback if not available
                     try {
-                        const result_data = generator.find_random_chaos_extended(plotPoints, testPoints, discardPoints, useAlphabet, isCubic);
+                        const result_data = generator.find_random_chaos_extended(scaledPlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
                         
                         // Extract points and map equation if available
                         const points = result_data.points || result_data;
-                        const mapEquation = result_data.equation || `Chaotic ${chaosType} map discovered`;
-                        
-                        // Display map equation
-                        elements.mapEquationDisplay.textContent = mapEquation;
                         
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
                         // Fallback to original function if extended one is not available
                         console.warn('Extended chaos finder not available, using basic version:', error);
-                        const points = generator.find_random_chaos(plotPoints, testPoints, isCubic);
-                        
-                        // Display basic info
-                        elements.mapEquationDisplay.textContent = `Chaotic ${chaosType} map discovered\n(Plot: ${plotPoints}, Test: ${testPoints}, Discard: ${discardPoints})\nRandomization: ${useAlphabet ? 'Discrete' : 'Continuous'}`;
+                        const points = generator.find_random_chaos(scaledPlotPoints, testPoints, isCubic);
                         
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
@@ -934,9 +978,7 @@
                 const duration = (endTime - startTime).toFixed(2);
                 
                 // Update status
-                const pointInfo = method === 'escape_time'
-                    ? `${canvasWidth}x${canvasHeight} pixels` 
-                    : `${iterations.toLocaleString()} points`;
+                const pointInfo = typeof actualPointsUsed === 'string' ? actualPointsUsed : `${actualPointsUsed.toLocaleString()} points`;
                     
                 showNotification(`Fractal generated successfully! (${pointInfo} in ${duration}ms)`, 'success');
                 
@@ -1133,9 +1175,6 @@
             elements.ifsControls.style.display = 'none';
             elements.chaosFinderControls.style.display = 'none';
             
-            // Hide map equation section by default
-            elements.mapEquationSection.style.display = 'none';
-            
             // Show relevant preset selector and controls
             if (method === 'escape_time') {
                 elements.escapeTimePresets.style.display = 'block';
@@ -1161,7 +1200,6 @@
             } else if (method === 'random_chaos') {
                 elements.chaosFinderMethods.style.display = 'block';
                 elements.chaosFinderControls.style.display = 'block';
-                elements.mapEquationSection.style.display = 'block';
                 elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
             }
         }
@@ -1508,7 +1546,9 @@
             elements.canvas.height = canvasHeight;
             
             // Calculate maximum display size using entire available pane
-            const maxDisplayWidth = window.innerWidth - 320; // Account for sidebar width (300px + padding)
+            const sidebar = document.getElementById('sidebar');
+            const sidebarWidth = sidebar.classList.contains('collapsed') ? 40 : 300;
+            const maxDisplayWidth = window.innerWidth - sidebarWidth - 40; // Account for sidebar width + padding
             const maxDisplayHeight = window.innerHeight - 40; // Account for minimal padding
             
             // Scale display while maintaining aspect ratio
@@ -1553,6 +1593,54 @@
         });
 
         // Initialize application
+        function initializeApp() {
+            // Detect mobile and set default aspect ratio
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                elements.aspectRatio.value = 'portrait';
+            } else {
+                elements.aspectRatio.value = 'landscape';
+            }
+            
+            // Set up sidebar toggle
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const appContainer = document.querySelector('.app-container');
+            
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                appContainer.classList.toggle('sidebar-collapsed');
+                
+                // Update toggle button
+                sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '→' : '←';
+                
+                // Update canvas display size after sidebar toggle
+                setTimeout(updateCanvasDisplaySize, 300);
+            });
+            
+            // Hide iterations parameter for Random Chaos Finder to avoid redundancy
+            updateIterationsVisibility();
+        }
+        
+        function updateIterationsVisibility() {
+            const method = elements.fractalMethod.value;
+            const iterationsGroup = elements.iterations.closest('.control-group');
+            
+            if (method === 'random_chaos') {
+                iterationsGroup.style.display = 'none';
+            } else {
+                iterationsGroup.style.display = 'block';
+            }
+        }
+        
+        // Update control visibility to include iterations visibility
+        const originalUpdateControlVisibility = updateControlVisibility;
+        updateControlVisibility = function() {
+            originalUpdateControlVisibility();
+            updateIterationsVisibility();
+        };
+        
+        initializeApp();
         initWasm();
         updateControlVisibility();
         updateStatus();
