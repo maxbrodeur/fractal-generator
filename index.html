@@ -21,10 +21,8 @@
         .app-container {
             display: grid;
             grid-template-columns: 300px 1fr;
-            grid-template-rows: 1fr auto;
             grid-template-areas: 
-                "sidebar main"
-                "sidebar status";
+                "sidebar main";
             height: 100vh;
             gap: 0;
         }
@@ -197,49 +195,6 @@
             100% { transform: rotate(360deg); }
         }
         
-        .status-bar {
-            grid-area: status;
-            background: #2d3748;
-            color: white;
-            padding: 0.75rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.85rem;
-        }
-        
-        .status-left {
-            display: flex;
-            gap: 2rem;
-        }
-        
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .zoom-controls {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .zoom-btn {
-            background: #4a5568;
-            color: white;
-            border: none;
-            width: 28px;
-            height: 28px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: background 0.2s;
-        }
-        
-        .zoom-btn:hover {
-            background: #667eea;
-        }
-        
         .dynamic-controls {
             display: none;
         }
@@ -392,15 +347,15 @@
                 <h3>Generation Method</h3>
                 <div class="control-group">
                     <select id="fractalMethod">
+                        <option value="random_chaos">Random Chaos Finder</option>
                         <option value="escape_time">Escape-Time Fractals</option>
                         <option value="chaos_game">Chaos Game</option>
                         <option value="ifs">Iterated Function Systems (IFS)</option>
-                        <option value="random_chaos">Random Chaos Finder</option>
                     </select>
                 </div>
                 
                 <!-- Escape-Time Fractal Presets -->
-                <div id="escapeTimePresets" class="control-group method-presets">
+                <div id="escapeTimePresets" class="control-group method-presets" style="display: none;">
                     <label>Fractal Type</label>
                     <select id="escapeTimeType">
                         <option value="mandelbrot">Mandelbrot Set</option>
@@ -437,7 +392,7 @@
                 </div>
                 
                 <!-- Random Chaos Methods -->
-                <div id="chaosFinderMethods" class="control-group method-presets" style="display: none;">
+                <div id="chaosFinderMethods" class="control-group method-presets">
                     <label>Map Type</label>
                     <select id="chaosFinderType">
                         <option value="quadratic">Quadratic Map</option>
@@ -465,11 +420,21 @@
                         <option value="1024">1024x1024</option>
                         <option value="2048">2048x2048 (2K)</option>
                         <option value="4096">4096x4096 (4K)</option>
+                        <option value="8192">8192x8192 (8K)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Aspect Ratio</label>
+                    <select id="aspectRatio">
+                        <option value="square" selected>Square (1:1)</option>
+                        <option value="portrait">Portrait (3:4)</option>
+                        <option value="landscape">Landscape (4:3)</option>
                     </select>
                 </div>
                 
                 <!-- Escape-Time Fractal Controls -->
-                <div id="escapeTimeControls" class="method-controls">
+                <div id="escapeTimeControls" class="method-controls" style="display: none;">
                     <!-- Julia Set Controls -->
                     <div id="juliaControls" class="dynamic-controls julia-controls">
                         <div class="control-group">
@@ -565,7 +530,7 @@
                 </div>
                 
                 <!-- Random Chaos Finder Controls -->
-                <div id="chaosFinderControls" class="method-controls" style="display: none;">
+                <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
                         <label>Plot Points</label>
                         <input type="number" id="chaosPlotPoints" value="100000" min="10000" max="1000000" step="10000">
@@ -575,6 +540,19 @@
                         <label>Test Points</label>
                         <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
                         <small>Number of points for Lyapunov exponent calculation</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Discard Points</label>
+                        <input type="number" id="chaosDiscardPoints" value="10000" min="1000" max="50000" step="1000">
+                        <small>Transient iterations to discard before analysis</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Randomization Type</label>
+                        <select id="chaosRandomizationType">
+                            <option value="continuous">Continuous</option>
+                            <option value="discrete">Discrete (Alphabet mode)</option>
+                        </select>
+                        <small>Parameter generation method</small>
                     </div>
                     <div class="control-group">
                         <label>Search Attempts</label>
@@ -599,6 +577,16 @@
                     </select>
                 </div>
             </div>
+            
+            <!-- Map Equation Display (for Random Chaos Finder) -->
+            <div class="control-section" id="mapEquationSection" style="display: none;">
+                <h3>Discovered Map</h3>
+                <div class="control-group">
+                    <div id="mapEquationDisplay" style="background: #f7fafc; border: 1px solid #e2e8f0; padding: 0.75rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; max-height: 120px; overflow-y: auto;">
+                        No map discovered yet
+                    </div>
+                </div>
+            </div>
         </aside>
         
         <main class="main-content">
@@ -612,25 +600,6 @@
                 </div>
             </div>
         </main>
-        
-        <footer class="status-bar">
-            <div class="status-left">
-                <div class="status-item">
-                    <span id="positionStatus">Center: (0, 0)</span>
-                </div>
-                <div class="status-item">
-                    <span id="zoomStatus">Zoom: 1.0x</span>
-                </div>
-                <div class="status-item">
-                    <span id="timeStatus">Ready</span>
-                </div>
-            </div>
-            <div class="zoom-controls">
-                <button class="zoom-btn" id="zoomInBtn" title="Zoom In">+</button>
-                <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">-</button>
-                <button class="zoom-btn" id="resetViewBtn" title="Reset View">⌂</button>
-            </div>
-        </footer>
     </div>
 
     <script>
@@ -669,6 +638,7 @@
             // Universal parameters
             iterations: document.getElementById('iterations'),
             canvasSize: document.getElementById('canvasSize'),
+            aspectRatio: document.getElementById('aspectRatio'),
             colorScheme: document.getElementById('colorScheme'),
             iterationsHelp: document.getElementById('iterationsHelp'),
             
@@ -703,15 +673,13 @@
             // Chaos finder controls
             chaosPlotPoints: document.getElementById('chaosPlotPoints'),
             chaosTestPoints: document.getElementById('chaosTestPoints'),
+            chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
+            chaosRandomizationType: document.getElementById('chaosRandomizationType'),
             searchAttempts: document.getElementById('searchAttempts'),
             
-            // Status and zoom controls
-            positionStatus: document.getElementById('positionStatus'),
-            zoomStatus: document.getElementById('zoomStatus'),
-            timeStatus: document.getElementById('timeStatus'),
-            zoomInBtn: document.getElementById('zoomInBtn'),
-            zoomOutBtn: document.getElementById('zoomOutBtn'),
-            resetViewBtn: document.getElementById('resetViewBtn')
+            // Map equation display
+            mapEquationSection: document.getElementById('mapEquationSection'),
+            mapEquationDisplay: document.getElementById('mapEquationDisplay')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -768,8 +736,7 @@
         }
 
         function updateStatus() {
-            elements.positionStatus.textContent = `Center: (${viewState.centerX.toFixed(3)}, ${viewState.centerY.toFixed(3)})`;
-            elements.zoomStatus.textContent = `Zoom: ${viewState.zoom.toFixed(1)}x`;
+            // Status display removed
         }
 
         function setLoading(loading) {
@@ -797,11 +764,24 @@
             const fractalType = getCurrentFractalType();
             const iterations = parseInt(elements.iterations.value);
             const canvasSize = parseInt(elements.canvasSize.value);
+            const aspectRatio = elements.aspectRatio.value;
             const colorScheme = parseInt(elements.colorScheme.value);
 
+            // Calculate canvas dimensions based on aspect ratio
+            let canvasWidth = canvasSize;
+            let canvasHeight = canvasSize;
+            
+            if (aspectRatio === 'portrait') {
+                canvasWidth = Math.round(canvasSize * 3 / 4);
+                canvasHeight = canvasSize;
+            } else if (aspectRatio === 'landscape') {
+                canvasWidth = canvasSize;
+                canvasHeight = Math.round(canvasSize * 3 / 4);
+            }
+
             // Update canvas size
-            elements.canvas.width = canvasSize;
-            elements.canvas.height = canvasSize;
+            elements.canvas.width = canvasWidth;
+            elements.canvas.height = canvasHeight;
 
             setLoading(true);
             showOverlay();
@@ -816,36 +796,36 @@
                 if (method === 'escape_time') {
                     // Escape-time fractals (Mandelbrot, Julia, Burning Ship)
                     if (fractalType === 'mandelbrot') {
-                        const bounds = getMandelbrotBounds(canvasSize);
+                        const bounds = getMandelbrotBounds(Math.max(canvasWidth, canvasHeight));
                         const iterCounts = generator.mandelbrot_set(
-                            canvasSize, canvasSize, 
+                            canvasWidth, canvasHeight, 
                             bounds.xMin, bounds.xMax, 
                             bounds.yMin, bounds.yMax, 
                             iterations
                         );
-                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, iterations, colorScheme);
+                        result = generator.iterations_to_rgba(iterCounts, canvasWidth, canvasHeight, iterations, colorScheme);
                         
                     } else if (fractalType === 'julia') {
-                        const bounds = getJuliaBounds(canvasSize);
+                        const bounds = getJuliaBounds(Math.max(canvasWidth, canvasHeight));
                         const real = parseFloat(elements.juliaReal.value);
                         const imag = parseFloat(elements.juliaImag.value);
                         const iterCounts = generator.julia_set(
-                            canvasSize, canvasSize,
+                            canvasWidth, canvasHeight,
                             bounds.xMin, bounds.xMax,
                             bounds.yMin, bounds.yMax,
                             real, imag, iterations
                         );
-                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, iterations, colorScheme);
+                        result = generator.iterations_to_rgba(iterCounts, canvasWidth, canvasHeight, iterations, colorScheme);
                         
                     } else if (fractalType === 'burning_ship') {
-                        const bounds = getBurningShipBounds(canvasSize);
+                        const bounds = getBurningShipBounds(Math.max(canvasWidth, canvasHeight));
                         const iterCounts = generator.burning_ship(
-                            canvasSize, canvasSize,
+                            canvasWidth, canvasHeight,
                             bounds.xMin, bounds.xMax,
                             bounds.yMin, bounds.yMax,
                             iterations
                         );
-                        result = generator.iterations_to_rgba(iterCounts, canvasSize, canvasSize, iterations, colorScheme);
+                        result = generator.iterations_to_rgba(iterCounts, canvasWidth, canvasHeight, iterations, colorScheme);
                     }
                     
                 } else if (method === 'chaos_game') {
@@ -867,32 +847,32 @@
                     if (fractalType === 'sierpinski') {
                         const vertices = FractalPresets.sierpinski_triangle();
                         const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'sierpinski_carpet') {
                         const vertices = FractalPresets.sierpinski_carpet();
                         const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'vicsek') {
                         const vertices = FractalPresets.vicsek_square();
                         const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 't_square') {
                         const vertices = FractalPresets.t_square();
                         const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'techs') {
                         const vertices = FractalPresets.techs_pattern();
                         const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'webs') {
                         const vertices = FractalPresets.web_pattern();
                         const points = generator.chaos_game(vertices, 0.0, 0.0, iterations, transforms, rule);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
                     
                 } else if (method === 'ifs') {
@@ -903,7 +883,7 @@
                     try {
                         const { transforms, probabilities, parseMode } = getIFSParameters();
                         const points = generator.ifs_fractal(startX, startY, iterations, transforms, probabilities, parseMode);
-                        result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
                         showNotification(`IFS Error: ${error.message}`, 'error');
                         setLoading(false);
@@ -915,16 +895,39 @@
                     const chaosType = elements.chaosFinderType.value;
                     const plotPoints = parseInt(elements.chaosPlotPoints.value);
                     const testPoints = parseInt(elements.chaosTestPoints.value);
+                    const discardPoints = parseInt(elements.chaosDiscardPoints.value);
+                    const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
                     const isCubic = chaosType === 'cubic';
                     
                     showOverlay(`Searching for chaotic ${chaosType} map...`);
-                    const points = generator.find_random_chaos(plotPoints, testPoints, isCubic);
-                    result = generator.points_to_rgba(points, canvasSize, canvasSize, colorScheme);
+                    
+                    // Try to call extended WebAssembly function with new parameters, fallback if not available
+                    try {
+                        const result_data = generator.find_random_chaos_extended(plotPoints, testPoints, discardPoints, useAlphabet, isCubic);
+                        
+                        // Extract points and map equation if available
+                        const points = result_data.points || result_data;
+                        const mapEquation = result_data.equation || `Chaotic ${chaosType} map discovered`;
+                        
+                        // Display map equation
+                        elements.mapEquationDisplay.textContent = mapEquation;
+                        
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                    } catch (error) {
+                        // Fallback to original function if extended one is not available
+                        console.warn('Extended chaos finder not available, using basic version:', error);
+                        const points = generator.find_random_chaos(plotPoints, testPoints, isCubic);
+                        
+                        // Display basic info
+                        elements.mapEquationDisplay.textContent = `Chaotic ${chaosType} map discovered\n(Plot: ${plotPoints}, Test: ${testPoints}, Discard: ${discardPoints})\nRandomization: ${useAlphabet ? 'Discrete' : 'Continuous'}`;
+                        
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                    }
                 }
 
                 // Display result
                 const ctx = elements.canvas.getContext('2d');
-                const imageData = new ImageData(new Uint8ClampedArray(result), canvasSize, canvasSize);
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
                 ctx.putImageData(imageData, 0, 0);
 
                 const endTime = performance.now();
@@ -932,18 +935,20 @@
                 
                 // Update status
                 const pointInfo = method === 'escape_time'
-                    ? `${canvasSize}x${canvasSize} pixels` 
+                    ? `${canvasWidth}x${canvasHeight} pixels` 
                     : `${iterations.toLocaleString()} points`;
                     
-                elements.timeStatus.textContent = `Rendered in ${duration}ms`;
-                
                 showNotification(`Fractal generated successfully! (${pointInfo} in ${duration}ms)`, 'success');
+                
+                // Adapt background color based on fractal colors
+                adaptBackgroundColor(result, canvasWidth, canvasHeight);
                 
                 currentFractal = {
                     type: fractalType,
                     method: method,
                     imageData: result,
-                    size: canvasSize
+                    width: canvasWidth,
+                    height: canvasHeight
                 };
                 
                 viewState.fractalType = fractalType;
@@ -954,6 +959,45 @@
             } finally {
                 setLoading(false);
                 hideOverlay();
+            }
+        }
+
+        // Background color adaptation based on fractal colors
+        function adaptBackgroundColor(imageData, width, height) {
+            // Sample colors from the fractal to get dominant hues
+            const sampleSize = Math.min(1000, width * height / 10); // Sample 10% or max 1000 pixels
+            const step = Math.floor(imageData.length / 4 / sampleSize);
+            
+            let totalR = 0, totalG = 0, totalB = 0;
+            let sampleCount = 0;
+            
+            for (let i = 0; i < imageData.length; i += step * 4) {
+                const r = imageData[i];
+                const g = imageData[i + 1];
+                const b = imageData[i + 2];
+                const alpha = imageData[i + 3];
+                
+                // Only sample visible pixels
+                if (alpha > 128) {
+                    totalR += r;
+                    totalG += g;
+                    totalB += b;
+                    sampleCount++;
+                }
+            }
+            
+            if (sampleCount > 0) {
+                const avgR = Math.floor(totalR / sampleCount);
+                const avgG = Math.floor(totalG / sampleCount);
+                const avgB = Math.floor(totalB / sampleCount);
+                
+                // Create a darker, more muted version for background
+                const bgR = Math.floor(avgR * 0.3);
+                const bgG = Math.floor(avgG * 0.3);
+                const bgB = Math.floor(avgB * 0.3);
+                
+                // Apply as gradient background
+                document.body.style.background = `linear-gradient(135deg, rgb(${bgR}, ${bgG}, ${bgB}) 0%, rgb(${Math.floor(bgR * 0.7)}, ${Math.floor(bgG * 0.7)}, ${Math.floor(bgB * 0.7)}) 100%)`;
             }
         }
 
@@ -1089,6 +1133,9 @@
             elements.ifsControls.style.display = 'none';
             elements.chaosFinderControls.style.display = 'none';
             
+            // Hide map equation section by default
+            elements.mapEquationSection.style.display = 'none';
+            
             // Show relevant preset selector and controls
             if (method === 'escape_time') {
                 elements.escapeTimePresets.style.display = 'block';
@@ -1114,6 +1161,7 @@
             } else if (method === 'random_chaos') {
                 elements.chaosFinderMethods.style.display = 'block';
                 elements.chaosFinderControls.style.display = 'block';
+                elements.mapEquationSection.style.display = 'block';
                 elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
             }
         }
@@ -1396,10 +1444,6 @@
         elements.chaosGameType.addEventListener('change', updateChaosGameDefaults);
         elements.ifsType.addEventListener('change', loadIFSPreset);
         elements.ifsTransformCount.addEventListener('change', createTransformationInputs);
-        
-        elements.zoomInBtn.addEventListener('click', () => zoomIn());
-        elements.zoomOutBtn.addEventListener('click', zoomOut);
-        elements.resetViewBtn.addEventListener('click', resetView);
 
         // Canvas click events - only for escape-time fractals
         elements.canvas.addEventListener('click', (e) => {
@@ -1427,11 +1471,15 @@
 
         // Canvas size change
         elements.canvasSize.addEventListener('change', function() {
-            const size = parseInt(this.value);
-            elements.canvas.width = size;
-            elements.canvas.height = size;
+            updateCanvasDisplaySize();
             
-            // Update canvas display size with screen resolution cap
+            if (currentFractal) {
+                generateFractal();
+            }
+        });
+        
+        // Aspect ratio change
+        elements.aspectRatio.addEventListener('change', function() {
             updateCanvasDisplaySize();
             
             if (currentFractal) {
@@ -1441,15 +1489,38 @@
         
         function updateCanvasDisplaySize() {
             const size = parseInt(elements.canvasSize.value);
-            const maxDisplaySize = Math.min(
-                window.innerWidth - 320, // Account for sidebar width
-                window.innerHeight - 200, // Account for header and status bar
-                800 // Maximum display size cap
-            );
+            const aspectRatio = elements.aspectRatio.value;
             
-            const displaySize = Math.min(size, maxDisplaySize);
-            elements.canvas.style.width = displaySize + 'px';
-            elements.canvas.style.height = displaySize + 'px';
+            // Calculate canvas dimensions based on aspect ratio
+            let canvasWidth = size;
+            let canvasHeight = size;
+            
+            if (aspectRatio === 'portrait') {
+                canvasWidth = Math.round(size * 3 / 4);
+                canvasHeight = size;
+            } else if (aspectRatio === 'landscape') {
+                canvasWidth = size;
+                canvasHeight = Math.round(size * 3 / 4);
+            }
+            
+            // Update actual canvas size
+            elements.canvas.width = canvasWidth;
+            elements.canvas.height = canvasHeight;
+            
+            // Calculate maximum display size using entire available pane
+            const maxDisplayWidth = window.innerWidth - 320; // Account for sidebar width (300px + padding)
+            const maxDisplayHeight = window.innerHeight - 40; // Account for minimal padding
+            
+            // Scale display while maintaining aspect ratio
+            const scaleX = maxDisplayWidth / canvasWidth;
+            const scaleY = maxDisplayHeight / canvasHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond actual size
+            
+            const displayWidth = canvasWidth * scale;
+            const displayHeight = canvasHeight * scale;
+            
+            elements.canvas.style.width = displayWidth + 'px';
+            elements.canvas.style.height = displayHeight + 'px';
         }
         
         // Update canvas display size on window resize
