@@ -20,37 +20,13 @@
         
         .app-container {
             display: grid;
-            grid-template-columns: 280px 1fr;
-            grid-template-rows: auto 1fr auto;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 1fr auto;
             grid-template-areas: 
-                "sidebar header"
                 "sidebar main"
                 "sidebar status";
             height: 100vh;
             gap: 0;
-        }
-        
-        .header {
-            grid-area: header;
-            background: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-        }
-        
-        .header h1 {
-            color: #4a5568;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-        
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
         }
         
         .btn {
@@ -93,6 +69,27 @@
             padding: 1rem;
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .sidebar-header h1 {
+            color: #2d3748;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
         }
         
         .control-section {
@@ -154,7 +151,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 2rem;
+            padding: 1rem;
             overflow: hidden;
         }
         
@@ -336,25 +333,16 @@
         @media (max-width: 768px) {
             .app-container {
                 grid-template-columns: 1fr;
-                grid-template-rows: auto auto 1fr auto;
+                grid-template-rows: auto 1fr auto;
                 grid-template-areas: 
-                    "header"
                     "sidebar"
                     "main"
                     "status";
             }
             
             .sidebar {
-                max-height: 300px;
+                max-height: none;
                 padding: 1rem;
-            }
-            
-            .header {
-                padding: 1rem;
-            }
-            
-            .header h1 {
-                font-size: 1.2rem;
             }
             
             .main-content {
@@ -388,16 +376,18 @@
 </head>
 <body>
     <div class="app-container">
-        <header class="header">
-            <h1>🌀 Fractal Generator</h1>
-            <div class="header-actions">
-                <button class="btn btn-secondary" id="downloadBtn" disabled>
-                    📥 Download PNG
-                </button>
-            </div>
-        </header>
-        
         <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Fractal Generator</h1>
+                <div class="header-actions">
+                    <button class="btn" id="generateBtn" style="flex: 1;">
+                        Generate Fractal
+                    </button>
+                    <button class="btn btn-secondary" id="downloadBtn" disabled>
+                        Download PNG
+                    </button>
+                </div>
+            </div>
             <div class="control-section">
                 <h3>Generation Method</h3>
                 <div class="control-group">
@@ -473,6 +463,8 @@
                         <option value="600" selected>600x600</option>
                         <option value="800">800x800</option>
                         <option value="1024">1024x1024</option>
+                        <option value="2048">2048x2048 (2K)</option>
+                        <option value="4096">4096x4096 (4K)</option>
                     </select>
                 </div>
                 
@@ -607,13 +599,6 @@
                     </select>
                 </div>
             </div>
-            
-            <!-- Generate Button -->
-            <div class="control-section">
-                <button class="btn" id="generateBtn" style="width: 100%; padding: 0.75rem; font-size: 1rem;">
-                    ✨ Generate Fractal
-                </button>
-            </div>
         </aside>
         
         <main class="main-content">
@@ -631,15 +616,12 @@
         <footer class="status-bar">
             <div class="status-left">
                 <div class="status-item">
-                    <span>🎯</span>
                     <span id="positionStatus">Center: (0, 0)</span>
                 </div>
                 <div class="status-item">
-                    <span>🔍</span>
                     <span id="zoomStatus">Zoom: 1.0x</span>
                 </div>
                 <div class="status-item">
-                    <span>⏱️</span>
                     <span id="timeStatus">Ready</span>
                 </div>
             </div>
@@ -798,7 +780,7 @@
             if (loading) {
                 elements.generateBtn.textContent = '⏳ Generating...';
             } else {
-                elements.generateBtn.textContent = '✨ Generate';
+                elements.generateBtn.textContent = 'Generate';
             }
         }
 
@@ -1400,6 +1382,14 @@
         elements.generateBtn.addEventListener('click', generateFractal);
         elements.downloadBtn.addEventListener('click', downloadPNG);
         
+        // Enter key to generate fractal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isLoading) {
+                e.preventDefault();
+                generateFractal();
+            }
+        });
+        
         // Method and preset change handlers
         elements.fractalMethod.addEventListener('change', updateControlVisibility);
         elements.escapeTimeType.addEventListener('change', updateEscapeTimeControls);
@@ -1441,10 +1431,29 @@
             elements.canvas.width = size;
             elements.canvas.height = size;
             
+            // Update canvas display size with screen resolution cap
+            updateCanvasDisplaySize();
+            
             if (currentFractal) {
                 generateFractal();
             }
         });
+        
+        function updateCanvasDisplaySize() {
+            const size = parseInt(elements.canvasSize.value);
+            const maxDisplaySize = Math.min(
+                window.innerWidth - 320, // Account for sidebar width
+                window.innerHeight - 200, // Account for header and status bar
+                800 // Maximum display size cap
+            );
+            
+            const displaySize = Math.min(size, maxDisplaySize);
+            elements.canvas.style.width = displaySize + 'px';
+            elements.canvas.style.height = displaySize + 'px';
+        }
+        
+        // Update canvas display size on window resize
+        window.addEventListener('resize', updateCanvasDisplaySize);
 
         // Real-time parameter updates for Julia set
         elements.juliaReal.addEventListener('input', () => {
@@ -1476,6 +1485,7 @@
         initWasm();
         updateControlVisibility();
         updateStatus();
+        updateCanvasDisplaySize();
     </script>
 </body>
 </html>
