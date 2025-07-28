@@ -37,47 +37,53 @@ class FractalApp {
         this.ctx = null;
         this.imageData = null;
         
-        // Preset configurations
+        // Preset configurations based on Python implementation
         this.presetConfigs = {
             sierpt: {
                 polygon: 3,
                 jump: '1/2',
                 skip: 0,
+                vertexMode: 'normal',
                 startX: 0,
                 startY: 0
             },
             sierpc: {
-                polygon: 3,
-                jump: '1/2',
-                skip: 1,
+                polygon: 4,
+                jump: '2/3',
+                skip: 0,
+                vertexMode: 'midpoints',
                 startX: 0,
                 startY: 0
             },
             vicsek: {
-                polygon: 5,
-                jump: '1/3',
+                polygon: 4,
+                jump: '2/3',
                 skip: 0,
+                vertexMode: 'center',
                 startX: 0,
                 startY: 0
             },
             tsquare: {
                 polygon: 4,
                 jump: '1/2',
-                skip: 1,
+                skip: 2,
+                vertexMode: 'normal',
                 startX: 0,
                 startY: 0
             },
             techs: {
-                polygon: 8,
-                jump: '1/3',
-                skip: 2,
+                polygon: 4,
+                jump: '1/2',
+                skip: 0,
+                vertexMode: 'normal',
                 startX: 0,
                 startY: 0
             },
             webs: {
-                polygon: 6,
+                polygon: 4,
                 jump: '1/2',
-                skip: 2,
+                skip: -1,
+                vertexMode: 'normal',
                 startX: 0,
                 startY: 0
             },
@@ -85,6 +91,7 @@ class FractalApp {
                 polygon: 12,
                 jump: '1/4',
                 skip: 3,
+                vertexMode: 'normal',
                 startX: 0,
                 startY: 0
             }
@@ -344,9 +351,12 @@ class FractalApp {
         document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
             tab.addEventListener('shown.bs.tab', (event) => {
                 const targetId = event.target.getAttribute('data-bs-target').substring(1);
+                console.log('🔄 Tab switched to:', targetId);
                 this.currentTab = targetId;
                 this.initializeCanvas();
                 this.resetViewport();
+                
+                console.log('📋 Canvas initialized for tab:', this.currentTab, 'Canvas ID:', this.canvas ? this.canvas.id : 'null');
                 
                 // Render fractal for new tab
                 if (this.wasmLoaded) {
@@ -551,7 +561,23 @@ class FractalApp {
      * Main fractal rendering function
      */
     async renderFractal() {
-        if (!this.wasmLoaded || !this.canvas) return;
+        if (!this.wasmLoaded) return;
+
+        // Detect current active tab from DOM and update canvas
+        const activeTab = document.querySelector('.nav-link.active');
+        if (activeTab) {
+            const targetId = activeTab.getAttribute('data-bs-target');
+            if (targetId) {
+                const newTab = targetId.substring(1); // Remove the #
+                if (newTab !== this.currentTab) {
+                    this.currentTab = newTab;
+                    this.initializeCanvas();
+                    this.resetViewport();
+                }
+            }
+        }
+
+        if (!this.canvas) return;
 
         const startTime = performance.now();
         this.performanceMetrics.renderStartTime = startTime;
@@ -605,13 +631,34 @@ class FractalApp {
         const jump = this.parseFraction(jumpText);
 
         // Generate polygon vertices
-        const vertices = this.generatePolygonVertices(polygon);
+        let vertices = this.generatePolygonVertices(polygon);
+        
+        // Apply vertex modifications based on current preset
+        const preset = document.getElementById('presets_dropdown').value;
+        if (preset && this.presetConfigs[preset]) {
+            const vertexMode = this.presetConfigs[preset].vertexMode;
+            if (vertexMode === 'center') {
+                vertices = this.stackCenter(vertices);
+            } else if (vertexMode === 'midpoints') {
+                vertices = this.stackMidpoints(vertices);
+            }
+        }
         
         // Create transforms array (all same jump ratio)
-        const transforms = Array(polygon).fill([jump, 0]);
+        const transforms = Array(vertices.length).fill([jump, 0]);
         
         // Create rule for vertex selection
-        const rule = new Rule(skip + 1, skip, false);
+        let rule;
+        if (skip === -1) {
+            // Special case for webs: Rule(2, -1, symmetry)
+            rule = new Rule(2, -1, true);
+        } else if (skip === 0) {
+            // No skip rule
+            rule = new Rule(1, 0, false);
+        } else {
+            // Standard skip rule: Rule(1, skip, false)
+            rule = new Rule(1, skip, false);
+        }
 
         // Generate points using WebAssembly
         return this.generator.chaos_game(vertices, startX, startY, iterations, transforms, rule);
@@ -623,6 +670,8 @@ class FractalApp {
     async generateIFS() {
         const preset = document.getElementById('ifs_presets_dropdown').value;
         const iterations = parseInt(document.getElementById('ifs_iterations_input').value) || 100000;
+        
+        console.log('🔄 Generating IFS fractal:', { preset, iterations });
         
         let transforms, probabilities;
         
@@ -641,7 +690,12 @@ class FractalApp {
             probabilities = customData.probabilities;
         }
 
-        return this.generator.ifs_fractal(0, 0, iterations, transforms, probabilities, 'regular');
+        console.log('🔧 Transform data:', { transforms, probabilities });
+        
+        const result = this.generator.ifs_fractal(0, 0, iterations, transforms, probabilities, 'regular');
+        console.log('📊 IFS result points:', result ? result.length : 'null');
+        
+        return result;
     }
 
     /**
@@ -743,6 +797,42 @@ class FractalApp {
             vertices.push([x, y]);
         }
         return vertices;
+    }
+
+    /**
+     * Add center point to vertices (stack_center from Python)
+     */
+    stackCenter(vertices) {
+        const result = [...vertices];
+        result.push([0.0, 0.0]); // Add center point
+        return result;
+    }
+
+    /**
+     * Add midpoints between vertices (stack_midpoints from Python)
+     */
+    stackMidpoints(vertices) {
+        const result = [];
+        const n = vertices.length;
+        
+        for (let i = 0; i < n * 2; i++) {
+            if (i % 2 === 0) {
+                // Even index: original vertex
+                result.push(vertices[Math.floor(i / 2)]);
+            } else {
+                // Odd index: midpoint between current and next vertex
+                const idx1 = Math.floor((i - 1) / 2);
+                const idx2 = Math.floor((i + 1) / 2) % n; // Wrap around
+                const p1 = vertices[idx1];
+                const p2 = vertices[idx2];
+                const midpoint = [
+                    (p1[0] + p2[0]) / 2,
+                    (p1[1] + p2[1]) / 2
+                ];
+                result.push(midpoint);
+            }
+        }
+        return result;
     }
 
     /**
