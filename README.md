@@ -4,14 +4,56 @@
 
 This project now includes a **Rust/WebAssembly implementation** that provides **10-100x faster** fractal generation for browser deployment!
 
-### 🚀 Try the Interactive Demo
+## 🚀 Installation & Quick Start
 
+### Prerequisites
+- **Rust toolchain**: [Install from rustup.rs](https://rustup.rs/)
+- **Python 3** (for local web server)
+
+### Setup Instructions
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/maxbrodeur/fractal-generator.git
+   cd fractal-generator
+   ```
+
+2. **Automated setup** (recommended):
+   ```bash
+   ./setup-wasm.sh
+   ```
+
+3. **Start local WebAssembly server**:
+   ```bash
+   python3 -m http.server 8000
+   # Alternative: npx serve . (if you have Node.js)
+   ```
+
+4. **Open the fractal generator**:
+   - **Modern UI**: [http://localhost:8000/index.html](http://localhost:8000/index.html)
+   - **Test Demo**: [http://localhost:8000/test-wasm.html](http://localhost:8000/test-wasm.html)
+
+### Manual Setup (if automated setup fails)
 ```bash
-# Quick setup (requires Rust)
-./setup-wasm.sh
+# Install wasm-pack
+cargo install wasm-pack
+
+# Add WebAssembly target
+rustup target add wasm32-unknown-unknown
+
+# Build WebAssembly module
+cd fractal-wasm
+wasm-pack build --target web --out-dir pkg
+cd ..
+
+# Start server
 python3 -m http.server 8000
-# Visit http://localhost:8000/test-wasm.html
 ```
+
+### Troubleshooting
+- **CORS errors**: Must use a local server (not file:// protocol) for WebAssembly loading
+- **Build failures**: Ensure Rust nightly toolchain: `rustup default nightly`
+- **Permission issues**: Make setup script executable: `chmod +x setup-wasm.sh`
 
 **📋 [Complete Setup Guide](./QUICKSTART.md)** | **📁 [Full Documentation](./fractal-wasm/README.md)**
 
