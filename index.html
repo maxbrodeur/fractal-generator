@@ -568,7 +568,7 @@
                 <!-- Universal Parameters -->
                 <div class="control-group">
                     <label>Iterations</label>
-                    <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
+                    <input type="number" id="iterations" value="50000" min="1000" max="50000000" step="1000">
                     <small id="iterationsHelp">Number of iterations or points to generate</small>
                 </div>
                 
@@ -694,7 +694,7 @@
                 <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
                         <label>Plot Points</label>
-                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000">
+                        <input type="number" id="chaosPlotPoints" value="25000000" min="100000" step="100000">
                         <small>Number of points to plot for discovered map</small>
                     </div>
                     <div class="control-group">
@@ -735,6 +735,14 @@
                         <option value="4">Color Wheel</option>
                         <option value="5">GNU Plot</option>
                         <option value="6">BMY</option>
+                        <option value="7">Plasma</option>
+                        <option value="8">Viridis</option>
+                        <option value="9">Inferno</option>
+                        <option value="10">Magma</option>
+                        <option value="11">Ocean</option>
+                        <option value="12">Rainbow</option>
+                        <option value="13">Cool</option>
+                        <option value="14">Hot</option>
                     </select>
                 </div>
             </div>
@@ -978,9 +986,9 @@
 
             // Parameter validation with detailed feedback
             const paramValidation = {
-                iterations: iterations > 0 && iterations <= 10000000,
+                iterations: iterations > 0 && iterations <= 50000000,
                 canvasSize: canvasSize > 0 && canvasSize <= 8192,
-                colorScheme: colorScheme >= 0 && colorScheme <= 6
+                colorScheme: colorScheme >= 0 && colorScheme <= 14
             };
             
             const invalidParams = Object.entries(paramValidation)
@@ -1085,10 +1093,20 @@
                     }
                     
                 } else if (method === 'chaos_game') {
-                    // Chaos game fractals - scale iterations with resolution for consistent brightness
+                    // Chaos game fractals - enhanced scaling for high-resolution brightness
                     const baseResolution = 600 * 600; // Base resolution for scaling
                     const currentResolution = canvasWidth * canvasHeight;
-                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    // More aggressive scaling formula for better brightness at high resolution
+                    let scalingFactor;
+                    if (currentResolution <= baseResolution) {
+                        scalingFactor = 1.0;
+                    } else {
+                        // Quadratic scaling for resolutions above base
+                        const resolutionRatio = currentResolution / baseResolution;
+                        scalingFactor = Math.pow(resolutionRatio, 0.75); // Between linear and square root
+                    }
+                    
                     const scaledIterations = Math.round(iterations * scalingFactor);
                     actualPointsUsed = scaledIterations;
                     
@@ -1148,10 +1166,20 @@
                     }
                     
                 } else if (method === 'ifs') {
-                    // IFS fractals using user-defined parameters - scale iterations with resolution for consistent brightness
+                    // IFS fractals - enhanced scaling for high-resolution brightness
                     const baseResolution = 600 * 600; // Base resolution for scaling
                     const currentResolution = canvasWidth * canvasHeight;
-                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    // More aggressive scaling formula for better brightness at high resolution
+                    let scalingFactor;
+                    if (currentResolution <= baseResolution) {
+                        scalingFactor = 1.0;
+                    } else {
+                        // Quadratic scaling for resolutions above base
+                        const resolutionRatio = currentResolution / baseResolution;
+                        scalingFactor = Math.pow(resolutionRatio, 0.75); // Between linear and square root
+                    }
+                    
                     const scaledIterations = Math.round(iterations * scalingFactor);
                     actualPointsUsed = scaledIterations;
                     
@@ -1179,10 +1207,19 @@
                     }
                     
                 } else if (method === 'random_chaos') {
-                    // Random chaos finder - scale plot points with resolution for consistent brightness
+                    // Random chaos finder - enhanced scaling for high-resolution brightness
                     const baseResolution = 600 * 600; // Base resolution for scaling
                     const currentResolution = canvasWidth * canvasHeight;
-                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    // More aggressive scaling formula for better brightness at high resolution
+                    let scalingFactor;
+                    if (currentResolution <= baseResolution) {
+                        scalingFactor = 1.0;
+                    } else {
+                        // Quadratic scaling for resolutions above base
+                        const resolutionRatio = currentResolution / baseResolution;
+                        scalingFactor = Math.pow(resolutionRatio, 0.75); // Between linear and square root
+                    }
                     
                     const chaosType = elements.chaosFinderType.value;
                     const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
@@ -1837,6 +1874,51 @@
         // Canvas size change
         elements.canvasSize.addEventListener('change', function() {
             updateCanvasDisplaySize();
+            
+            // Auto-adjust iterations based on canvas size for better brightness
+            const canvasSize = parseInt(elements.canvasSize.value);
+            const method = elements.fractalMethod.value;
+            
+            if (method === 'chaos_game' || method === 'ifs') {
+                // Point-based fractals need more iterations for larger canvases
+                let recommendedIterations;
+                if (canvasSize <= 600) {
+                    recommendedIterations = 50000;
+                } else if (canvasSize <= 1024) {
+                    recommendedIterations = 100000;
+                } else if (canvasSize <= 2048) {
+                    recommendedIterations = 250000;
+                } else if (canvasSize <= 4096) {
+                    recommendedIterations = 1000000;
+                } else {
+                    recommendedIterations = 5000000;
+                }
+                
+                // Only update if current value is relatively low compared to recommendation
+                const currentIterations = parseInt(elements.iterations.value);
+                if (currentIterations < recommendedIterations * 0.5) {
+                    elements.iterations.value = recommendedIterations;
+                }
+            } else if (method === 'random_chaos') {
+                // Chaos finder plot points scaling
+                let recommendedPlotPoints;
+                if (canvasSize <= 600) {
+                    recommendedPlotPoints = 10000000;
+                } else if (canvasSize <= 1024) {
+                    recommendedPlotPoints = 15000000;
+                } else if (canvasSize <= 2048) {
+                    recommendedPlotPoints = 25000000;
+                } else if (canvasSize <= 4096) {
+                    recommendedPlotPoints = 50000000;
+                } else {
+                    recommendedPlotPoints = 100000000;
+                }
+                
+                const currentPlotPoints = parseInt(elements.chaosPlotPoints.value);
+                if (currentPlotPoints < recommendedPlotPoints * 0.5) {
+                    elements.chaosPlotPoints.value = recommendedPlotPoints;
+                }
+            }
             
             if (currentFractal) {
                 generateFractal();
