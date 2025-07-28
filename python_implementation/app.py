@@ -211,7 +211,7 @@ webs["offset"] = -1
 webs["ln"]=2
 webs["symmetry"]=True
 XTREME = default_params.copy()
-XTREME["N"] = 200000
+XTREME["N"] = 5000000  # Increased from 200000 to 5M for high-resolution support
 XTREME["poly"] = 200
 XTREME["jump"] = "7/8"
 XTREME["center"] = True
@@ -245,9 +245,9 @@ server = app.server
 	)
 def update_iterations_input(fast):
 	if fast:
-		return int(2e8),1000
+		return int(5e8),1000  # Increased from 2e8 to 5e8 for high-resolution support
 	else:
-		return 20000,1
+		return 50000000,1000  # Increased from 20000 to 50M for consistency with WASM
 
 @app.callback(Output('GRAPH','figure'),
 	Input('polygon_input', 'value'),

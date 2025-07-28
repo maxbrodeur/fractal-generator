@@ -182,6 +182,14 @@ pub enum ColorScheme {
     ColorWheel,
     GnuPlot,
     Bmy,
+    Plasma,
+    Viridis,
+    Inferno,
+    Magma,
+    Ocean,
+    Rainbow,
+    Cool,
+    Hot,
 }
 
 /// Main fractal generator struct
@@ -489,9 +497,13 @@ impl FractalGenerator {
         for i in 0..density.len() {
             let normalized = if max_density > 0.0 {
                 let linear_norm = density[i] as f64 / max_density;
-                // Use a softer logarithmic mapping for better visibility
+                // Enhanced logarithmic mapping for better visibility and brightness
                 if linear_norm > 0.0 {
-                    (linear_norm * 10.0).ln_1p() / 10.0_f64.ln_1p()
+                    // Use a more aggressive logarithmic curve for high-resolution images
+                    let base_intensity = (linear_norm * 20.0).ln_1p() / 20.0_f64.ln_1p();
+                    // Add some linear component to prevent overly dark images
+                    let mixed_intensity = 0.3 * linear_norm + 0.7 * base_intensity;
+                    mixed_intensity.clamp(0.0, 1.0)
                 } else {
                     0.0
                 }
@@ -626,6 +638,14 @@ impl FractalGenerator {
             ColorScheme::ColorWheel => self.colorwheel_colormap(clamped),
             ColorScheme::GnuPlot => self.gnuplot_colormap(clamped),
             ColorScheme::Bmy => self.bmy_colormap(clamped),
+            ColorScheme::Plasma => self.plasma_colormap(clamped),
+            ColorScheme::Viridis => self.viridis_colormap(clamped),
+            ColorScheme::Inferno => self.inferno_colormap(clamped),
+            ColorScheme::Magma => self.magma_colormap(clamped),
+            ColorScheme::Ocean => self.ocean_colormap(clamped),
+            ColorScheme::Rainbow => self.rainbow_colormap(clamped),
+            ColorScheme::Cool => self.cool_colormap(clamped),
+            ColorScheme::Hot => self.hot_colormap(clamped),
         }
     }
     
@@ -703,6 +723,149 @@ impl FractalGenerator {
         } else {
             let scaled = (t - 0.67) * 3.0;
             (255, (255.0 * (1.0 - scaled)) as u8, 0)
+        }
+    }
+    
+    fn plasma_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Plasma colormap - purple to pink to yellow
+        let r = (0.05 + 0.95 * (0.1 + 0.9 * t).sqrt()).clamp(0.0, 1.0);
+        let g = (0.9 * t * t).clamp(0.0, 1.0);
+        let b = (0.4 + 0.6 * (1.0 - t).sqrt()).clamp(0.0, 1.0);
+        
+        ((255.0 * r) as u8, (255.0 * g) as u8, (255.0 * b) as u8)
+    }
+    
+    fn viridis_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Viridis colormap - dark purple to green to yellow
+        let r = if t < 0.5 {
+            0.1 + 0.7 * (t * 2.0).powi(2)
+        } else {
+            0.8 + 0.2 * ((t - 0.5) * 2.0)
+        };
+        
+        let g = if t < 0.25 {
+            0.05 + 0.15 * (t * 4.0)
+        } else if t < 0.75 {
+            0.2 + 0.6 * ((t - 0.25) * 2.0)
+        } else {
+            0.8 + 0.2 * ((t - 0.75) * 4.0)
+        };
+        
+        let b = if t < 0.5 {
+            0.4 + 0.4 * (1.0 - t * 2.0)
+        } else {
+            0.4 * (1.0 - (t - 0.5) * 2.0)
+        };
+        
+        ((255.0 * r.clamp(0.0, 1.0)) as u8, (255.0 * g.clamp(0.0, 1.0)) as u8, (255.0 * b.clamp(0.0, 1.0)) as u8)
+    }
+    
+    fn inferno_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Inferno colormap - black to dark red to orange to yellow to white
+        let r = if t < 0.25 {
+            0.05 + 0.35 * (t * 4.0)
+        } else if t < 0.5 {
+            0.4 + 0.5 * ((t - 0.25) * 4.0)
+        } else {
+            0.9 + 0.1 * ((t - 0.5) * 2.0)
+        };
+        
+        let g = if t < 0.5 {
+            0.05 * (t * 2.0)
+        } else if t < 0.75 {
+            0.05 + 0.75 * ((t - 0.5) * 4.0)
+        } else {
+            0.8 + 0.2 * ((t - 0.75) * 4.0)
+        };
+        
+        let b = if t < 0.75 {
+            0.1 * (t / 0.75)
+        } else {
+            0.1 + 0.5 * ((t - 0.75) * 4.0)
+        };
+        
+        ((255.0 * r.clamp(0.0, 1.0)) as u8, (255.0 * g.clamp(0.0, 1.0)) as u8, (255.0 * b.clamp(0.0, 1.0)) as u8)
+    }
+    
+    fn magma_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Magma colormap - black to dark purple to pink to white
+        let r = if t < 0.3 {
+            0.1 + 0.4 * (t / 0.3)
+        } else if t < 0.7 {
+            0.5 + 0.4 * ((t - 0.3) / 0.4)
+        } else {
+            0.9 + 0.1 * ((t - 0.7) / 0.3)
+        };
+        
+        let g = if t < 0.4 {
+            0.05 + 0.15 * (t / 0.4)
+        } else if t < 0.8 {
+            0.2 + 0.6 * ((t - 0.4) / 0.4)
+        } else {
+            0.8 + 0.2 * ((t - 0.8) / 0.2)
+        };
+        
+        let b = if t < 0.2 {
+            0.2 + 0.3 * (t / 0.2)
+        } else if t < 0.6 {
+            0.5 + 0.3 * ((t - 0.2) / 0.4)
+        } else {
+            0.8 + 0.2 * ((t - 0.6) / 0.4)
+        };
+        
+        ((255.0 * r.clamp(0.0, 1.0)) as u8, (255.0 * g.clamp(0.0, 1.0)) as u8, (255.0 * b.clamp(0.0, 1.0)) as u8)
+    }
+    
+    fn ocean_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Ocean colormap - dark blue to light blue to white
+        let r = (0.0 + 0.8 * t.powi(2)).clamp(0.0, 1.0);
+        let g = (0.2 + 0.6 * t.sqrt()).clamp(0.0, 1.0);
+        let b = (0.4 + 0.6 * t).clamp(0.0, 1.0);
+        
+        ((255.0 * r) as u8, (255.0 * g) as u8, (255.0 * b) as u8)
+    }
+    
+    fn rainbow_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Classic rainbow: red -> orange -> yellow -> green -> blue -> indigo -> violet
+        let hue = t * 300.0; // 0 to 300 degrees (avoiding full circle to prevent red repetition)
+        let sector = (hue / 60.0) as u32 % 6;
+        let fraction = (hue / 60.0) - (sector as f64);
+        
+        let c = 1.0; // Chroma
+        let x = c * (1.0 - ((hue / 60.0) % 2.0 - 1.0).abs());
+        
+        let (r_prime, g_prime, b_prime) = match sector {
+            0 => (c, x, 0.0),     // Red to Yellow
+            1 => (x, c, 0.0),     // Yellow to Green
+            2 => (0.0, c, x),     // Green to Cyan
+            3 => (0.0, x, c),     // Cyan to Blue
+            4 => (x, 0.0, c),     // Blue to Magenta
+            _ => (c, 0.0, x),     // Magenta to Red
+        };
+        
+        ((255.0 * r_prime) as u8, (255.0 * g_prime) as u8, (255.0 * b_prime) as u8)
+    }
+    
+    fn cool_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Cool colormap - cyan to magenta
+        let r = t;
+        let g = 1.0 - t;
+        let b = 1.0;
+        
+        ((255.0 * r) as u8, (255.0 * g) as u8, (255.0 * b) as u8)
+    }
+    
+    fn hot_colormap(&self, t: f64) -> (u8, u8, u8) {
+        // Hot colormap - black to red to yellow to white
+        if t < 0.375 {
+            let scaled = t / 0.375;
+            ((255.0 * scaled) as u8, 0, 0)
+        } else if t < 0.75 {
+            let scaled = (t - 0.375) / 0.375;
+            (255, (255.0 * scaled) as u8, 0)
+        } else {
+            let scaled = (t - 0.75) / 0.25;
+            (255, 255, (255.0 * scaled) as u8)
         }
     }
 }
@@ -1315,6 +1478,20 @@ impl FractalGenerator {
     /// Find a random chaotic map
     #[wasm_bindgen]
     pub fn find_random_chaos(&self, n_plot: usize, n_test: usize, is_cubic: bool) -> Vec<f64> {
+        // Add safety bounds to prevent memory allocation issues
+        const MAX_PLOT_POINTS: usize = 10_000_000; // 10M points max
+        const MAX_TEST_POINTS: usize = 100_000;    // 100K test points max
+        
+        let safe_n_plot = n_plot.min(MAX_PLOT_POINTS);
+        let safe_n_test = n_test.min(MAX_TEST_POINTS);
+        
+        if n_plot > MAX_PLOT_POINTS {
+            console_log!("⚠️ Plot points capped at {} (was {}) for memory safety", MAX_PLOT_POINTS, n_plot);
+        }
+        if n_test > MAX_TEST_POINTS {
+            console_log!("⚠️ Test points capped at {} (was {}) for memory safety", MAX_TEST_POINTS, n_test);
+        }
+        
         let n_trans = 1000;
         let thresh = 1e6;
         let le_thresh = 1e-4;
@@ -1326,7 +1503,7 @@ impl FractalGenerator {
             let args1 = self.get_random_args(param_count);
             let args2 = self.get_random_args(param_count);
 
-            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, n_test, thresh, is_cubic);
+            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, safe_n_test, thresh, is_cubic);
             
             if max_le == -1.0 {
                 continue; // Try again if test failed
@@ -1342,7 +1519,7 @@ impl FractalGenerator {
 
             if !exclude {
                 // Found a good chaotic map!
-                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                let points = self.iterate_map(&args1, &args2, safe_n_plot, is_cubic);
                 
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result = Vec::with_capacity(points.len() * 2);
