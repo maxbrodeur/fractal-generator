@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fractal Generator - Interactive WebAssembly</title>
     <style>
         * {
@@ -323,35 +323,85 @@
             background: #4299e1;
         }
         
-        /* Responsive Design */
+        /* Enhanced Mobile Support */
         @media (max-width: 768px) {
             .app-container {
                 grid-template-columns: 1fr;
-                grid-template-rows: auto 1fr auto;
+                grid-template-rows: auto 1fr;
                 grid-template-areas: 
                     "sidebar"
-                    "main"
-                    "status";
+                    "main";
+                height: 100vh;
             }
             
             .sidebar {
                 max-height: none;
                 padding: 1rem;
+                order: 1;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid #e2e8f0;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }
+            
+            .sidebar.mobile-collapsed {
+                transform: translateY(-100%);
+                visibility: hidden;
+                height: 0;
+                padding: 0;
+                margin: 0;
             }
             
             .main-content {
-                padding: 1rem;
+                padding: 0.5rem;
+                order: 2;
+                min-height: 0;
             }
             
-            .status-bar {
-                padding: 0.5rem 1rem;
-                flex-direction: column;
-                gap: 0.5rem;
-                align-items: flex-start;
+            .canvas-container {
+                width: 100%;
+                height: 100%;
+                max-width: 100vw;
+                max-height: calc(100vh - 1rem);
             }
             
-            .status-left {
-                gap: 1rem;
+            #fractalCanvas {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+            }
+            
+            /* Mobile-specific button styling */
+            .mobile-show-controls {
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                z-index: 1000;
+                background: rgba(102, 126, 234, 0.9);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                backdrop-filter: blur(10px);
+                transition: all 0.3s ease;
+                display: none;
+            }
+            
+            .mobile-show-controls:hover {
+                background: rgba(90, 103, 216, 0.9);
+                transform: scale(1.1);
+            }
+            
+            .mobile-show-controls.visible {
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
         }
         
@@ -362,14 +412,84 @@
             }
             
             .btn {
-                padding: 0.4rem 0.8rem;
-                font-size: 0.8rem;
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+                width: 100%;
+            }
+            
+            .control-group input,
+            .control-group select {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 0.75rem;
+            }
+            
+            .sidebar-header h1 {
+                font-size: 1.2rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .control-section {
+                margin-bottom: 1rem;
+            }
+            
+            .control-section h3 {
+                font-size: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            /* Optimize touch targets */
+            .sidebar-toggle {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            
+            /* Better spacing for small screens */
+            .control-group {
+                margin-bottom: 0.75rem;
+            }
+            
+            .ifs-params {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            
+            .ifs-params input {
+                padding: 0.5rem;
+                font-size: 14px;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 44px; /* iOS recommended touch target */
+                padding: 0.75rem 1rem;
+            }
+            
+            .sidebar-toggle {
+                min-width: 44px;
+                min-height: 44px;
+            }
+            
+            .control-group input,
+            .control-group select {
+                min-height: 44px;
+                padding: 0.75rem;
+            }
+            
+            /* Disable hover effects on touch devices */
+            .btn:hover {
+                transform: none;
             }
         }
     </style>
 </head>
 <body>
     <div class="app-container">
+        <!-- Mobile show controls button -->
+        <button class="mobile-show-controls" id="mobileShowControls">⚙️</button>
+        
         <aside class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebarToggle">←</button>
             <div class="sidebar-content">
@@ -720,7 +840,7 @@
             console.log('🔧 Initializing WebAssembly module...');
             
             try {
-                const wasmModule = await import('./pkg/fractal_wasm.js');
+                const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
                 await wasmModule.default();
                 const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
                 
@@ -789,10 +909,12 @@
 
         // UI Helper Functions
         function showOverlay(message = 'Generating fractal...') {
+            const isMobile = window.innerWidth <= 768;
             elements.overlay.innerHTML = `
-                <div>
+                <div style="text-align: center; padding: ${isMobile ? '2rem' : '1rem'};">
                     <div class="loading-spinner"></div>
-                    <p style="margin-top: 1rem;">${message}</p>
+                    <p style="margin-top: 1rem; font-size: ${isMobile ? '1.1rem' : '1rem'}; max-width: ${isMobile ? '280px' : 'none'};">${message}</p>
+                    ${isMobile ? '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Please wait while your fractal generates...</p>' : ''}
                 </div>
             `;
             elements.overlay.style.display = 'flex';
@@ -1139,6 +1261,13 @@
                 });
                     
                 showNotification(`Fractal generated successfully! (${pointInfo} in ${duration}ms)`, 'success');
+                
+                // Auto-collapse sidebar on mobile after successful generation
+                if (window.autoCollapseMobileAfterGeneration) {
+                    setTimeout(() => {
+                        window.autoCollapseMobileAfterGeneration();
+                    }, 1000); // Small delay to let user see the success message
+                }
                 
                 // Adapt background color based on fractal colors
                 adaptBackgroundColor(result, canvasWidth, canvasHeight);
@@ -1726,6 +1855,7 @@
         function updateCanvasDisplaySize() {
             const size = parseInt(elements.canvasSize.value);
             const aspectRatio = elements.aspectRatio.value;
+            const isMobile = window.innerWidth <= 768;
             
             // Calculate canvas dimensions based on aspect ratio
             let canvasWidth = size;
@@ -1743,11 +1873,23 @@
             elements.canvas.width = canvasWidth;
             elements.canvas.height = canvasHeight;
             
-            // Calculate maximum display size using entire available pane
+            // Calculate maximum display size
             const sidebar = document.getElementById('sidebar');
-            const sidebarWidth = sidebar.classList.contains('collapsed') ? 40 : 300;
-            const maxDisplayWidth = window.innerWidth - sidebarWidth - 40; // Account for sidebar width + padding
-            const maxDisplayHeight = window.innerHeight - 40; // Account for minimal padding
+            let maxDisplayWidth, maxDisplayHeight;
+            
+            if (isMobile) {
+                // On mobile, use full viewport when sidebar is collapsed
+                const sidebarCollapsed = sidebar.classList.contains('mobile-collapsed');
+                maxDisplayWidth = window.innerWidth - 20; // Account for padding
+                maxDisplayHeight = sidebarCollapsed 
+                    ? window.innerHeight - 20 
+                    : window.innerHeight - 200; // Leave space for collapsed controls
+            } else {
+                // Desktop calculation
+                const sidebarWidth = sidebar.classList.contains('collapsed') ? 40 : 300;
+                maxDisplayWidth = window.innerWidth - sidebarWidth - 40;
+                maxDisplayHeight = window.innerHeight - 40;
+            }
             
             // Scale display while maintaining aspect ratio
             const scaleX = maxDisplayWidth / canvasWidth;
@@ -1759,6 +1901,13 @@
             
             elements.canvas.style.width = displayWidth + 'px';
             elements.canvas.style.height = displayHeight + 'px';
+            
+            // Center the canvas on mobile
+            if (isMobile) {
+                elements.container.style.display = 'flex';
+                elements.container.style.justifyContent = 'center';
+                elements.container.style.alignItems = 'center';
+            }
         }
         
         // Update canvas display size on window resize
@@ -1792,10 +1941,14 @@
 
         // Initialize application
         function initializeApp() {
-            // Detect mobile and set default aspect ratio
+            // Mobile detection
             const isMobile = window.innerWidth <= 768;
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            // Detect mobile and set default aspect ratio
             if (isMobile) {
                 elements.aspectRatio.value = 'portrait';
+                elements.canvasSize.value = '1024'; // Use smaller default for mobile
             } else {
                 elements.aspectRatio.value = 'landscape';
             }
@@ -1804,6 +1957,35 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const appContainer = document.querySelector('.app-container');
+            const mobileShowControls = document.getElementById('mobileShowControls');
+            
+            // Enhanced mobile support
+            function handleMobileLayout() {
+                const isMobileView = window.innerWidth <= 768;
+                
+                if (isMobileView) {
+                    // Show mobile controls button when sidebar is hidden
+                    if (sidebar.classList.contains('mobile-collapsed')) {
+                        mobileShowControls.classList.add('visible');
+                    }
+                } else {
+                    // Hide mobile controls button on desktop
+                    mobileShowControls.classList.remove('visible');
+                    sidebar.classList.remove('mobile-collapsed');
+                }
+            }
+            
+            // Auto-collapse sidebar on mobile after generation
+            function autoCollapseMobileAfterGeneration() {
+                const isMobileView = window.innerWidth <= 768;
+                if (isMobileView) {
+                    sidebar.classList.add('mobile-collapsed');
+                    mobileShowControls.classList.add('visible');
+                }
+            }
+            
+            // Store reference for use in generation function
+            window.autoCollapseMobileAfterGeneration = autoCollapseMobileAfterGeneration;
             
             sidebarToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('collapsed');
@@ -1816,8 +1998,92 @@
                 setTimeout(updateCanvasDisplaySize, 300);
             });
             
+            // Mobile show controls button
+            mobileShowControls.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-collapsed');
+                mobileShowControls.classList.remove('visible');
+                
+                // Scroll to top to show controls
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                handleMobileLayout();
+                updateCanvasDisplaySize();
+            });
+            
+            // Initial mobile layout setup
+            handleMobileLayout();
+            
             // Hide iterations parameter for Random Chaos Finder to avoid redundancy
             updateIterationsVisibility();
+            
+            // Add mobile-specific touch event handlers for canvas
+            if (isTouchDevice) {
+                setupMobileTouchHandlers();
+            }
+        }
+        
+        // Setup mobile touch handlers for better mobile interaction
+        function setupMobileTouchHandlers() {
+            let touchStartTime = 0;
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            elements.canvas.addEventListener('touchstart', (e) => {
+                if (isLoading) return;
+                
+                touchStartTime = Date.now();
+                const touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                
+                // Prevent default to avoid scrolling
+                e.preventDefault();
+            });
+            
+            elements.canvas.addEventListener('touchend', (e) => {
+                if (isLoading) return;
+                
+                const touchEndTime = Date.now();
+                const touchDuration = touchEndTime - touchStartTime;
+                
+                // Only handle tap (not swipe or long press)
+                if (touchDuration < 200) {
+                    const method = elements.fractalMethod.value;
+                    if (method !== 'escape_time') return; // Only escape-time fractals support zooming
+                    
+                    const touch = e.changedTouches[0];
+                    const rect = elements.canvas.getBoundingClientRect();
+                    const x = (touch.clientX - rect.left) / rect.width;
+                    const y = (touch.clientY - rect.top) / rect.height;
+                    
+                    zoomIn(x, y);
+                }
+                
+                e.preventDefault();
+            });
+            
+            // Handle double tap for zoom out
+            let lastTap = 0;
+            elements.canvas.addEventListener('touchend', (e) => {
+                if (isLoading) return;
+                
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                
+                if (tapLength < 500 && tapLength > 0) {
+                    // Double tap detected
+                    const method = elements.fractalMethod.value;
+                    if (method === 'escape_time') {
+                        zoomOut();
+                    }
+                    e.preventDefault();
+                }
+                
+                lastTap = currentTime;
+            });
         }
         
         function updateIterationsVisibility() {
