@@ -1,0 +1,33 @@
+{
+  "name": "fractal-generator",
+  "version": "1.0.0",
+  "description": "High-performance WebAssembly fractal generator with simplified build process",
+  "main": "index.html",
+  "scripts": {
+    "build": "node build.js",
+    "serve": "http-server dist -p 8000 -c-1 -o",
+    "deploy": "npm run build && gh-pages -d dist",
+    "dev": "npm run build && npm run serve"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maxbrodeur/fractal-generator.git"
+  },
+  "keywords": [
+    "fractal",
+    "webassembly",
+    "rust",
+    "chaos-game",
+    "mandelbrot",
+    "sierpinski"
+  ],
+  "author": "Max Brodeur",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "gh-pages": "^6.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
