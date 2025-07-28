@@ -1025,6 +1025,43 @@
                 canvasHeight = Math.round(canvasSize * 3 / 4);
             }
 
+            // Memory and performance validation for high resolutions
+            const totalPixels = canvasWidth * canvasHeight;
+            const imageDataSize = totalPixels * 4; // 4 bytes per pixel (RGBA)
+            const imageSizeMB = imageDataSize / (1024 * 1024);
+            
+            // Calculate estimated memory usage based on fractal type
+            let estimatedMemoryMB = imageSizeMB;
+            let estimatedIterations = iterations;
+            
+            if (method === 'chaos_game' || method === 'ifs') {
+                const baseResolution = 600 * 600;
+                const scalingFactor = Math.sqrt(totalPixels / baseResolution);
+                estimatedIterations = Math.round(iterations * scalingFactor);
+                estimatedMemoryMB += (estimatedIterations * 8) / (1024 * 1024); // 8 bytes per point (x,y coordinates)
+            } else if (method === 'random_chaos') {
+                const baseResolution = 600 * 600;
+                const scalingFactor = Math.sqrt(totalPixels / baseResolution);
+                const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
+                const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
+                estimatedMemoryMB += (scaledPlotPoints * 8) / (1024 * 1024);
+            }
+            
+            // Warn for high memory usage
+            if (canvasSize >= 4096) {
+                const warningMsg = canvasSize >= 8192 
+                    ? `8K resolution requires ~${estimatedMemoryMB.toFixed(1)}MB memory and may crash on some devices. Consider using 4K or lower for better stability.`
+                    : `4K resolution requires ~${estimatedMemoryMB.toFixed(1)}MB memory. Generation may take longer and could fail on devices with limited memory.`;
+                
+                showNotification(warningMsg, 'info');
+                console.warn('⚠️ High resolution warning:', {
+                    resolution: `${canvasWidth}x${canvasHeight}`,
+                    totalPixels: totalPixels.toLocaleString(),
+                    estimatedMemoryMB: estimatedMemoryMB.toFixed(1),
+                    estimatedIterations: estimatedIterations.toLocaleString()
+                });
+            }
+
             // Update canvas size
             elements.canvas.width = canvasWidth;
             elements.canvas.height = canvasHeight;
@@ -1322,12 +1359,20 @@
                 // User-friendly error messages based on error type
                 let userMessage = 'Error generating fractal. ';
                 
-                if (error.message.includes('memory')) {
-                    userMessage += 'Try reducing the number of iterations or canvas size.';
+                if (error.message.includes('memory') || error.message.includes('allocation') || 
+                    error.message.includes('out of bounds') || error.name === 'RangeError') {
+                    if (canvasSize >= 4096) {
+                        userMessage += `High resolution (${canvasSize}) may have exceeded memory limits. Try reducing canvas size to 2K or lower.`;
+                    } else {
+                        userMessage += 'Memory allocation failed. Try reducing the number of iterations or canvas size.';
+                    }
                 } else if (error.message.includes('parameter')) {
                     userMessage += 'Check your parameter values and try again.';
                 } else if (error.message.includes('timeout')) {
                     userMessage += 'Generation took too long. Try simpler parameters.';
+                } else if (canvasSize >= 4096 && (error.message.includes('RuntimeError') || 
+                          error.message.includes('unreachable') || error.message.includes('null'))) {
+                    userMessage += `WebAssembly may have crashed due to high resolution (${canvasSize}). Try reducing canvas size to 2K or lower.`;
                 } else {
                     userMessage += 'Check the browser console for details.';
                 }
@@ -1336,8 +1381,9 @@
                 
                 console.log('💡 Troubleshooting suggestions:');
                 console.log('  1. Try reducing iterations or canvas size');
-                console.log('  2. Use window.debugFractal.validateParameters() to check inputs');
-                console.log('  3. Run window.debugFractal.runBasicTests() to verify functionality');
+                console.log('  2. For high resolutions (4K/8K), use 2K or lower for better stability');
+                console.log('  3. Use window.debugFractal.validateParameters() to check inputs');
+                console.log('  4. Run window.debugFractal.runBasicTests() to verify functionality');
                 
             } finally {
                 setLoading(false);
