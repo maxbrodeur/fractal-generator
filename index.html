@@ -343,21 +343,14 @@
                 border-bottom: 1px solid #e2e8f0;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                 transition: all 0.3s ease;
-                /* Never hide the entire sidebar on mobile */
-                visibility: visible !important;
-                transform: none !important;
-                height: auto !important;
             }
             
-            /* Mobile settings collapse behavior */
-            .sidebar.mobile-settings-collapsed .control-section {
-                display: none;
-            }
-            
-            .sidebar.mobile-settings-collapsed .sidebar-header {
-                border-bottom: none;
-                padding-bottom: 0.5rem;
-                margin-bottom: 0.5rem;
+            .sidebar.mobile-collapsed {
+                transform: translateY(-100%);
+                visibility: hidden;
+                height: 0;
+                padding: 0;
+                margin: 0;
             }
             
             .main-content {
@@ -381,40 +374,34 @@
                 object-fit: contain;
             }
             
-            /* Mobile settings toggle button */
-            .mobile-settings-toggle {
-                position: absolute;
-                top: 0.5rem;
-                right: 0.5rem;
-                background: #667eea;
+            /* Mobile-specific button styling */
+            .mobile-show-controls {
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                z-index: 1000;
+                background: rgba(102, 126, 234, 0.9);
                 color: white;
                 border: none;
-                width: 32px;
-                height: 32px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 14px;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                backdrop-filter: blur(10px);
+                transition: all 0.3s ease;
+                display: none;
+            }
+            
+            .mobile-show-controls:hover {
+                background: rgba(90, 103, 216, 0.9);
+                transform: scale(1.1);
+            }
+            
+            .mobile-show-controls.visible {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                z-index: 10;
-                transition: all 0.2s ease;
-            }
-            
-            .mobile-settings-toggle:hover {
-                background: #5a67d8;
-                transform: scale(1.05);
-            }
-            
-            /* Always show header actions on mobile */
-            .sidebar-header {
-                position: relative;
-            }
-            
-            .header-actions {
-                display: flex !important;
-                gap: 0.75rem;
-                margin-bottom: 1rem;
             }
         }
         
@@ -451,10 +438,10 @@
             }
             
             /* Optimize touch targets */
-            .mobile-settings-toggle {
-                width: 40px !important;
-                height: 40px !important;
-                font-size: 16px !important;
+            .sidebar-toggle {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
             }
             
             /* Better spacing for small screens */
@@ -470,11 +457,6 @@
             .ifs-params input {
                 padding: 0.5rem;
                 font-size: 14px;
-            }
-            
-            /* Ensure buttons remain visible and accessible */
-            .header-actions .btn {
-                min-height: 44px; /* iOS recommended touch target */
             }
         }
         
@@ -505,10 +487,11 @@
 </head>
 <body>
     <div class="app-container">
+        <!-- Mobile show controls button -->
+        <button class="mobile-show-controls" id="mobileShowControls">⚙️</button>
+        
         <aside class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebarToggle">←</button>
-            <!-- Mobile settings toggle button (only visible on mobile) -->
-            <button class="mobile-settings-toggle" id="mobileSettingsToggle" style="display: none;">⚙️</button>
             <div class="sidebar-content">
                 <div class="sidebar-header">
                     <h1>Fractal Generator</h1>
@@ -585,7 +568,7 @@
                 <!-- Universal Parameters -->
                 <div class="control-group">
                     <label>Iterations</label>
-                    <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
+                    <input type="number" id="iterations" value="50000" min="1000" max="50000000" step="1000">
                     <small id="iterationsHelp">Number of iterations or points to generate</small>
                 </div>
                 
@@ -711,7 +694,7 @@
                 <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
                         <label>Plot Points</label>
-                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000">
+                        <input type="number" id="chaosPlotPoints" value="25000000" min="100000" step="100000">
                         <small>Number of points to plot for discovered map</small>
                     </div>
                     <div class="control-group">
@@ -752,6 +735,14 @@
                         <option value="4">Color Wheel</option>
                         <option value="5">GNU Plot</option>
                         <option value="6">BMY</option>
+                        <option value="7">Plasma</option>
+                        <option value="8">Viridis</option>
+                        <option value="9">Inferno</option>
+                        <option value="10">Magma</option>
+                        <option value="11">Ocean</option>
+                        <option value="12">Rainbow</option>
+                        <option value="13">Cool</option>
+                        <option value="14">Hot</option>
                     </select>
                 </div>
             </div>
@@ -995,9 +986,9 @@
 
             // Parameter validation with detailed feedback
             const paramValidation = {
-                iterations: iterations > 0 && iterations <= 10000000,
+                iterations: iterations > 0 && iterations <= 50000000,
                 canvasSize: canvasSize > 0 && canvasSize <= 8192,
-                colorScheme: colorScheme >= 0 && colorScheme <= 6
+                colorScheme: colorScheme >= 0 && colorScheme <= 14
             };
             
             const invalidParams = Object.entries(paramValidation)
@@ -1102,12 +1093,32 @@
                     }
                     
                 } else if (method === 'chaos_game') {
-                    // Chaos game fractals - scale iterations with resolution for consistent brightness
+                    // Chaos game fractals - enhanced scaling for high-resolution brightness
                     const baseResolution = 600 * 600; // Base resolution for scaling
                     const currentResolution = canvasWidth * canvasHeight;
-                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    // More aggressive scaling formula for better brightness at high resolution
+                    let scalingFactor;
+                    if (currentResolution <= baseResolution) {
+                        scalingFactor = 1.0;
+                    } else {
+                        // Quadratic scaling for resolutions above base
+                        const resolutionRatio = currentResolution / baseResolution;
+                        scalingFactor = Math.pow(resolutionRatio, 0.75); // Between linear and square root
+                    }
+                    
                     const scaledIterations = Math.round(iterations * scalingFactor);
-                    actualPointsUsed = scaledIterations;
+                    
+                    // Add safety limits to prevent memory allocation failures in WASM
+                    // Chaos game can handle up to ~5M iterations safely in WASM
+                    const maxSafeIterations = 5000000; // 5M iterations maximum
+                    const safeIterations = Math.min(scaledIterations, maxSafeIterations);
+                    
+                    if (scaledIterations > maxSafeIterations) {
+                        console.warn(`⚠️ Iterations capped at ${maxSafeIterations.toLocaleString()} (was ${scaledIterations.toLocaleString()}) to prevent WASM memory issues`);
+                    }
+                    
+                    actualPointsUsed = safeIterations;
                     
                     const compressionRatio = parseFloat(elements.compressionRatio.value);
                     const rotationAngle = parseFloat(elements.rotationAngle.value);
@@ -1122,7 +1133,10 @@
                     
                     console.log('🎯 Chaos game parameters:', {
                         fractalType,
+                        baseIterations: iterations,
                         scaledIterations,
+                        safeIterations,
+                        scalingFactor: scalingFactor.toFixed(2),
                         compressionRatio,
                         rotationAngle,
                         ruleLength,
@@ -1135,42 +1149,62 @@
                     
                     if (fractalType === 'sierpinski') {
                         const vertices = FractalPresets.sierpinski_triangle();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'sierpinski_carpet') {
                         const vertices = FractalPresets.sierpinski_carpet();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'vicsek') {
                         const vertices = FractalPresets.vicsek_square();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 't_square') {
                         const vertices = FractalPresets.t_square();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'techs') {
                         const vertices = FractalPresets.techs_pattern();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'webs') {
                         const vertices = FractalPresets.web_pattern();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
                     
                 } else if (method === 'ifs') {
-                    // IFS fractals using user-defined parameters - scale iterations with resolution for consistent brightness
+                    // IFS fractals - enhanced scaling for high-resolution brightness
                     const baseResolution = 600 * 600; // Base resolution for scaling
                     const currentResolution = canvasWidth * canvasHeight;
-                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    // More aggressive scaling formula for better brightness at high resolution
+                    let scalingFactor;
+                    if (currentResolution <= baseResolution) {
+                        scalingFactor = 1.0;
+                    } else {
+                        // Quadratic scaling for resolutions above base
+                        const resolutionRatio = currentResolution / baseResolution;
+                        scalingFactor = Math.pow(resolutionRatio, 0.75); // Between linear and square root
+                    }
+                    
                     const scaledIterations = Math.round(iterations * scalingFactor);
-                    actualPointsUsed = scaledIterations;
+                    
+                    // Add safety limits to prevent memory allocation failures in WASM
+                    // IFS can handle up to ~5M iterations safely in WASM
+                    const maxSafeIterations = 5000000; // 5M iterations maximum
+                    const safeIterations = Math.min(scaledIterations, maxSafeIterations);
+                    
+                    if (scaledIterations > maxSafeIterations) {
+                        console.warn(`⚠️ IFS iterations capped at ${maxSafeIterations.toLocaleString()} (was ${scaledIterations.toLocaleString()}) to prevent WASM memory issues`);
+                    }
+                    
+                    actualPointsUsed = safeIterations;
                     
                     const startX = parseFloat(elements.ifsStartX.value);
                     const startY = parseFloat(elements.ifsStartY.value);
@@ -1179,14 +1213,17 @@
                         fractalType,
                         startX,
                         startY,
-                        scaledIterations
+                        baseIterations: iterations,
+                        scaledIterations,
+                        safeIterations,
+                        scalingFactor: scalingFactor.toFixed(2)
                     });
                     
                     try {
                         const { transforms, probabilities, parseMode } = getIFSParameters();
                         console.log('🔧 IFS configuration:', { transforms, probabilities, parseMode });
                         
-                        const points = generator.ifs_fractal(startX, startY, scaledIterations, transforms, probabilities, parseMode);
+                        const points = generator.ifs_fractal(startX, startY, safeIterations, transforms, probabilities, parseMode);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
                         console.error('❌ IFS parameter error:', error);
@@ -1196,15 +1233,36 @@
                     }
                     
                 } else if (method === 'random_chaos') {
-                    // Random chaos finder - scale plot points with resolution for consistent brightness
+                    // Random chaos finder - enhanced scaling for high-resolution brightness
                     const baseResolution = 600 * 600; // Base resolution for scaling
                     const currentResolution = canvasWidth * canvasHeight;
-                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    // More aggressive scaling formula for better brightness at high resolution
+                    let scalingFactor;
+                    if (currentResolution <= baseResolution) {
+                        scalingFactor = 1.0;
+                    } else {
+                        // Quadratic scaling for resolutions above base
+                        const resolutionRatio = currentResolution / baseResolution;
+                        scalingFactor = Math.pow(resolutionRatio, 0.75); // Between linear and square root
+                    }
                     
                     const chaosType = elements.chaosFinderType.value;
                     const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
+                    
+                    // Apply scaling with reasonable upper bounds to prevent WASM crashes
                     const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
-                    actualPointsUsed = scaledPlotPoints;
+                    
+                    // Add safety limits to prevent memory allocation failures in WASM
+                    // Random chaos finder can handle up to ~10M points safely in WASM
+                    const maxSafePlotPoints = 10000000; // 10M points maximum
+                    const safePlotPoints = Math.min(scaledPlotPoints, maxSafePlotPoints);
+                    
+                    if (scaledPlotPoints > maxSafePlotPoints) {
+                        console.warn(`⚠️ Plot points capped at ${maxSafePlotPoints.toLocaleString()} (was ${scaledPlotPoints.toLocaleString()}) to prevent WASM memory issues`);
+                    }
+                    
+                    actualPointsUsed = safePlotPoints;
                     const testPoints = parseInt(elements.chaosTestPoints.value);
                     const discardPoints = parseInt(elements.chaosDiscardPoints.value);
                     const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
@@ -1212,7 +1270,10 @@
                     
                     console.log('🎲 Random chaos parameters:', {
                         chaosType,
+                        basePlotPoints,
                         scaledPlotPoints,
+                        safePlotPoints,
+                        scalingFactor: scalingFactor.toFixed(2),
                         testPoints,
                         discardPoints,
                         useAlphabet,
@@ -1223,7 +1284,7 @@
                     
                     // Try to call extended WebAssembly function with new parameters, fallback if not available
                     try {
-                        const result_data = generator.find_random_chaos_extended(scaledPlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
+                        const result_data = generator.find_random_chaos_extended(safePlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
                         
                         // Extract points and map equation if available
                         const points = result_data.points || result_data;
@@ -1232,7 +1293,7 @@
                     } catch (error) {
                         // Fallback to original function if extended one is not available
                         console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
-                        const points = generator.find_random_chaos(scaledPlotPoints, testPoints, isCubic);
+                        const points = generator.find_random_chaos(safePlotPoints, testPoints, isCubic);
                         
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
@@ -1855,6 +1916,51 @@
         elements.canvasSize.addEventListener('change', function() {
             updateCanvasDisplaySize();
             
+            // Auto-adjust iterations based on canvas size for better brightness
+            const canvasSize = parseInt(elements.canvasSize.value);
+            const method = elements.fractalMethod.value;
+            
+            if (method === 'chaos_game' || method === 'ifs') {
+                // Point-based fractals need more iterations for larger canvases
+                let recommendedIterations;
+                if (canvasSize <= 600) {
+                    recommendedIterations = 50000;
+                } else if (canvasSize <= 1024) {
+                    recommendedIterations = 100000;
+                } else if (canvasSize <= 2048) {
+                    recommendedIterations = 250000;
+                } else if (canvasSize <= 4096) {
+                    recommendedIterations = 1000000;
+                } else {
+                    recommendedIterations = 5000000;
+                }
+                
+                // Only update if current value is relatively low compared to recommendation
+                const currentIterations = parseInt(elements.iterations.value);
+                if (currentIterations < recommendedIterations * 0.5) {
+                    elements.iterations.value = recommendedIterations;
+                }
+            } else if (method === 'random_chaos') {
+                // Chaos finder plot points scaling
+                let recommendedPlotPoints;
+                if (canvasSize <= 600) {
+                    recommendedPlotPoints = 10000000;
+                } else if (canvasSize <= 1024) {
+                    recommendedPlotPoints = 15000000;
+                } else if (canvasSize <= 2048) {
+                    recommendedPlotPoints = 25000000;
+                } else if (canvasSize <= 4096) {
+                    recommendedPlotPoints = 50000000;
+                } else {
+                    recommendedPlotPoints = 100000000;
+                }
+                
+                const currentPlotPoints = parseInt(elements.chaosPlotPoints.value);
+                if (currentPlotPoints < recommendedPlotPoints * 0.5) {
+                    elements.chaosPlotPoints.value = recommendedPlotPoints;
+                }
+            }
+            
             if (currentFractal) {
                 generateFractal();
             }
@@ -1974,41 +2080,36 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const appContainer = document.querySelector('.app-container');
-            const mobileSettingsToggle = document.getElementById('mobileSettingsToggle');
+            const mobileShowControls = document.getElementById('mobileShowControls');
             
             // Enhanced mobile support
             function handleMobileLayout() {
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // Show mobile settings toggle button and hide desktop sidebar toggle
-                    mobileSettingsToggle.style.display = 'flex';
-                    sidebarToggle.style.display = 'none';
-                    
-                    // Start with settings collapsed on mobile by default
-                    sidebar.classList.add('mobile-settings-collapsed');
+                    // Show mobile controls button when sidebar is hidden
+                    if (sidebar.classList.contains('mobile-collapsed')) {
+                        mobileShowControls.classList.add('visible');
+                    }
                 } else {
-                    // Hide mobile settings toggle button and show desktop sidebar toggle
-                    mobileSettingsToggle.style.display = 'none';
-                    sidebarToggle.style.display = 'flex';
-                    
-                    // Remove mobile-specific classes on desktop
-                    sidebar.classList.remove('mobile-settings-collapsed');
+                    // Hide mobile controls button on desktop
+                    mobileShowControls.classList.remove('visible');
+                    sidebar.classList.remove('mobile-collapsed');
                 }
             }
             
-            // Auto-collapse settings on mobile after generation
-            function autoCollapseSettingsAfterGeneration() {
+            // Auto-collapse sidebar on mobile after generation
+            function autoCollapseMobileAfterGeneration() {
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
-                    sidebar.classList.add('mobile-settings-collapsed');
+                    sidebar.classList.add('mobile-collapsed');
+                    mobileShowControls.classList.add('visible');
                 }
             }
             
             // Store reference for use in generation function
-            window.autoCollapseMobileAfterGeneration = autoCollapseSettingsAfterGeneration;
+            window.autoCollapseMobileAfterGeneration = autoCollapseMobileAfterGeneration;
             
-            // Desktop sidebar toggle
             sidebarToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('collapsed');
                 appContainer.classList.toggle('sidebar-collapsed');
@@ -2020,23 +2121,13 @@
                 setTimeout(updateCanvasDisplaySize, 300);
             });
             
-            // Mobile settings toggle button
-            mobileSettingsToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('mobile-settings-collapsed');
+            // Mobile show controls button
+            mobileShowControls.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-collapsed');
+                mobileShowControls.classList.remove('visible');
                 
-                // Update toggle button text to indicate current state
-                if (sidebar.classList.contains('mobile-settings-collapsed')) {
-                    mobileSettingsToggle.textContent = '⚙️'; // Settings icon when collapsed
-                    mobileSettingsToggle.setAttribute('title', 'Show Settings');
-                } else {
-                    mobileSettingsToggle.textContent = '✕'; // Close icon when expanded
-                    mobileSettingsToggle.setAttribute('title', 'Hide Settings');
-                }
-                
-                // Scroll to top to show the header when expanding settings
-                if (!sidebar.classList.contains('mobile-settings-collapsed')) {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+                // Scroll to top to show controls
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
             
             // Handle window resize
