@@ -1,0 +1,28 @@
+venv
+*.pyc
+.DS_Store
+.env
+
+# Rust build artifacts
+fractal-wasm/target/
+fractal-wasm/Cargo.lock
+
+# WebAssembly output (keep pkg directory for demos)
+# fractal-wasm/pkg/
+
+# Python cache
+__pycache__/
+*.pyo
+
+# Node modules
+node_modules/
+
+# OS files
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.vscode/mcp.json

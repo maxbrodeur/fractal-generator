@@ -1,0 +1,31 @@
+{
+  "buildTime": "2025-07-28T16:15:51.962Z",
+  "version": "1.0.0",
+  "files": [
+    "README.md",
+    "assets",
+    "index.html",
+    "pkg",
+    "test-wasm.html",
+    "test_new_fractals.html",
+    "assets/CHAOS_GAME_LATEX.pdf",
+    "assets/IFS_dragon.png",
+    "assets/algorithm_1.png",
+    "assets/parameters.png",
+    "assets/parameters_3.png",
+    "assets/sierpinski_triangle.png",
+    "assets/silk.png",
+    "assets/starfish.png",
+    "assets/stylesheet.css",
+    "assets/tabs.png",
+    "assets/transformations.png",
+    "assets/wave_quasi-cycle.png",
+    "pkg/.gitignore",
+    "pkg/README.md",
+    "pkg/fractal_wasm.d.ts",
+    "pkg/fractal_wasm.js",
+    "pkg/fractal_wasm_bg.wasm",
+    "pkg/fractal_wasm_bg.wasm.d.ts",
+    "pkg/package.json"
+  ]
+}
