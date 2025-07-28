@@ -66,7 +66,9 @@ class FractalApp {
             tsquare: {
                 polygon: 4,
                 jump: '1/2',
-                skip: 2,
+                ruleLength: 1,
+                ruleOffset: 2,
+                ruleSymmetry: false,
                 vertexMode: 'normal',
                 startX: 0,
                 startY: 0
@@ -74,7 +76,9 @@ class FractalApp {
             techs: {
                 polygon: 4,
                 jump: '1/2',
-                skip: 0,
+                ruleLength: 1,
+                ruleOffset: 0,
+                ruleSymmetry: false,
                 vertexMode: 'normal',
                 startX: 0,
                 startY: 0
@@ -82,16 +86,20 @@ class FractalApp {
             webs: {
                 polygon: 4,
                 jump: '1/2',
-                skip: -1,
+                ruleLength: 2,
+                ruleOffset: -1,
+                ruleSymmetry: true,
                 vertexMode: 'normal',
                 startX: 0,
                 startY: 0
             },
             XTREME: {
-                polygon: 12,
-                jump: '1/4',
-                skip: 3,
-                vertexMode: 'normal',
+                polygon: 200,
+                jump: '7/8',
+                ruleLength: 1,
+                ruleOffset: 0,
+                ruleSymmetry: false,
+                vertexMode: 'center',
                 startX: 0,
                 startY: 0
             }
@@ -475,7 +483,8 @@ class FractalApp {
 
         document.getElementById('polygon_input').value = config.polygon;
         document.getElementById('jump_input').value = config.jump;
-        document.getElementById('skip_input').value = config.skip;
+        // For skip, use ruleOffset as a placeholder since skip is for backward compatibility
+        document.getElementById('skip_input').value = config.ruleOffset || 0;
         document.getElementById('start_x_input').value = config.startX;
         document.getElementById('start_y_input').value = config.startY;
 
@@ -510,46 +519,46 @@ class FractalApp {
 
         for (let i = 0; i < numMatrices; i++) {
             const matrixDiv = document.createElement('div');
-            matrixDiv.className = 'matrix-input-group mb-3';
+            matrixDiv.className = 'matrix-input-group mb-2';
             matrixDiv.innerHTML = `
-                <h6>Transformation ${i + 1}:</h6>
-                <div class="row g-2">
+                <h6 class="mb-2" style="font-size: 0.9rem;">T${i + 1}:</h6>
+                <div class="row g-1">
                     <div class="col-2">
-                        <label class="form-label">a</label>
+                        <label class="form-label" style="font-size: 0.8rem;">a</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_a" step="0.01" value="0.5">
+                               id="matrix_${i}_a" step="0.01" value="0.5" style="font-size: 0.8rem;">
                     </div>
                     <div class="col-2">
-                        <label class="form-label">b</label>
+                        <label class="form-label" style="font-size: 0.8rem;">b</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_b" step="0.01" value="0">
+                               id="matrix_${i}_b" step="0.01" value="0" style="font-size: 0.8rem;">
                     </div>
                     <div class="col-2">
-                        <label class="form-label">c</label>
+                        <label class="form-label" style="font-size: 0.8rem;">c</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_c" step="0.01" value="0">
+                               id="matrix_${i}_c" step="0.01" value="0" style="font-size: 0.8rem;">
                     </div>
                     <div class="col-2">
-                        <label class="form-label">d</label>
+                        <label class="form-label" style="font-size: 0.8rem;">d</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_d" step="0.01" value="0.5">
+                               id="matrix_${i}_d" step="0.01" value="0.5" style="font-size: 0.8rem;">
                     </div>
                     <div class="col-2">
-                        <label class="form-label">e</label>
+                        <label class="form-label" style="font-size: 0.8rem;">e</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_e" step="0.01" value="${i * 0.25}">
+                               id="matrix_${i}_e" step="0.01" value="${i * 0.25}" style="font-size: 0.8rem;">
                     </div>
                     <div class="col-2">
-                        <label class="form-label">f</label>
+                        <label class="form-label" style="font-size: 0.8rem;">f</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_f" step="0.01" value="${i * 0.25}">
+                               id="matrix_${i}_f" step="0.01" value="${i * 0.25}" style="font-size: 0.8rem;">
                     </div>
                 </div>
-                <div class="row mt-2">
-                    <div class="col-6">
-                        <label class="form-label">Probability</label>
+                <div class="row mt-1">
+                    <div class="col-4">
+                        <label class="form-label" style="font-size: 0.8rem;">Probability</label>
                         <input type="number" class="form-control form-control-sm" 
-                               id="matrix_${i}_prob" step="0.01" min="0" max="1" value="${1/numMatrices}">
+                               id="matrix_${i}_prob" step="0.01" min="0" max="1" value="${(1/numMatrices).toFixed(3)}" style="font-size: 0.8rem;">
                     </div>
                 </div>
             `;
@@ -647,17 +656,20 @@ class FractalApp {
         // Create transforms array (all same jump ratio)
         const transforms = Array(vertices.length).fill([jump, 0]);
         
-        // Create rule for vertex selection
+        // Create rule for vertex selection based on preset configuration
         let rule;
-        if (skip === -1) {
-            // Special case for webs: Rule(2, -1, symmetry)
-            rule = new Rule(2, -1, true);
-        } else if (skip === 0) {
-            // No skip rule
-            rule = new Rule(1, 0, false);
+        if (preset && this.presetConfigs[preset]) {
+            const config = this.presetConfigs[preset];
+            rule = new Rule(config.ruleLength, config.ruleOffset, config.ruleSymmetry);
         } else {
-            // Standard skip rule: Rule(1, skip, false)
-            rule = new Rule(1, skip, false);
+            // Fallback to traditional skip parameter for manual input
+            if (skip === -1) {
+                rule = new Rule(2, -1, true);
+            } else if (skip === 0) {
+                rule = new Rule(1, 0, false);
+            } else {
+                rule = new Rule(1, skip, false);
+            }
         }
 
         // Generate points using WebAssembly
