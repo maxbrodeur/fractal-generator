@@ -69,16 +69,22 @@ function copyFile(src, dest) {
 }
 
 // Copy directory recursively
-function copyDir(src, dest) {
+function copyDir(src, dest, excludeFiles = []) {
     ensureDir(dest);
     const entries = fs.readdirSync(src, { withFileTypes: true });
     
     for (const entry of entries) {
+        // Skip excluded files
+        if (excludeFiles.includes(entry.name)) {
+            log(`Skipped: ${entry.name} (excluded)`);
+            continue;
+        }
+        
         const srcPath = path.join(src, entry.name);
         const destPath = path.join(dest, entry.name);
         
         if (entry.isDirectory()) {
-            copyDir(srcPath, destPath);
+            copyDir(srcPath, destPath, excludeFiles);
         } else {
             copyFile(srcPath, destPath);
         }
@@ -112,14 +118,14 @@ function build() {
         logSuccess('wasm-pack found');
     }
 
-    // Clean and create dist directory
+    // Clean and create deploy directory
     logStep('Preparing build directory');
-    const distDir = 'dist';
+    const distDir = 'deploy';
     const pkgDir = path.join(distDir, 'pkg');
     
     if (fs.existsSync(distDir)) {
         fs.rmSync(distDir, { recursive: true, force: true });
-        log('Cleaned existing dist directory');
+        log('Cleaned existing deploy directory');
     }
     
     ensureDir(distDir);
@@ -151,10 +157,10 @@ function build() {
     }
     logSuccess('All WebAssembly files present');
 
-    // Copy WebAssembly files to dist
+    // Copy WebAssembly files to deploy
     logStep('Copying WebAssembly files');
-    copyDir(wasmPkgDir, pkgDir);
-    logSuccess('WebAssembly files copied to dist/pkg/');
+    copyDir(wasmPkgDir, pkgDir, ['.gitignore']); // Exclude .gitignore to prevent gh-pages from ignoring all files
+    logSuccess('WebAssembly files copied to deploy/pkg/');
 
     // Copy and fix main HTML file
     logStep('Copying static assets');
