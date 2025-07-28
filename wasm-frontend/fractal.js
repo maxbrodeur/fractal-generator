@@ -685,24 +685,28 @@ class FractalApp {
         
         console.log('🔄 Generating IFS fractal:', { preset, iterations });
         
-        let transforms, probabilities;
+        let transforms, probabilities, mode;
         
         if (preset === 'fern') {
             transforms = FractalPresets.barnsley_fern();
             probabilities = FractalPresets.barnsley_fern_probs();
+            mode = 'borke'; // Use borke mode for Barnsley fern
         } else if (preset === 'dragon') {
             transforms = FractalPresets.dragon_curve();
             probabilities = FractalPresets.dragon_curve_probs();
+            mode = 'borke'; // Use borke mode for Dragon curve
         } else if (preset === 'sierpinski') {
             transforms = this.createTransformsArray(this.ifsPresetConfigs.sierpinski.transforms);
             probabilities = this.ifsPresetConfigs.sierpinski.probabilities;
+            mode = 'regular'; // Use regular mode for Sierpinski
         } else if (preset === 'custom') {
             const customData = this.getCustomTransformations();
             transforms = this.createTransformsArray(customData.transforms);
             probabilities = customData.probabilities;
+            mode = 'regular'; // Use regular mode for custom
         }
 
-        const result = this.generator.ifs_fractal(0, 0, iterations, transforms, probabilities, 'regular');
+        const result = this.generator.ifs_fractal(0, 0, iterations, transforms, probabilities, mode);
         console.log('📊 IFS result points:', result ? result.length : 'null');
         
         return result;
