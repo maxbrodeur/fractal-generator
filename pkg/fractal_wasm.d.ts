@@ -11,6 +11,14 @@ export enum ColorScheme {
   ColorWheel = 4,
   GnuPlot = 5,
   Bmy = 6,
+  Plasma = 7,
+  Viridis = 8,
+  Inferno = 9,
+  Magma = 10,
+  Ocean = 11,
+  Rainbow = 12,
+  Cool = 13,
+  Hot = 14,
 }
 /**
  * Main fractal generator struct

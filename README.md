@@ -8,8 +8,7 @@ This project now includes a **Rust/WebAssembly implementation** that provides **
 
 ### Prerequisites
 - **Rust toolchain**: [Install from rustup.rs](https://rustup.rs/)
-- **Node.js & npm**: [Install from nodejs.org](https://nodejs.org/) (for development and deployment)
-- **Python 3** (optional, for alternative local server)
+- **Python 3** (for local web server)
 
 ### Setup Instructions
 
@@ -19,32 +18,20 @@ This project now includes a **Rust/WebAssembly implementation** that provides **
    cd fractal-generator
    ```
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Build and serve locally**:
-   ```bash
-   npm run dev
-   # This builds the WebAssembly and starts a local server
-   ```
-
-4. **Open the fractal generator**:
-   - **Main Application**: [http://localhost:8000](http://localhost:8000)
-   - **Test Demo**: [http://localhost:8000/test-wasm.html](http://localhost:8000/test-wasm.html)
-
-### Alternative Setup (Legacy Method)
-
-1. **Automated setup script**:
+2. **Automated setup** (recommended):
    ```bash
    ./setup-wasm.sh
    ```
 
-2. **Manual Python server**:
+3. **Start local WebAssembly server**:
    ```bash
    python3 -m http.server 8000
+   # Alternative: npx serve . (if you have Node.js)
    ```
+
+4. **Open the fractal generator**:
+   - **Modern UI**: [http://localhost:8000/index.html](http://localhost:8000/index.html)
+   - **Test Demo**: [http://localhost:8000/test-wasm.html](http://localhost:8000/test-wasm.html)
 
 ### Manual Setup (if automated setup fails)
 ```bash
