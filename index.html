@@ -1108,7 +1108,17 @@
                     }
                     
                     const scaledIterations = Math.round(iterations * scalingFactor);
-                    actualPointsUsed = scaledIterations;
+                    
+                    // Add safety limits to prevent memory allocation failures in WASM
+                    // Chaos game can handle up to ~5M iterations safely in WASM
+                    const maxSafeIterations = 5000000; // 5M iterations maximum
+                    const safeIterations = Math.min(scaledIterations, maxSafeIterations);
+                    
+                    if (scaledIterations > maxSafeIterations) {
+                        console.warn(`⚠️ Iterations capped at ${maxSafeIterations.toLocaleString()} (was ${scaledIterations.toLocaleString()}) to prevent WASM memory issues`);
+                    }
+                    
+                    actualPointsUsed = safeIterations;
                     
                     const compressionRatio = parseFloat(elements.compressionRatio.value);
                     const rotationAngle = parseFloat(elements.rotationAngle.value);
@@ -1123,7 +1133,10 @@
                     
                     console.log('🎯 Chaos game parameters:', {
                         fractalType,
+                        baseIterations: iterations,
                         scaledIterations,
+                        safeIterations,
+                        scalingFactor: scalingFactor.toFixed(2),
                         compressionRatio,
                         rotationAngle,
                         ruleLength,
@@ -1136,32 +1149,32 @@
                     
                     if (fractalType === 'sierpinski') {
                         const vertices = FractalPresets.sierpinski_triangle();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'sierpinski_carpet') {
                         const vertices = FractalPresets.sierpinski_carpet();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'vicsek') {
                         const vertices = FractalPresets.vicsek_square();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 't_square') {
                         const vertices = FractalPresets.t_square();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'techs') {
                         const vertices = FractalPresets.techs_pattern();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                         
                     } else if (fractalType === 'webs') {
                         const vertices = FractalPresets.web_pattern();
-                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, safeIterations, transforms, rule);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }
                     
@@ -1181,7 +1194,17 @@
                     }
                     
                     const scaledIterations = Math.round(iterations * scalingFactor);
-                    actualPointsUsed = scaledIterations;
+                    
+                    // Add safety limits to prevent memory allocation failures in WASM
+                    // IFS can handle up to ~5M iterations safely in WASM
+                    const maxSafeIterations = 5000000; // 5M iterations maximum
+                    const safeIterations = Math.min(scaledIterations, maxSafeIterations);
+                    
+                    if (scaledIterations > maxSafeIterations) {
+                        console.warn(`⚠️ IFS iterations capped at ${maxSafeIterations.toLocaleString()} (was ${scaledIterations.toLocaleString()}) to prevent WASM memory issues`);
+                    }
+                    
+                    actualPointsUsed = safeIterations;
                     
                     const startX = parseFloat(elements.ifsStartX.value);
                     const startY = parseFloat(elements.ifsStartY.value);
@@ -1190,14 +1213,17 @@
                         fractalType,
                         startX,
                         startY,
-                        scaledIterations
+                        baseIterations: iterations,
+                        scaledIterations,
+                        safeIterations,
+                        scalingFactor: scalingFactor.toFixed(2)
                     });
                     
                     try {
                         const { transforms, probabilities, parseMode } = getIFSParameters();
                         console.log('🔧 IFS configuration:', { transforms, probabilities, parseMode });
                         
-                        const points = generator.ifs_fractal(startX, startY, scaledIterations, transforms, probabilities, parseMode);
+                        const points = generator.ifs_fractal(startX, startY, safeIterations, transforms, probabilities, parseMode);
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     } catch (error) {
                         console.error('❌ IFS parameter error:', error);
@@ -1223,8 +1249,20 @@
                     
                     const chaosType = elements.chaosFinderType.value;
                     const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
+                    
+                    // Apply scaling with reasonable upper bounds to prevent WASM crashes
                     const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
-                    actualPointsUsed = scaledPlotPoints;
+                    
+                    // Add safety limits to prevent memory allocation failures in WASM
+                    // Random chaos finder can handle up to ~10M points safely in WASM
+                    const maxSafePlotPoints = 10000000; // 10M points maximum
+                    const safePlotPoints = Math.min(scaledPlotPoints, maxSafePlotPoints);
+                    
+                    if (scaledPlotPoints > maxSafePlotPoints) {
+                        console.warn(`⚠️ Plot points capped at ${maxSafePlotPoints.toLocaleString()} (was ${scaledPlotPoints.toLocaleString()}) to prevent WASM memory issues`);
+                    }
+                    
+                    actualPointsUsed = safePlotPoints;
                     const testPoints = parseInt(elements.chaosTestPoints.value);
                     const discardPoints = parseInt(elements.chaosDiscardPoints.value);
                     const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
@@ -1232,7 +1270,10 @@
                     
                     console.log('🎲 Random chaos parameters:', {
                         chaosType,
+                        basePlotPoints,
                         scaledPlotPoints,
+                        safePlotPoints,
+                        scalingFactor: scalingFactor.toFixed(2),
                         testPoints,
                         discardPoints,
                         useAlphabet,
@@ -1243,7 +1284,7 @@
                     
                     // Try to call extended WebAssembly function with new parameters, fallback if not available
                     try {
-                        const result_data = generator.find_random_chaos_extended(scaledPlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
+                        const result_data = generator.find_random_chaos_extended(safePlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
                         
                         // Extract points and map equation if available
                         const points = result_data.points || result_data;
@@ -1252,7 +1293,7 @@
                     } catch (error) {
                         // Fallback to original function if extended one is not available
                         console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
-                        const points = generator.find_random_chaos(scaledPlotPoints, testPoints, isCubic);
+                        const points = generator.find_random_chaos(safePlotPoints, testPoints, isCubic);
                         
                         result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
                     }

@@ -1478,6 +1478,20 @@ impl FractalGenerator {
     /// Find a random chaotic map
     #[wasm_bindgen]
     pub fn find_random_chaos(&self, n_plot: usize, n_test: usize, is_cubic: bool) -> Vec<f64> {
+        // Add safety bounds to prevent memory allocation issues
+        const MAX_PLOT_POINTS: usize = 10_000_000; // 10M points max
+        const MAX_TEST_POINTS: usize = 100_000;    // 100K test points max
+        
+        let safe_n_plot = n_plot.min(MAX_PLOT_POINTS);
+        let safe_n_test = n_test.min(MAX_TEST_POINTS);
+        
+        if n_plot > MAX_PLOT_POINTS {
+            console_log!("⚠️ Plot points capped at {} (was {}) for memory safety", MAX_PLOT_POINTS, n_plot);
+        }
+        if n_test > MAX_TEST_POINTS {
+            console_log!("⚠️ Test points capped at {} (was {}) for memory safety", MAX_TEST_POINTS, n_test);
+        }
+        
         let n_trans = 1000;
         let thresh = 1e6;
         let le_thresh = 1e-4;
@@ -1489,7 +1503,7 @@ impl FractalGenerator {
             let args1 = self.get_random_args(param_count);
             let args2 = self.get_random_args(param_count);
 
-            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, n_test, thresh, is_cubic);
+            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, safe_n_test, thresh, is_cubic);
             
             if max_le == -1.0 {
                 continue; // Try again if test failed
@@ -1505,7 +1519,7 @@ impl FractalGenerator {
 
             if !exclude {
                 // Found a good chaotic map!
-                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                let points = self.iterate_map(&args1, &args2, safe_n_plot, is_cubic);
                 
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result = Vec::with_capacity(points.len() * 2);
