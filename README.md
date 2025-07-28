@@ -160,3 +160,14 @@ The number of *test iterations*, i.e. the number of iterations the algorithm sho
 * Randomization type:
 Either *Continuous* or *Discrete* mode can be selected. If *Continous* is selected, the random param- eters generated can take any real-valued number within the [−1.2, 1.2] range. If *Discrete* mode is selected, the random parameters can take value in the {−1.2, −1.1, ..., 0, 0.1, ..., 1.1, 1.2} set.
 When *Find next chaotic map* is clicked, the algorithm will run. When a chaotic map is found, it will be drawn and displayed with datashading. In addition, the generated parameters are displayed above the drawn attractor. In *Continous* mode, the parameters rounded to 4 decimal digits are displayed. In *Discrete* mode, the parameters are represented as a a string of characteres, where A corresponds to -1.2, B corresponds to -1.1, and so on.
+
+---
+
+## 📋 Documentation
+
+For complete documentation including detailed algorithm explanations, parameter specifications, and optimization notes, see:
+
+- **WebAssembly Implementation:** [`fractal-wasm/README.md`](./fractal-wasm/README.md)
+- **Python Implementation:** [`python_implementation/README.md`](./python_implementation/README.md)
+- **Algorithm Documentation:** [`python_implementation/docs/`](./python_implementation/docs/)
+- **Quick Start Guide:** [`QUICKSTART.md`](./QUICKSTART.md)
