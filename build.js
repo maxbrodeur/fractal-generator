@@ -174,6 +174,7 @@ function build() {
 
     // Copy other important files if they exist
     const optionalFiles = [
+        'debug-helpers.js',
         'test-wasm.html',
         'test_new_fractals.html',
         'README.md'
