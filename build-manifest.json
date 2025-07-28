@@ -1,9 +1,10 @@
 {
-  "buildTime": "2025-07-28T17:12:54.015Z",
+  "buildTime": "2025-07-28T17:40:38.361Z",
   "version": "1.0.0",
   "files": [
     "README.md",
     "assets",
+    "debug-helpers.js",
     "index.html",
     "pkg",
     "test-wasm.html",
