@@ -7,8 +7,7 @@
     "build": "node build.js",
     "serve": "http-server dist -p 8000 -c-1 -o",
     "deploy": "npm run build && gh-pages -d dist",
-    "dev": "npm run build && npm run serve",
-    "test": "npm run build && node test-build.js"
+    "dev": "npm run build && npm run serve"
   },
   "repository": {
     "type": "git",
