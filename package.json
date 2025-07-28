@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node build.js",
     "serve": "http-server dist -p 8000 -c-1 -o",
-    "deploy": "npm run build && gh-pages -d dist",
+    "deploy": "npm run build && gh-pages -d dist --dotfiles",
     "dev": "npm run build && npm run serve",
     "test": "node wasm-integration-test.js",
     "test:debug": "node wasm-integration-test.js --verbose"

@@ -191,6 +191,10 @@ function build() {
         copyDir('assets', path.join(distDir, 'assets'));
         logSuccess('Assets directory copied');
     }
+    
+    // Create .nojekyll file for GitHub Pages
+    fs.writeFileSync(path.join(distDir, '.nojekyll'), '');
+    log('Created .nojekyll file for GitHub Pages');
 
     // Create a simple manifest file
     logStep('Creating build manifest');
