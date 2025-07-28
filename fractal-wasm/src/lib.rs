@@ -722,6 +722,110 @@ impl FractalPresets {
         vertices
     }
     
+    /// Get Sierpinski triangle transform parameters
+    pub fn sierpinski_triangle_transforms() -> Array {
+        let transforms = Array::new();
+        transforms.push(&Array::of2(&0.5.into(), &0.0.into())); // 50% compression, no rotation
+        transforms
+    }
+    
+    /// Get Sierpinski carpet configuration (4-sided polygon with midpoints)
+    pub fn sierpinski_carpet() -> Array {
+        let vertices = Array::new();
+        // Square vertices
+        vertices.push(&Array::of2(&(-1.0).into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &1.0.into()));
+        vertices.push(&Array::of2(&(-1.0).into(), &1.0.into()));
+        // Midpoints (for stacking)
+        vertices.push(&Array::of2(&0.0.into(), &(-1.0).into())); // bottom mid
+        vertices.push(&Array::of2(&1.0.into(), &0.0.into()));    // right mid
+        vertices.push(&Array::of2(&0.0.into(), &1.0.into()));    // top mid
+        vertices.push(&Array::of2(&(-1.0).into(), &0.0.into())); // left mid
+        vertices
+    }
+    
+    /// Get Sierpinski carpet transform parameters
+    pub fn sierpinski_carpet_transforms() -> Array {
+        let transforms = Array::new();
+        transforms.push(&Array::of2(&(2.0/3.0).into(), &0.0.into())); // 2/3 compression, no rotation
+        transforms
+    }
+    
+    /// Get Vicsek square configuration (4-sided polygon with center)
+    pub fn vicsek_square() -> Array {
+        let vertices = Array::new();
+        // Square vertices
+        vertices.push(&Array::of2(&(-1.0).into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &1.0.into()));
+        vertices.push(&Array::of2(&(-1.0).into(), &1.0.into()));
+        // Center point (for stacking)
+        vertices.push(&Array::of2(&0.0.into(), &0.0.into()));
+        vertices
+    }
+    
+    /// Get Vicsek square transform parameters
+    pub fn vicsek_square_transforms() -> Array {
+        let transforms = Array::new();
+        transforms.push(&Array::of2(&(2.0/3.0).into(), &0.0.into())); // 2/3 compression, no rotation
+        transforms
+    }
+    
+    /// Get T-square configuration
+    pub fn t_square() -> Array {
+        let vertices = Array::new();
+        // Square vertices
+        vertices.push(&Array::of2(&(-1.0).into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &1.0.into()));
+        vertices.push(&Array::of2(&(-1.0).into(), &1.0.into()));
+        vertices
+    }
+    
+    /// Get T-square transform parameters
+    pub fn t_square_transforms() -> Array {
+        let transforms = Array::new();
+        transforms.push(&Array::of2(&0.5.into(), &0.0.into())); // 50% compression, no rotation
+        transforms
+    }
+    
+    /// Get Techs pattern configuration
+    pub fn techs_pattern() -> Array {
+        let vertices = Array::new();
+        // Square vertices
+        vertices.push(&Array::of2(&(-1.0).into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &1.0.into()));
+        vertices.push(&Array::of2(&(-1.0).into(), &1.0.into()));
+        vertices
+    }
+    
+    /// Get Techs pattern transform parameters
+    pub fn techs_pattern_transforms() -> Array {
+        let transforms = Array::new();
+        transforms.push(&Array::of2(&0.5.into(), &0.0.into())); // 50% compression, no rotation
+        transforms
+    }
+    
+    /// Get Web pattern configuration
+    pub fn web_pattern() -> Array {
+        let vertices = Array::new();
+        // Square vertices
+        vertices.push(&Array::of2(&(-1.0).into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &(-1.0).into()));
+        vertices.push(&Array::of2(&1.0.into(), &1.0.into()));
+        vertices.push(&Array::of2(&(-1.0).into(), &1.0.into()));
+        vertices
+    }
+    
+    /// Get Web pattern transform parameters
+    pub fn web_pattern_transforms() -> Array {
+        let transforms = Array::new();
+        transforms.push(&Array::of2(&0.5.into(), &0.1.into())); // 50% compression, 0.1 rotation
+        transforms
+    }
+    
     /// Get Dragon curve IFS parameters
     pub fn dragon_curve() -> Array {
         let transforms = Array::new();
