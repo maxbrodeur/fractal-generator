@@ -1,5 +1,5 @@
 {
-  "buildTime": "2025-07-28T16:26:06.227Z",
+  "buildTime": "2025-07-28T17:12:54.015Z",
   "version": "1.0.0",
   "files": [
     "README.md",
@@ -7,7 +7,6 @@
     "index.html",
     "pkg",
     "test-wasm.html",
-    "test_new_fractals.html",
     "assets/CHAOS_GAME_LATEX.pdf",
     "assets/IFS_dragon.png",
     "assets/algorithm_1.png",
