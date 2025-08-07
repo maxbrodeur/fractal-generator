@@ -1053,7 +1053,7 @@
                         discardPoints: discardPoints,
                         useAlphabet: useAlphabet,
                         isCubic: isCubic,
-                        // Store the actual point data that was found
+                        // Store the point data if available; otherwise, store the entire result object as a fallback
                         pointData: result_data.points || result_data,
                         coefficients: result_data.coefficients || result_data.coeffs || null
                     };
