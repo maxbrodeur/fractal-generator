@@ -2194,7 +2194,8 @@
         // Color scheme real-time update (disabled for chaos maps to prevent unwanted generation)
         elements.colorScheme.addEventListener('change', () => {
             const method = elements.fractalMethod.value;
-            if (currentFractal && !isLoading && method !== 'random_chaos') {
+            // For color scheme, fractalType is not relevant, pass undefined
+            if (shouldAutoRegenerate(method, undefined)) {
                 generateFractal();
             }
         });
