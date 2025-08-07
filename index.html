@@ -1065,16 +1065,15 @@
                     console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
                     const pointData = generator.find_random_chaos(findPoints, testPoints, isCubic);
                     
-                    storedChaoticMap = {
-                        type: chaosType,
-                        testPoints: testPoints,
-                        discardPoints: discardPoints,
-                        useAlphabet: useAlphabet,
-                        isCubic: isCubic,
-                        // Store the actual point data that was found
-                        pointData: pointData,
-                        coefficients: pointData.coefficients || pointData.coeffs || pointData.parameters || null
-                    };
+                    storeChaoticMap(
+                        pointData,
+                        pointData.coefficients || pointData.coeffs || pointData.parameters || null,
+                        chaosType,
+                        testPoints,
+                        discardPoints,
+                        useAlphabet,
+                        isCubic
+                    );
 
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
                     console.log('✅ Chaotic map stored for plotting');
