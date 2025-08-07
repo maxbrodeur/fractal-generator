@@ -1016,6 +1016,20 @@
             elements.generateAndPlotBtn.disabled = isLoading;
         }
 
+        // Store chaotic map data for later plotting
+        function storeChaoticMap(pointData, coefficients, chaosType, testPoints, discardPoints, useAlphabet, isCubic) {
+            storedChaoticMap = {
+                type: chaosType,
+                testPoints: testPoints,
+                discardPoints: discardPoints,
+                useAlphabet: useAlphabet,
+                isCubic: isCubic,
+                // Store the actual point data that was found
+                pointData: pointData,
+                coefficients: coefficients
+            };
+        }
+
         // Generate chaotic map without plotting
         async function generateChaoticMapOnly() {
             if (isLoading || !generator) return;
