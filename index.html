@@ -1119,7 +1119,7 @@
 
                 // Re-generate points using stored chaotic map parameters (not random)
                 const points = generator.generate_chaos_from_params(
-                    storedChaoticMap.params, // e.g., coefficients, initial conditions, etc.
+                    storedChaoticMap.foundPoints, // e.g., coefficients, initial conditions, etc.
                     scaledPlotPoints,
                     storedChaoticMap.testPoints,
                     storedChaoticMap.isCubic
