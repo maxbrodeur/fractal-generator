@@ -1058,7 +1058,7 @@
                         discardPoints: discardPoints,
                         useAlphabet: useAlphabet,
                         isCubic: isCubic,
-                        foundPoints: points
+                        coefficients: points.coefficients || points.coeffs || points.parameters || null
                     };
 
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
