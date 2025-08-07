@@ -488,19 +488,18 @@
 <body>
     <div class="app-container">
         <!-- Mobile show controls button -->
-        <button class="mobile-show-controls" id="mobileShowControls">⚙️</button>
+        <button class="mobile-show-controls" id="mobileShowControls" style="display: none;">⚙️</button>
         
         <aside class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebarToggle">←</button>
             <div class="sidebar-content">
                 <div class="sidebar-header">
                     <h1>Fractal Generator</h1>
-                    <div class="header-actions">
+                    
+                    <!-- Standard fractal generation buttons (shown for all methods except Random Chaos Finder) -->
+                    <div class="header-actions" id="standardButtons">
                         <button class="btn" id="generateBtn" style="flex: 1;">
                             Generate Fractal
-                        </button>
-                        <button class="btn btn-secondary" id="downloadBtn" disabled>
-                            Download PNG
                         </button>
                     </div>
                     
@@ -514,6 +513,13 @@
                         </button>
                         <button class="btn btn-secondary" id="plotMapBtn" disabled>
                             Plot
+                        </button>
+                    </div>
+                    
+                    <!-- Always visible download button -->
+                    <div class="header-actions" id="downloadSection">
+                        <button class="btn btn-secondary" id="downloadBtn" disabled>
+                            Download PNG
                         </button>
                     </div>
                 </div>
@@ -794,11 +800,17 @@
             canvas: document.getElementById('fractalCanvas'),
             overlay: document.getElementById('canvasOverlay'),
             container: document.getElementById('canvasContainer'),
+            
+            // Button containers
+            standardButtons: document.getElementById('standardButtons'),
+            chaosMapButtons: document.getElementById('chaosMapButtons'),
+            downloadSection: document.getElementById('downloadSection'),
+            
+            // Buttons
             generateBtn: document.getElementById('generateBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
             
             // Chaos map specific buttons
-            chaosMapButtons: document.getElementById('chaosMapButtons'),
             generateAndPlotBtn: document.getElementById('generateAndPlotBtn'),
             generateMapBtn: document.getElementById('generateMapBtn'),
             plotMapBtn: document.getElementById('plotMapBtn'),
@@ -1034,15 +1046,16 @@
                         ? generator.find_random_chaos_extended(findPoints, testPoints, discardPoints, useAlphabet, isCubic)
                         : generator.find_random_chaos(findPoints, testPoints, isCubic);
                     
-                    // Store the map parameters for later plotting
+                    // Store the chaotic map data for later plotting
                     storedChaoticMap = {
                         type: chaosType,
                         testPoints: testPoints,
                         discardPoints: discardPoints,
                         useAlphabet: useAlphabet,
                         isCubic: isCubic,
-                        params: result_data.params || result_data.coefficients || null,
-                        foundPoints: result_data.points || result_data
+                        // Store the actual point data that was found
+                        pointData: result_data.points || result_data,
+                        coefficients: result_data.coefficients || result_data.coeffs || null
                     };
 
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
@@ -1050,7 +1063,7 @@
 
                 } catch (error) {
                     console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
-                    const points = generator.find_random_chaos(findPoints, testPoints, isCubic);
+                    const pointData = generator.find_random_chaos(findPoints, testPoints, isCubic);
                     
                     storedChaoticMap = {
                         type: chaosType,
@@ -1058,7 +1071,9 @@
                         discardPoints: discardPoints,
                         useAlphabet: useAlphabet,
                         isCubic: isCubic,
-                        coefficients: points.coefficients || points.coeffs || points.parameters || null
+                        // Store the actual point data that was found
+                        pointData: pointData,
+                        coefficients: pointData.coefficients || pointData.coeffs || pointData.parameters || null
                     };
 
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
@@ -1117,14 +1132,8 @@
                     colorScheme
                 });
 
-                // Re-generate points using stored chaotic map parameters (not random)
-                const points = generator.generate_chaos_from_params(
-                    storedChaoticMap.foundPoints, // e.g., coefficients, initial conditions, etc.
-                    scaledPlotPoints,
-                    storedChaoticMap.testPoints,
-                    storedChaoticMap.isCubic
-                );
-                const result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                // Use the stored point data directly and just convert to RGBA with current parameters
+                const result = generator.points_to_rgba(storedChaoticMap.pointData, canvasWidth, canvasHeight, colorScheme);
 
                 if (!result || result.length === 0) {
                     throw new Error('Plotting returned empty result');
@@ -1711,15 +1720,18 @@
             
             // Show/hide appropriate buttons
             if (method === 'random_chaos') {
-                // Show chaos map specific buttons, hide general generate button
-                elements.generateBtn.parentElement.style.display = 'none';
+                // Show chaos map specific buttons, hide standard generate button
+                elements.standardButtons.style.display = 'none';
                 elements.chaosMapButtons.style.display = 'flex';
                 updateChaosMapButtonStates();
             } else {
-                // Show general generate button, hide chaos map specific buttons
-                elements.generateBtn.parentElement.style.display = 'flex';
+                // Show standard generate button, hide chaos map specific buttons
+                elements.standardButtons.style.display = 'flex';
                 elements.chaosMapButtons.style.display = 'none';
             }
+            
+            // Always show download section
+            elements.downloadSection.style.display = 'flex';
             
             // Show relevant preset selector and controls
             if (method === 'escape_time') {
@@ -2066,20 +2078,22 @@
             zoomOut();
         });
 
-        // Canvas size change
+        // Canvas size change (disabled auto-regeneration for chaos maps)
         elements.canvasSize.addEventListener('change', function() {
             updateCanvasDisplaySize();
             
-            if (currentFractal) {
+            const method = elements.fractalMethod.value;
+            if (currentFractal && method !== 'random_chaos') {
                 generateFractal();
             }
         });
         
-        // Aspect ratio change
+        // Aspect ratio change (disabled auto-regeneration for chaos maps)
         elements.aspectRatio.addEventListener('change', function() {
             updateCanvasDisplaySize();
             
-            if (currentFractal) {
+            const method = elements.fractalMethod.value;
+            if (currentFractal && method !== 'random_chaos') {
                 generateFractal();
             }
         });
@@ -2145,7 +2159,7 @@
         // Update canvas display size on window resize
         window.addEventListener('resize', updateCanvasDisplaySize);
 
-        // Real-time parameter updates for Julia set
+        // Real-time parameter updates for Julia set (disabled for chaos maps)
         elements.juliaReal.addEventListener('input', () => {
             const method = elements.fractalMethod.value;
             const fractalType = getCurrentFractalType();
@@ -2164,9 +2178,10 @@
             }
         });
 
-        // Color scheme real-time update
+        // Color scheme real-time update (disabled for chaos maps to prevent unwanted generation)
         elements.colorScheme.addEventListener('change', () => {
-            if (currentFractal && !isLoading) {
+            const method = elements.fractalMethod.value;
+            if (currentFractal && !isLoading && method !== 'random_chaos') {
                 generateFractal();
             }
         });
