@@ -1083,8 +1083,9 @@
                     isCubic
                 });
 
-                // Use a smaller number of points just for finding the map
-                const findPoints = Math.min(10000, testPoints);
+                // Use the full plot points setting for high-resolution chaotic maps
+                const plotPoints = parseInt(elements.chaosPlotPoints.value);
+                const findPoints = plotPoints;
 
                 try {
                     const result_data = generator.find_random_chaos_extended 
@@ -1161,18 +1162,11 @@
                 elements.canvas.width = canvasWidth;
                 elements.canvas.height = canvasHeight;
 
-                // Get current plot points setting (may be different from when map was found)
-                const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
-                const baseResolution = 600 * 600;
-                const currentResolution = canvasWidth * canvasHeight;
-                const scalingFactor = Math.sqrt(currentResolution / baseResolution);
-                const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
-
                 console.log('🎨 Plotting stored chaotic map with:', {
                     originalType: storedChaoticMap.type,
-                    scaledPlotPoints,
                     canvasSize: `${canvasWidth}x${canvasHeight}`,
-                    colorScheme
+                    colorScheme,
+                    pointCount: storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 'unknown'
                 });
 
                 // Validate and normalize the stored point data before converting to RGBA
@@ -1188,7 +1182,8 @@
                 const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
                 ctx.putImageData(imageData, 0, 0);
 
-                showNotification(`Chaotic map plotted successfully! (${scaledPlotPoints.toLocaleString()} points)`, 'success');
+                const pointCount = storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 0;
+                showNotification(`Chaotic map plotted successfully! (${pointCount.toLocaleString()} points)`, 'success');
                 
                 currentFractal = {
                     type: 'chaotic_map',
