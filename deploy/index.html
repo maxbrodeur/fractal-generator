@@ -503,6 +503,19 @@
                             Download PNG
                         </button>
                     </div>
+                    
+                    <!-- Chaos Map specific buttons (shown only for Random Chaos Finder) -->
+                    <div class="header-actions" id="chaosMapButtons" style="display: none;">
+                        <button class="btn" id="generateAndPlotBtn" style="flex: 1;">
+                            Generate and Plot
+                        </button>
+                        <button class="btn btn-secondary" id="generateMapBtn">
+                            Generate
+                        </button>
+                        <button class="btn btn-secondary" id="plotMapBtn" disabled>
+                            Plot
+                        </button>
+                    </div>
                 </div>
             <div class="control-section">
                 <h3>Generation Method</h3>
@@ -765,6 +778,9 @@
         let isLoading = false;
         let currentFractal = null;
         
+        // Chaotic map state for separate generation and plotting
+        let storedChaoticMap = null;
+        
         // View State for zooming/panning
         let viewState = {
             centerX: 0,
@@ -780,6 +796,12 @@
             container: document.getElementById('canvasContainer'),
             generateBtn: document.getElementById('generateBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
+            
+            // Chaos map specific buttons
+            chaosMapButtons: document.getElementById('chaosMapButtons'),
+            generateAndPlotBtn: document.getElementById('generateAndPlotBtn'),
+            generateMapBtn: document.getElementById('generateMapBtn'),
+            plotMapBtn: document.getElementById('plotMapBtn'),
             
             // Method and preset selectors
             fractalMethod: document.getElementById('fractalMethod'),
@@ -840,7 +862,7 @@
             console.log('🔧 Initializing WebAssembly module...');
             
             try {
-                const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
+                const wasmModule = await import('./pkg/fractal_wasm.js');
                 await wasmModule.default();
                 const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
                 
@@ -946,10 +968,192 @@
             elements.generateBtn.disabled = loading;
             elements.downloadBtn.disabled = loading || !currentFractal;
             
+            // Update chaos map buttons
+            updateChaosMapButtonStates();
+            
             if (loading) {
                 elements.generateBtn.textContent = '⏳ Generating...';
+                if (elements.generateAndPlotBtn) {
+                    elements.generateAndPlotBtn.textContent = '⏳ Generating...';
+                }
+                if (elements.generateMapBtn) {
+                    elements.generateMapBtn.textContent = '⏳ Searching...';
+                }
+                if (elements.plotMapBtn && !elements.plotMapBtn.disabled) {
+                    elements.plotMapBtn.textContent = '⏳ Plotting...';
+                }
             } else {
-                elements.generateBtn.textContent = 'Generate';
+                elements.generateBtn.textContent = 'Generate Fractal';
+                if (elements.generateAndPlotBtn) {
+                    elements.generateAndPlotBtn.textContent = 'Generate and Plot';
+                }
+                if (elements.generateMapBtn) {
+                    elements.generateMapBtn.textContent = 'Generate';
+                }
+                if (elements.plotMapBtn) {
+                    elements.plotMapBtn.textContent = 'Plot';
+                }
+            }
+        }
+
+        // Update chaos map button states based on whether a map is stored
+        function updateChaosMapButtonStates() {
+            const hasStoredMap = storedChaoticMap !== null;
+            elements.plotMapBtn.disabled = !hasStoredMap || isLoading;
+            elements.generateMapBtn.disabled = isLoading;
+            elements.generateAndPlotBtn.disabled = isLoading;
+        }
+
+        // Generate chaotic map without plotting
+        async function generateChaoticMapOnly() {
+            if (isLoading || !generator) return;
+
+            setLoading(true);
+            showOverlay('Searching for chaotic map...');
+
+            try {
+                const chaosType = elements.chaosFinderType.value;
+                const testPoints = parseInt(elements.chaosTestPoints.value);
+                const discardPoints = parseInt(elements.chaosDiscardPoints.value);
+                const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
+                const isCubic = chaosType === 'cubic';
+
+                console.log('🎲 Searching for chaotic map:', {
+                    chaosType,
+                    testPoints,
+                    discardPoints,
+                    useAlphabet,
+                    isCubic
+                });
+
+                // Use a smaller number of points just for finding the map
+                const findPoints = Math.min(10000, testPoints);
+
+                try {
+                    const result_data = generator.find_random_chaos_extended 
+                        ? generator.find_random_chaos_extended(findPoints, testPoints, discardPoints, useAlphabet, isCubic)
+                        : generator.find_random_chaos(findPoints, testPoints, isCubic);
+                    
+                    // Store the map parameters for later plotting
+                    storedChaoticMap = {
+                        type: chaosType,
+                        testPoints: testPoints,
+                        discardPoints: discardPoints,
+                        useAlphabet: useAlphabet,
+                        isCubic: isCubic,
+                        foundPoints: result_data.points || result_data
+                    };
+
+                    showNotification('Chaotic map found successfully! You can now plot it.', 'success');
+                    console.log('✅ Chaotic map stored for plotting');
+
+                } catch (error) {
+                    console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
+                    const points = generator.find_random_chaos(findPoints, testPoints, isCubic);
+                    
+                    storedChaoticMap = {
+                        type: chaosType,
+                        testPoints: testPoints,
+                        discardPoints: discardPoints,
+                        useAlphabet: useAlphabet,
+                        isCubic: isCubic,
+                        foundPoints: points
+                    };
+
+                    showNotification('Chaotic map found successfully! You can now plot it.', 'success');
+                    console.log('✅ Chaotic map stored for plotting');
+                }
+
+            } catch (error) {
+                console.error('❌ Chaotic map generation failed:', error);
+                showNotification('Error finding chaotic map. Check console for details.', 'error');
+                storedChaoticMap = null;
+            } finally {
+                setLoading(false);
+                hideOverlay();
+                updateChaosMapButtonStates();
+            }
+        }
+
+        // Plot stored chaotic map with current parameters
+        async function plotStoredChaoticMap() {
+            if (isLoading || !generator || !storedChaoticMap) return;
+
+            setLoading(true);
+            showOverlay('Plotting chaotic map...');
+
+            try {
+                const canvasSize = parseInt(elements.canvasSize.value);
+                const aspectRatio = elements.aspectRatio.value;
+                const colorScheme = parseInt(elements.colorScheme.value);
+
+                // Calculate canvas dimensions
+                let canvasWidth = canvasSize;
+                let canvasHeight = canvasSize;
+                
+                if (aspectRatio === 'portrait') {
+                    canvasWidth = Math.round(canvasSize * 3 / 4);
+                    canvasHeight = canvasSize;
+                } else if (aspectRatio === 'landscape') {
+                    canvasWidth = canvasSize;
+                    canvasHeight = Math.round(canvasSize * 3 / 4);
+                }
+
+                elements.canvas.width = canvasWidth;
+                elements.canvas.height = canvasHeight;
+
+                // Get current plot points setting (may be different from when map was found)
+                const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
+                const baseResolution = 600 * 600;
+                const currentResolution = canvasWidth * canvasHeight;
+                const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
+
+                console.log('🎨 Plotting stored chaotic map with:', {
+                    originalType: storedChaoticMap.type,
+                    scaledPlotPoints,
+                    canvasSize: `${canvasWidth}x${canvasHeight}`,
+                    colorScheme
+                });
+
+                // Re-generate points with current plot point settings
+                const points = generator.find_random_chaos(scaledPlotPoints, storedChaoticMap.testPoints, storedChaoticMap.isCubic);
+                const result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+
+                if (!result || result.length === 0) {
+                    throw new Error('Plotting returned empty result');
+                }
+
+                // Display result
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                ctx.putImageData(imageData, 0, 0);
+
+                showNotification(`Chaotic map plotted successfully! (${scaledPlotPoints.toLocaleString()} points)`, 'success');
+                
+                currentFractal = {
+                    type: 'chaotic_map',
+                    method: 'random_chaos',
+                    imageData: result,
+                    width: canvasWidth,
+                    height: canvasHeight
+                };
+
+            } catch (error) {
+                console.error('❌ Chaotic map plotting failed:', error);
+                showNotification('Error plotting chaotic map. Check console for details.', 'error');
+            } finally {
+                setLoading(false);
+                hideOverlay();
+                updateChaosMapButtonStates();
+            }
+        }
+
+        // Generate and plot chaotic map (original behavior)
+        async function generateAndPlotChaoticMap() {
+            await generateChaoticMapOnly();
+            if (storedChaoticMap) {
+                await plotStoredChaoticMap();
             }
         }
 
@@ -1499,6 +1703,18 @@
             elements.ifsControls.style.display = 'none';
             elements.chaosFinderControls.style.display = 'none';
             
+            // Show/hide appropriate buttons
+            if (method === 'random_chaos') {
+                // Show chaos map specific buttons, hide general generate button
+                elements.generateBtn.parentElement.style.display = 'none';
+                elements.chaosMapButtons.style.display = 'flex';
+                updateChaosMapButtonStates();
+            } else {
+                // Show general generate button, hide chaos map specific buttons
+                elements.generateBtn.parentElement.style.display = 'flex';
+                elements.chaosMapButtons.style.display = 'none';
+            }
+            
             // Show relevant preset selector and controls
             if (method === 'escape_time') {
                 elements.escapeTimePresets.style.display = 'block';
@@ -1795,11 +2011,21 @@
         elements.generateBtn.addEventListener('click', generateFractal);
         elements.downloadBtn.addEventListener('click', downloadPNG);
         
+        // Chaos map specific button event listeners
+        elements.generateAndPlotBtn.addEventListener('click', generateAndPlotChaoticMap);
+        elements.generateMapBtn.addEventListener('click', generateChaoticMapOnly);
+        elements.plotMapBtn.addEventListener('click', plotStoredChaoticMap);
+        
         // Enter key to generate fractal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !isLoading) {
                 e.preventDefault();
-                generateFractal();
+                const method = elements.fractalMethod.value;
+                if (method === 'random_chaos') {
+                    generateAndPlotChaoticMap();
+                } else {
+                    generateFractal();
+                }
             }
         });
         
