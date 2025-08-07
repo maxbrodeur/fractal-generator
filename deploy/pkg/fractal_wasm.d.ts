@@ -50,6 +50,14 @@ export class FractalGenerator {
    * Find a random chaotic map
    */
   find_random_chaos(n_plot: number, n_test: number, is_cubic: boolean): Float64Array;
+  /**
+   * Extended version of find_random_chaos with additional parameters
+   */
+  find_random_chaos_extended(n_plot: number, n_test: number, n_trans: number, use_alphabet: boolean, is_cubic: boolean): Float64Array;
+  /**
+   * Generate chaos from stored parameters (for plotting stored chaotic maps)
+   */
+  generate_chaos_from_params(params_js: Array<any>, n_plot: number, _n_test: number, is_cubic: boolean): Float64Array;
 }
 export class FractalPresets {
   private constructor();
@@ -199,6 +207,8 @@ export interface InitOutput {
   readonly fractalpresets_maple_leaf: () => any;
   readonly fractalpresets_maple_leaf_probs: () => any;
   readonly fractalgenerator_find_random_chaos: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly fractalgenerator_find_random_chaos_extended: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+  readonly fractalgenerator_generate_chaos_from_params: (a: number, b: any, c: number, d: number, e: number) => [number, number];
   readonly fractalpresets_vicsek_square_transforms: () => any;
   readonly fractalpresets_t_square_transforms: () => any;
   readonly fractalpresets_techs_pattern_transforms: () => any;

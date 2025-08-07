@@ -327,6 +327,35 @@ export class FractalGenerator {
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v1;
     }
+    /**
+     * Extended version of find_random_chaos with additional parameters
+     * @param {number} n_plot
+     * @param {number} n_test
+     * @param {number} n_trans
+     * @param {boolean} use_alphabet
+     * @param {boolean} is_cubic
+     * @returns {Float64Array}
+     */
+    find_random_chaos_extended(n_plot, n_test, n_trans, use_alphabet, is_cubic) {
+        const ret = wasm.fractalgenerator_find_random_chaos_extended(this.__wbg_ptr, n_plot, n_test, n_trans, use_alphabet, is_cubic);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Generate chaos from stored parameters (for plotting stored chaotic maps)
+     * @param {Array<any>} params_js
+     * @param {number} n_plot
+     * @param {number} _n_test
+     * @param {boolean} is_cubic
+     * @returns {Float64Array}
+     */
+    generate_chaos_from_params(params_js, n_plot, _n_test, is_cubic) {
+        const ret = wasm.fractalgenerator_generate_chaos_from_params(this.__wbg_ptr, params_js, n_plot, _n_test, is_cubic);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
 }
 
 const FractalPresetsFinalization = (typeof FinalizationRegistry === 'undefined')

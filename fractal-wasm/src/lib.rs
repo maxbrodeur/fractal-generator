@@ -1088,6 +1088,14 @@ impl FractalGenerator {
         (0..n).map(|_| 2.4 * rng.gen::<f64>() - 1.2).collect()
     }
 
+    /// Generate alphabet-based discrete arguments (for discrete randomization mode)
+    fn get_alphabet_args(&self, n: usize) -> Vec<f64> {
+        let mut rng = thread_rng();
+        // Use a smaller discrete set of values for alphabet mode
+        let alphabet_values = [-1.2, -0.8, -0.4, 0.0, 0.4, 0.8, 1.2];
+        (0..n).map(|_| alphabet_values[rng.gen_range(0..alphabet_values.len())]).collect()
+    }
+
     /// Quadratic map function: f(x,y) = a + bx + cx² + dxy + ey + fy²
     fn f_quadratic(&self, args: &[f64], x: f64, y: f64) -> f64 {
         let (a, b, c, d, e, f) = (args[0], args[1], args[2], args[3], args[4], args[5]);
@@ -1355,5 +1363,91 @@ impl FractalGenerator {
                 return result;
             }
         }
+    }
+
+    /// Extended version of find_random_chaos with additional parameters
+    #[wasm_bindgen]
+    pub fn find_random_chaos_extended(&self, n_plot: usize, n_test: usize, n_trans: usize, use_alphabet: bool, is_cubic: bool) -> Vec<f64> {
+        let thresh = 1e6;
+        let le_thresh = 1e-4;
+
+        let param_count = if is_cubic { 10 } else { 6 };
+        
+        // Keep searching until we find a chaotic map
+        loop {
+            let args1 = if use_alphabet {
+                self.get_alphabet_args(param_count)
+            } else {
+                self.get_random_args(param_count)
+            };
+            let args2 = if use_alphabet {
+                self.get_alphabet_args(param_count)
+            } else {
+                self.get_random_args(param_count)
+            };
+
+            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, n_test, thresh, is_cubic);
+            
+            if max_le == -1.0 {
+                continue; // Try again if test failed
+            }
+
+            let fd = self.fractal_dimension(max_le, min_le);
+
+            let exclude = if is_cubic {
+                self.exclude_cubic(max_le, min_le, c, fd, le_thresh)
+            } else {
+                self.exclude_quadratic(max_le, min_le, c, fd, le_thresh)
+            };
+
+            if !exclude {
+                // Found a good chaotic map!
+                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                
+                // Convert to flat array format for points_to_rgba compatibility
+                let mut result = Vec::with_capacity(points.len() * 2);
+                for point in points {
+                    result.push(point[0]);
+                    result.push(point[1]);
+                }
+
+                console_log!("Found chaotic map! Max LE: {:.4}, Min LE: {:.4}, FD: {:.4}", max_le, min_le, fd);
+                return result;
+            }
+        }
+    }
+
+    /// Generate chaos from stored parameters (for plotting stored chaotic maps)
+    #[wasm_bindgen]
+    pub fn generate_chaos_from_params(&self, params_js: &Array, n_plot: usize, _n_test: usize, is_cubic: bool) -> Vec<f64> {
+        // Convert JS array to Rust vector
+        let params: Vec<f64> = params_js
+            .iter()
+            .filter_map(|p| p.as_f64())
+            .collect();
+
+        let param_count = if is_cubic { 10 } else { 6 };
+        
+        if params.len() < param_count * 2 {
+            console_log!("Error: Not enough parameters provided for {} map", if is_cubic { "cubic" } else { "quadratic" });
+            return Vec::new();
+        }
+
+        // Split parameters into two sets for x and y equations
+        let args1 = params[0..param_count].to_vec();
+        let args2 = params[param_count..param_count*2].to_vec();
+
+        // Generate points using the provided parameters
+        let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+        
+        // Convert to flat array format for points_to_rgba compatibility
+        let mut result = Vec::with_capacity(points.len() * 2);
+        for point in &points {
+            result.push(point[0]);
+            result.push(point[1]);
+        }
+
+        console_log!("Generated {} points from stored chaotic map parameters", points.len());
+        result
     }
 }
