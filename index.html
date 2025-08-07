@@ -1116,8 +1116,13 @@
                     colorScheme
                 });
 
-                // Re-generate points with current plot point settings
-                const points = generator.find_random_chaos(scaledPlotPoints, storedChaoticMap.testPoints, storedChaoticMap.isCubic);
+                // Re-generate points using stored chaotic map parameters (not random)
+                const points = generator.generate_chaos_from_params(
+                    storedChaoticMap.params, // e.g., coefficients, initial conditions, etc.
+                    scaledPlotPoints,
+                    storedChaoticMap.testPoints,
+                    storedChaoticMap.isCubic
+                );
                 const result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
 
                 if (!result || result.length === 0) {
