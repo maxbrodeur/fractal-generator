@@ -1132,8 +1132,9 @@
                     colorScheme
                 });
 
-                // Use the stored point data directly and just convert to RGBA with current parameters
-                const result = generator.points_to_rgba(storedChaoticMap.pointData, canvasWidth, canvasHeight, colorScheme);
+                // Validate and normalize the stored point data before converting to RGBA
+                const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
+                const result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
 
                 if (!result || result.length === 0) {
                     throw new Error('Plotting returned empty result');
