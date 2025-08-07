@@ -840,7 +840,7 @@
             console.log('🔧 Initializing WebAssembly module...');
             
             try {
-                const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
+                const wasmModule = await import('./pkg/fractal_wasm.js');
                 await wasmModule.default();
                 const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
                 
