@@ -1061,16 +1061,15 @@
                         : generator.find_random_chaos(findPoints, testPoints, isCubic);
                     
                     // Store the chaotic map data for later plotting
-                    storedChaoticMap = {
-                        type: chaosType,
-                        testPoints: testPoints,
-                        discardPoints: discardPoints,
-                        useAlphabet: useAlphabet,
-                        isCubic: isCubic,
-                        // Store the point data if available; otherwise, store the entire result object as a fallback
-                        pointData: result_data.points || result_data,
-                        coefficients: result_data.coefficients || result_data.coeffs || null
-                    };
+                    storeChaoticMap(
+                        result_data.points || result_data,
+                        result_data.coefficients || result_data.coeffs || null,
+                        chaosType,
+                        testPoints,
+                        discardPoints,
+                        useAlphabet,
+                        isCubic
+                    );
 
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
                     console.log('✅ Chaotic map stored for plotting');
