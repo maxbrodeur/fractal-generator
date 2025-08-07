@@ -390,7 +390,7 @@
                 box-shadow: 0 4px 12px rgba(0,0,0,0.3);
                 backdrop-filter: blur(10px);
                 transition: all 0.3s ease;
-                display: none;
+                display: none !important; /* Force hidden by default */
             }
             
             .mobile-show-controls:hover {
@@ -1028,6 +1028,37 @@
                 pointData: pointData,
                 coefficients: coefficients
             };
+        }
+
+        // Validate and normalize point data before plotting
+        function validateAndNormalizePointData(pointData) {
+            if (!pointData) {
+                throw new Error('No point data provided');
+            }
+            
+            // If pointData is already an array of numbers (RGBA data), return as-is
+            if (Array.isArray(pointData) && typeof pointData[0] === 'number') {
+                return pointData;
+            }
+            
+            // If pointData has a points property, extract it
+            if (pointData.points) {
+                return pointData.points;
+            }
+            
+            // If pointData has numerical properties, assume it's already point data
+            return pointData;
+        }
+
+        // Check if auto-regeneration should happen for the given method
+        function shouldAutoRegenerate(method, fractalType) {
+            // Disable auto-regeneration for chaos maps to allow separate generation and plotting
+            if (method === 'random_chaos') {
+                return false;
+            }
+            
+            // Enable for all other fractal types
+            return true;
         }
 
         // Generate chaotic map without plotting
@@ -2225,13 +2256,13 @@
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // Show mobile controls button when sidebar is hidden
-                    if (sidebar.classList.contains('mobile-collapsed')) {
-                        mobileShowControls.classList.add('visible');
-                    }
+                    // Mobile controls button is disabled as requested
+                    // if (sidebar.classList.contains('mobile-collapsed')) {
+                    //     mobileShowControls.classList.add('visible');
+                    // }
                 } else {
                     // Hide mobile controls button on desktop
-                    mobileShowControls.classList.remove('visible');
+                    // mobileShowControls.classList.remove('visible');
                     sidebar.classList.remove('mobile-collapsed');
                 }
             }
@@ -2241,7 +2272,8 @@
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
                     sidebar.classList.add('mobile-collapsed');
-                    mobileShowControls.classList.add('visible');
+                    // Mobile controls button is disabled as requested
+                    // mobileShowControls.classList.add('visible');
                 }
             }
             
@@ -2259,13 +2291,14 @@
                 setTimeout(updateCanvasDisplaySize, 300);
             });
             
-            // Mobile show controls button
+            // Mobile show controls button (disabled as requested)
             mobileShowControls.addEventListener('click', () => {
-                sidebar.classList.remove('mobile-collapsed');
-                mobileShowControls.classList.remove('visible');
-                
-                // Scroll to top to show controls
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Functionality disabled as mobile controls button should not be visible
+                // sidebar.classList.remove('mobile-collapsed');
+                // mobileShowControls.classList.remove('visible');
+                // 
+                // // Scroll to top to show controls
+                // window.scrollTo({ top: 0, behavior: 'smooth' });
             });
             
             // Handle window resize
