@@ -2656,13 +2656,17 @@
             ]
         };
 
+        // Helper to defensively fill missing parameters with zeros
+        function fillParams(params, length) {
+            return Array.from({length}, (_, i) => params && params[i] !== undefined ? params[i] : 0);
+        }
+
         function formatChaoticMapEquation(params, isCubic) {
             if (!params || params.length === 0) return 'No parameters available';
 
             const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
-            // Defensive: if params shorter than terms, fill with zeros
-            const safeParams = Array.from({length: terms.length}, (_, i) => params[i] !== undefined ? params[i] : 0);
-            return terms.map((term, i) => term.fmt(safeParams[term.idx].toFixed(3))).join('').trim();
+            const safeParams = fillParams(params, terms.length);
+            return terms.map((term, i) => safeParams[term.idx].toFixed(3)).map((v, i) => terms[i].fmt(v)).join('').trim();
         }
         
         function displayChaoticMap(mapData) {
