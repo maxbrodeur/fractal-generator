@@ -1464,14 +1464,7 @@ impl FractalGenerator {
     /// Generate points from given chaotic map parameters
     #[wasm_bindgen]
     pub fn generate_chaotic_map_points(&self, x_params: &[f64], y_params: &[f64], n_points: usize, is_cubic: bool) -> Vec<f64> {
-        let points = self.iterate_map(x_params, y_params, n_points, is_cubic);
-        
-        // Convert to flat array format for points_to_rgba compatibility
-        let mut result = Vec::with_capacity(points.len() * 2);
-        for point in points {
-            result.push(point[0]);
-            result.push(point[1]);
-        }
+        let result = self.iterate_map_flat(x_params, y_params, n_points, is_cubic);
         
         result
     }
