@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fractal Generator - Interactive WebAssembly</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-areas: 
+                "sidebar main";
+            height: 100vh;
+            gap: 0;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        .app-container.sidebar-collapsed {
+            grid-template-columns: 40px 1fr;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        
+        .btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        .sidebar {
+            grid-area: sidebar;
+            background: white;
+            padding: 1rem;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .sidebar.collapsed {
+            width: 40px;
+            padding: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .sidebar.collapsed .sidebar-content {
+            display: none;
+        }
+        
+        .sidebar-toggle {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .sidebar-toggle:hover {
+            background: #5a67d8;
+        }
+        
+        .sidebar-header {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .sidebar-header h1 {
+            color: #2d3748;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .control-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .control-section h3 {
+            color: #2d3748;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        .control-group {
+            margin-bottom: 1rem;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .control-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: #718096;
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+        
+        .main-content {
+            grid-area: main;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        
+        .canvas-container {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        
+        #fractalCanvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255,255,255,0.9);
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .dynamic-controls {
+            display: none;
+        }
+        
+        .dynamic-controls.active {
+            display: block;
+        }
+        
+        .method-presets {
+            margin-top: 1rem;
+        }
+        
+        .method-controls {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .julia-controls .input-group {
+            justify-content: space-between;
+        }
+        
+        .julia-controls input {
+            width: 60px;
+        }
+        
+        .ifs-transform {
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            background: #f7fafc;
+        }
+        
+        .ifs-transform h4 {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+        }
+        
+        .ifs-params {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .ifs-params input {
+            width: 100%;
+            padding: 0.25rem;
+            font-size: 0.8rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 3px;
+        }
+        
+        .ifs-params label {
+            font-size: 0.7rem;
+            color: #718096;
+            margin-bottom: 0.2rem;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 5rem;
+            right: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.9rem;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: #48bb78;
+        }
+        
+        .notification.error {
+            background: #f56565;
+        }
+        
+        .notification.info {
+            background: #4299e1;
+        }
+        
+        /* Enhanced Mobile Support */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+                grid-template-areas: 
+                    "sidebar"
+                    "main";
+                height: 100vh;
+            }
+            
+            .sidebar {
+                max-height: none;
+                padding: 1rem;
+                order: 1;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid #e2e8f0;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }
+            
+            .sidebar.mobile-collapsed {
+                transform: translateY(-100%);
+                visibility: hidden;
+                height: 0;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .main-content {
+                padding: 0.5rem;
+                order: 2;
+                min-height: 0;
+            }
+            
+            .canvas-container {
+                width: 100%;
+                height: 100%;
+                max-width: 100vw;
+                max-height: calc(100vh - 1rem);
+            }
+            
+            #fractalCanvas {
+                width: 100%;
+                height: auto;
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+            }
+            
+            /* Mobile-specific button styling */
+            .mobile-show-controls {
+                position: fixed;
+                top: 1rem;
+                right: 1rem;
+                z-index: 1000;
+                background: rgba(102, 126, 234, 0.9);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                backdrop-filter: blur(10px);
+                transition: all 0.3s ease;
+                display: none !important; /* Force hidden by default */
+            }
+            
+            .mobile-show-controls:hover {
+                background: rgba(90, 103, 216, 0.9);
+                transform: scale(1.1);
+            }
+            
+            .mobile-show-controls.visible {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+                width: 100%;
+            }
+            
+            .control-group input,
+            .control-group select {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 0.75rem;
+            }
+            
+            .sidebar-header h1 {
+                font-size: 1.2rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .control-section {
+                margin-bottom: 1rem;
+            }
+            
+            .control-section h3 {
+                font-size: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            /* Optimize touch targets */
+            .sidebar-toggle {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            
+            /* Better spacing for small screens */
+            .control-group {
+                margin-bottom: 0.75rem;
+            }
+            
+            .ifs-params {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            
+            .ifs-params input {
+                padding: 0.5rem;
+                font-size: 14px;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 44px; /* iOS recommended touch target */
+                padding: 0.75rem 1rem;
+            }
+            
+            .sidebar-toggle {
+                min-width: 44px;
+                min-height: 44px;
+            }
+            
+            .control-group input,
+            .control-group select {
+                min-height: 44px;
+                padding: 0.75rem;
+            }
+            
+            /* Disable hover effects on touch devices */
+            .btn:hover {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Mobile show controls button -->
+        <button class="mobile-show-controls" id="mobileShowControls">⚙️</button>
+        
+        <aside class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle">←</button>
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h1>Fractal Generator</h1>
+                    
+                    <!-- Standard fractal generation buttons (shown for all methods except Random Chaos Finder) -->
+                    <div class="header-actions" id="standardButtons">
+                        <button class="btn" id="generateBtn" style="flex: 1;">
+                            Generate Fractal
+                        </button>
+                    </div>
+                    
+                    <!-- Chaos Map specific buttons (shown only for Random Chaos Finder) -->
+                    <div class="header-actions" id="chaosMapButtons" style="display: none;">
+                        <button class="btn" id="generateAndPlotBtn" style="flex: 1;">
+                            Generate and Plot
+                        </button>
+                        <button class="btn btn-secondary" id="generateMapBtn">
+                            Generate
+                        </button>
+                        <button class="btn btn-secondary" id="plotMapBtn" disabled>
+                            Plot
+                        </button>
+                    </div>
+                    
+                    <!-- Always visible download button -->
+                    <div class="header-actions" id="downloadSection">
+                        <button class="btn btn-secondary" id="downloadBtn" disabled>
+                            Download PNG
+                        </button>
+                    </div>
+                </div>
+            <div class="control-section">
+                <h3>Generation Method</h3>
+                <div class="control-group">
+                    <select id="fractalMethod">
+                        <option value="random_chaos">Random Chaos Finder</option>
+                        <option value="escape_time">Escape-Time Fractals</option>
+                        <option value="chaos_game">Chaos Game</option>
+                        <option value="ifs">Iterated Function Systems (IFS)</option>
+                    </select>
+                </div>
+                
+                <!-- Escape-Time Fractal Presets -->
+                <div id="escapeTimePresets" class="control-group method-presets" style="display: none;">
+                    <label>Fractal Type</label>
+                    <select id="escapeTimeType">
+                        <option value="mandelbrot">Mandelbrot Set</option>
+                        <option value="julia">Julia Set</option>
+                        <option value="burning_ship">Burning Ship</option>
+                    </select>
+                </div>
+                
+                <!-- Chaos Game Presets -->
+                <div id="chaosGamePresets" class="control-group method-presets" style="display: none;">
+                    <label>Chaos Game Pattern</label>
+                    <select id="chaosGameType">
+                        <option value="sierpinski">Sierpinski Triangle</option>
+                        <option value="sierpinski_carpet">Sierpinski Carpet</option>
+                        <option value="vicsek">Vicsek Square</option>
+                        <option value="t_square">T-Square</option>
+                        <option value="techs">Techs Pattern</option>
+                        <option value="webs">Web Pattern</option>
+                    </select>
+                </div>
+                
+                <!-- IFS Presets -->
+                <div id="ifsPresets" class="control-group method-presets" style="display: none;">
+                    <label>IFS Pattern</label>
+                    <select id="ifsType">
+                        <option value="fern">Barnsley Fern</option>
+                        <option value="dragon">Dragon Curve</option>
+                        <option value="leaf">Maple Leaf</option>
+                        <option value="christmas">Christmas Tree</option>
+                        <option value="spiral">Spiral</option>
+                        <option value="mandelbrot_like">Mandelbrot-like IFS</option>
+                        <option value="sierpinski_ifs">Sierpinski Triangle (IFS)</option>
+                    </select>
+                </div>
+                
+                <!-- Random Chaos Methods -->
+                <div id="chaosFinderMethods" class="control-group method-presets">
+                    <label>Map Type</label>
+                    <select id="chaosFinderType">
+                        <option value="quadratic">Quadratic Map</option>
+                        <option value="cubic">Cubic Map</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Parameters</h3>
+                
+                <!-- Universal Parameters -->
+                <div class="control-group">
+                    <label>Iterations</label>
+                    <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
+                    <small id="iterationsHelp">Number of iterations or points to generate</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>Canvas Size</label>
+                    <select id="canvasSize">
+                        <option value="400">400x400</option>
+                        <option value="600">600x600</option>
+                        <option value="800">800x800</option>
+                        <option value="1024">1024x1024</option>
+                        <option value="2048" selected>2048x2048 (2K)</option>
+                        <option value="4096">4096x4096 (4K)</option>
+                        <option value="8192">8192x8192 (8K)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Aspect Ratio</label>
+                    <select id="aspectRatio">
+                        <option value="square">Square (1:1)</option>
+                        <option value="portrait">Portrait (3:4)</option>
+                        <option value="landscape" selected>Landscape (4:3)</option>
+                    </select>
+                </div>
+                
+                <!-- Escape-Time Fractal Controls -->
+                <div id="escapeTimeControls" class="method-controls" style="display: none;">
+                    <!-- Julia Set Controls -->
+                    <div id="juliaControls" class="dynamic-controls julia-controls">
+                        <div class="control-group">
+                            <label>Complex Parameter</label>
+                            <div class="input-group">
+                                <input type="number" id="juliaReal" value="-0.7" step="0.01">
+                                <span>+</span>
+                                <input type="number" id="juliaImag" value="0.27015" step="0.01">
+                                <span>i</span>
+                            </div>
+                            <small>Real and imaginary components of Julia set parameter</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chaos Game Controls -->
+                <div id="chaosGameControls" class="method-controls" style="display: none;">
+                    <div class="control-group">
+                        <label>Compression Ratio</label>
+                        <input type="number" id="compressionRatio" value="0.5" min="0.1" max="1.0" step="0.05">
+                        <small>Fraction of distance to jump toward vertex (0.1-1.0)</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Rotation Angle</label>
+                        <input type="number" id="rotationAngle" value="0" min="-3.14" max="3.14" step="0.1">
+                        <small>Rotation angle in radians</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Rule Length</label>
+                        <input type="number" id="ruleLength" value="0" min="0" max="10" step="1">
+                        <small>Number of previous vertex choices to track</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Rule Offset</label>
+                        <input type="number" id="ruleOffset" value="0" min="-5" max="5" step="1">
+                        <small>Forbidden offset from last vertex</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Rule Symmetry</label>
+                        <select id="ruleSymmetry">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                        <small>Apply symmetric vertex selection restrictions</small>
+                    </div>
+                    <div class="control-group" id="techsSkewGroup" style="display: none;">
+                        <label>Techs Skew</label>
+                        <input type="number" id="techsSkew" value="0" min="-3" max="3" step="1">
+                        <small>Variable offset parameter for Techs pattern</small>
+                    </div>
+                </div>
+                
+                <!-- IFS Controls -->
+                <div id="ifsControls" class="method-controls" style="display: none;">
+                    <div class="control-group">
+                        <label>Starting Point X</label>
+                        <input type="number" id="ifsStartX" value="0" step="0.1">
+                        <small>Initial X coordinate for IFS iteration</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Starting Point Y</label>
+                        <input type="number" id="ifsStartY" value="0" step="0.1">
+                        <small>Initial Y coordinate for IFS iteration</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Parsing Mode</label>
+                        <select id="ifsParseMode">
+                            <option value="borke">Borke (a*x + b*y + e, c*x + d*y + f)</option>
+                            <option value="regular">Regular (a*x + b*y + c, d*x + e*y + f)</option>
+                        </select>
+                        <small>How to interpret transformation parameters</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Number of Transformations</label>
+                        <select id="ifsTransformCount">
+                            <option value="2">2 Transformations</option>
+                            <option value="3">3 Transformations</option>
+                            <option value="4" selected>4 Transformations</option>
+                        </select>
+                        <small>How many affine transformations to use</small>
+                    </div>
+                    
+                    <!-- Transformation parameters -->
+                    <div id="ifsTransformations">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Probabilities</label>
+                        <input type="text" id="ifsProbabilities" value="0.01, 0.07, 0.07, 0.85" placeholder="e.g., 0.25, 0.25, 0.25, 0.25">
+                        <small>Comma-separated probability weights (must sum to ~1.0)</small>
+                    </div>
+                </div>
+                
+                <!-- Random Chaos Finder Controls -->
+                <div id="chaosFinderControls" class="method-controls">
+                    <div class="control-group">
+                        <label>Plot Points</label>
+                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000">
+                        <small>Number of points to plot for discovered map</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Test Points</label>
+                        <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
+                        <small>Number of points for Lyapunov exponent calculation</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Discard Points</label>
+                        <input type="number" id="chaosDiscardPoints" value="10000" min="1000" max="50000" step="1000">
+                        <small>Transient iterations to discard before analysis</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Randomization Type</label>
+                        <select id="chaosRandomizationType">
+                            <option value="continuous">Continuous</option>
+                            <option value="discrete">Discrete (Alphabet mode)</option>
+                        </select>
+                        <small>Parameter generation method</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Search Attempts</label>
+                        <input type="number" id="searchAttempts" value="1000" min="100" max="10000" step="100">
+                        <small>Maximum attempts to find chaotic map</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Visual</h3>
+                <div class="control-group">
+                    <label>Color Scheme</label>
+                    <select id="colorScheme">
+                        <option value="0">Fire</option>
+                        <option value="1">Jet</option>
+                        <option value="2">Prism</option>
+                        <option value="3" selected>Turbo</option>
+                        <option value="4">Color Wheel</option>
+                        <option value="5">GNU Plot</option>
+                        <option value="6">BMY</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Map Equation Display (for Random Chaos Finder) - REMOVED -->
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="fractalCanvas" width="2048" height="2048"></canvas>
+                <div class="canvas-overlay" id="canvasOverlay">
+                    <div>
+                        <div class="loading-spinner"></div>
+                        <p style="margin-top: 1rem;">Initializing WebAssembly...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Debug Helpers - Load before main script -->
+    <script src="debug-helpers.js"></script>
+    
+    <script>
+        // Application State
+        let generator = null;
+        let isLoading = false;
+        let currentFractal = null;
+        
+        // Chaotic map state for separate generation and plotting
+        let storedChaoticMap = null;
+        
+        // View State for zooming/panning
+        let viewState = {
+            centerX: 0,
+            centerY: 0,
+            zoom: 1.0,
+            fractalType: 'mandelbrot'
+        };
+
+        // DOM Elements
+        const elements = {
+            canvas: document.getElementById('fractalCanvas'),
+            overlay: document.getElementById('canvasOverlay'),
+            container: document.getElementById('canvasContainer'),
+            
+            // Button containers
+            standardButtons: document.getElementById('standardButtons'),
+            chaosMapButtons: document.getElementById('chaosMapButtons'),
+            downloadSection: document.getElementById('downloadSection'),
+            
+            // Buttons
+            generateBtn: document.getElementById('generateBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            
+            // Chaos map specific buttons
+            generateAndPlotBtn: document.getElementById('generateAndPlotBtn'),
+            generateMapBtn: document.getElementById('generateMapBtn'),
+            plotMapBtn: document.getElementById('plotMapBtn'),
+            
+            // Method and preset selectors
+            fractalMethod: document.getElementById('fractalMethod'),
+            escapeTimePresets: document.getElementById('escapeTimePresets'),
+            chaosGamePresets: document.getElementById('chaosGamePresets'),
+            ifsPresets: document.getElementById('ifsPresets'),
+            chaosFinderMethods: document.getElementById('chaosFinderMethods'),
+            escapeTimeType: document.getElementById('escapeTimeType'),
+            chaosGameType: document.getElementById('chaosGameType'),
+            ifsType: document.getElementById('ifsType'),
+            chaosFinderType: document.getElementById('chaosFinderType'),
+            
+            // Universal parameters
+            iterations: document.getElementById('iterations'),
+            canvasSize: document.getElementById('canvasSize'),
+            aspectRatio: document.getElementById('aspectRatio'),
+            colorScheme: document.getElementById('colorScheme'),
+            iterationsHelp: document.getElementById('iterationsHelp'),
+            
+            // Method-specific control sections
+            escapeTimeControls: document.getElementById('escapeTimeControls'),
+            chaosGameControls: document.getElementById('chaosGameControls'),
+            ifsControls: document.getElementById('ifsControls'),
+            chaosFinderControls: document.getElementById('chaosFinderControls'),
+            
+            // Escape-time fractal controls
+            juliaControls: document.getElementById('juliaControls'),
+            juliaReal: document.getElementById('juliaReal'),
+            juliaImag: document.getElementById('juliaImag'),
+            
+            // Chaos game controls
+            compressionRatio: document.getElementById('compressionRatio'),
+            rotationAngle: document.getElementById('rotationAngle'),
+            ruleLength: document.getElementById('ruleLength'),
+            ruleOffset: document.getElementById('ruleOffset'),
+            ruleSymmetry: document.getElementById('ruleSymmetry'),
+            techsSkew: document.getElementById('techsSkew'),
+            techsSkewGroup: document.getElementById('techsSkewGroup'),
+            
+            // IFS controls
+            ifsStartX: document.getElementById('ifsStartX'),
+            ifsStartY: document.getElementById('ifsStartY'),
+            ifsParseMode: document.getElementById('ifsParseMode'),
+            ifsTransformCount: document.getElementById('ifsTransformCount'),
+            ifsTransformations: document.getElementById('ifsTransformations'),
+            ifsProbabilities: document.getElementById('ifsProbabilities'),
+            
+            // Chaos finder controls
+            chaosPlotPoints: document.getElementById('chaosPlotPoints'),
+            chaosTestPoints: document.getElementById('chaosTestPoints'),
+            chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
+            chaosRandomizationType: document.getElementById('chaosRandomizationType'),
+            searchAttempts: document.getElementById('searchAttempts')
+        };
+
+        // Initialize WebAssembly (attempt to load, handle gracefully if not available)
+        async function initWasm() {
+            console.log('🔧 Initializing WebAssembly module...');
+            
+            try {
+                const wasmModule = await import('./pkg/fractal_wasm.js');
+                await wasmModule.default();
+                const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
+                
+                // Store globally for use in other functions and debug helpers
+                window.FractalGenerator = FractalGenerator;
+                window.Rule = Rule;
+                window.ColorScheme = ColorScheme;
+                window.FractalPresets = FractalPresets;
+                
+                generator = new FractalGenerator();
+                hideOverlay();
+                showNotification('WebAssembly loaded successfully!', 'success');
+                updateStatus();
+                
+                console.log('✅ WASM initialized successfully');
+                console.log('🔧 Debug tools available at window.debugFractal');
+                
+                // Run basic functionality check
+                if (window.debugFractal) {
+                    setTimeout(() => {
+                        console.log('🧪 Running automatic module verification...');
+                        window.debugFractal.checkModuleStatus();
+                    }, 1000);
+                }
+                
+            } catch (error) {
+                console.error('❌ WebAssembly initialization failed:', error);
+                hideOverlay();
+                
+                // Enhanced error reporting
+                const errorDetails = {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    url: window.location.href
+                };
+                
+                // Log detailed error for debugging
+                if (window.debugFractal) {
+                    window.debugFractal.logError('WASM_INIT_FAILURE', JSON.stringify(errorDetails));
+                }
+                
+                // User-friendly error message with actionable advice
+                let userMessage = 'WebAssembly failed to load. ';
+                
+                if (window.location.protocol === 'file:') {
+                    userMessage += 'Please use a web server (not file://) to run this application.';
+                } else if (error.message.includes('CORS')) {
+                    userMessage += 'CORS issue detected. Ensure you\'re running from a proper web server.';
+                } else if (error.message.includes('fetch')) {
+                    userMessage += 'Network error. Check your internet connection and try refreshing.';
+                } else {
+                    userMessage += 'Check browser console for details or try refreshing the page.';
+                }
+                
+                showNotification(userMessage, 'error');
+                console.log('💡 Troubleshooting tips:');
+                console.log('  1. Ensure you\'re using http://localhost:8000 (not file://)');
+                console.log('  2. Check that the WebAssembly files were built correctly');
+                console.log('  3. Try running: npm run build');
+                console.log('  4. Use window.debugFractal.generateDebugReport() for detailed info');
+            }
+        }
+
+        // UI Helper Functions
+        function showOverlay(message = 'Generating fractal...') {
+            const isMobile = window.innerWidth <= 768;
+            elements.overlay.innerHTML = `
+                <div style="text-align: center; padding: ${isMobile ? '2rem' : '1rem'};">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 1rem; font-size: ${isMobile ? '1.1rem' : '1rem'}; max-width: ${isMobile ? '280px' : 'none'};">${message}</p>
+                    ${isMobile ? '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Please wait while your fractal generates...</p>' : ''}
+                </div>
+            `;
+            elements.overlay.style.display = 'flex';
+        }
+
+        function hideOverlay() {
+            elements.overlay.style.display = 'none';
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        function updateStatus() {
+            // Status display removed
+        }
+
+        function setLoading(loading) {
+            isLoading = loading;
+            elements.generateBtn.disabled = loading;
+            elements.downloadBtn.disabled = loading || !currentFractal;
+            
+            // Update chaos map buttons
+            updateChaosMapButtonStates();
+            
+            if (loading) {
+                elements.generateBtn.textContent = '⏳ Generating...';
+                if (elements.generateAndPlotBtn) {
+                    elements.generateAndPlotBtn.textContent = '⏳ Generating...';
+                }
+                if (elements.generateMapBtn) {
+                    elements.generateMapBtn.textContent = '⏳ Searching...';
+                }
+                if (elements.plotMapBtn && !elements.plotMapBtn.disabled) {
+                    elements.plotMapBtn.textContent = '⏳ Plotting...';
+                }
+            } else {
+                elements.generateBtn.textContent = 'Generate Fractal';
+                if (elements.generateAndPlotBtn) {
+                    elements.generateAndPlotBtn.textContent = 'Generate and Plot';
+                }
+                if (elements.generateMapBtn) {
+                    elements.generateMapBtn.textContent = 'Generate';
+                }
+                if (elements.plotMapBtn) {
+                    elements.plotMapBtn.textContent = 'Plot';
+                }
+            }
+        }
+
+        // Update chaos map button states based on whether a map is stored
+        function updateChaosMapButtonStates() {
+            const hasStoredMap = storedChaoticMap !== null;
+            elements.plotMapBtn.disabled = !hasStoredMap || isLoading;
+            elements.generateMapBtn.disabled = isLoading;
+            elements.generateAndPlotBtn.disabled = isLoading;
+        }
+
+        // Store chaotic map data for later plotting
+        function storeChaoticMap(pointData, coefficients, chaosType, testPoints, discardPoints, useAlphabet, isCubic) {
+            storedChaoticMap = {
+                type: chaosType,
+                testPoints: testPoints,
+                discardPoints: discardPoints,
+                useAlphabet: useAlphabet,
+                isCubic: isCubic,
+                // Store the actual point data that was found
+                pointData: pointData,
+                coefficients: coefficients
+            };
+        }
+
+        // Validate and normalize point data before plotting
+        function validateAndNormalizePointData(pointData) {
+            if (!pointData) {
+                throw new Error('No point data provided');
+            }
+            
+            // If pointData is already an array of numbers (RGBA data), return as-is
+            if (Array.isArray(pointData) && typeof pointData[0] === 'number') {
+                return pointData;
+            }
+            
+            // If pointData has a points property, extract it
+            if (pointData.points) {
+                return pointData.points;
+            }
+            
+            // If pointData has numerical properties, assume it's already point data
+            return pointData;
+        }
+
+        // Check if auto-regeneration should happen for the given method
+        function shouldAutoRegenerate(method, fractalType) {
+            // Disable auto-regeneration for chaos maps to allow separate generation and plotting
+            if (method === 'random_chaos') {
+                return false;
+            }
+            
+            // Enable for all other fractal types
+            return true;
+        }
+
+        // Generate chaotic map without plotting
+        async function generateChaoticMapOnly() {
+            if (isLoading || !generator) return;
+
+            setLoading(true);
+            showOverlay('Searching for chaotic map...');
+
+            try {
+                const chaosType = elements.chaosFinderType.value;
+                const testPoints = parseInt(elements.chaosTestPoints.value);
+                const discardPoints = parseInt(elements.chaosDiscardPoints.value);
+                const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
+                const isCubic = chaosType === 'cubic';
+
+                console.log('🎲 Searching for chaotic map:', {
+                    chaosType,
+                    testPoints,
+                    discardPoints,
+                    useAlphabet,
+                    isCubic
+                });
+
+                // Use the full plot points setting for high-resolution chaotic maps
+                const plotPoints = parseInt(elements.chaosPlotPoints.value);
+                const findPoints = plotPoints;
+
+                try {
+                    const result_data = generator.find_random_chaos_extended 
+                        ? generator.find_random_chaos_extended(findPoints, testPoints, discardPoints, useAlphabet, isCubic)
+                        : generator.find_random_chaos(findPoints, testPoints, isCubic);
+                    
+                    // Store the chaotic map data for later plotting
+                    storeChaoticMap(
+                        result_data.points || result_data,
+                        result_data.coefficients || result_data.coeffs || null,
+                        chaosType,
+                        testPoints,
+                        discardPoints,
+                        useAlphabet,
+                        isCubic
+                    );
+
+                    showNotification('Chaotic map found successfully! You can now plot it.', 'success');
+                    console.log('✅ Chaotic map stored for plotting');
+
+                } catch (error) {
+                    console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
+                    const pointData = generator.find_random_chaos(findPoints, testPoints, isCubic);
+                    
+                    storeChaoticMap(
+                        pointData,
+                        pointData.coefficients || pointData.coeffs || pointData.parameters || null,
+                        chaosType,
+                        testPoints,
+                        discardPoints,
+                        useAlphabet,
+                        isCubic
+                    );
+
+                    showNotification('Chaotic map found successfully! You can now plot it.', 'success');
+                    console.log('✅ Chaotic map stored for plotting');
+                }
+
+            } catch (error) {
+                console.error('❌ Chaotic map generation failed:', error);
+                showNotification('Error finding chaotic map. Check console for details.', 'error');
+                storedChaoticMap = null;
+            } finally {
+                setLoading(false);
+                hideOverlay();
+                updateChaosMapButtonStates();
+            }
+        }
+
+        // Plot stored chaotic map with current parameters
+        async function plotStoredChaoticMap() {
+            if (isLoading || !generator || !storedChaoticMap) return;
+
+            setLoading(true);
+            showOverlay('Plotting chaotic map...');
+
+            try {
+                const canvasSize = parseInt(elements.canvasSize.value);
+                const aspectRatio = elements.aspectRatio.value;
+                const colorScheme = parseInt(elements.colorScheme.value);
+
+                // Calculate canvas dimensions
+                let canvasWidth = canvasSize;
+                let canvasHeight = canvasSize;
+                
+                if (aspectRatio === 'portrait') {
+                    canvasWidth = Math.round(canvasSize * 3 / 4);
+                    canvasHeight = canvasSize;
+                } else if (aspectRatio === 'landscape') {
+                    canvasWidth = canvasSize;
+                    canvasHeight = Math.round(canvasSize * 3 / 4);
+                }
+
+                elements.canvas.width = canvasWidth;
+                elements.canvas.height = canvasHeight;
+
+                console.log('🎨 Plotting stored chaotic map with:', {
+                    originalType: storedChaoticMap.type,
+                    canvasSize: `${canvasWidth}x${canvasHeight}`,
+                    colorScheme,
+                    pointCount: storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 'unknown'
+                });
+
+                // Validate and normalize the stored point data before converting to RGBA
+                const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
+                const result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
+
+                if (!result || result.length === 0) {
+                    throw new Error('Plotting returned empty result');
+                }
+
+                // Display result
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                ctx.putImageData(imageData, 0, 0);
+
+                const pointCount = storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 0;
+                showNotification(`Chaotic map plotted successfully! (${pointCount.toLocaleString()} points)`, 'success');
+                
+                currentFractal = {
+                    type: 'chaotic_map',
+                    method: 'random_chaos',
+                    imageData: result,
+                    width: canvasWidth,
+                    height: canvasHeight
+                };
+
+            } catch (error) {
+                console.error('❌ Chaotic map plotting failed:', error);
+                showNotification('Error plotting chaotic map. Check console for details.', 'error');
+            } finally {
+                setLoading(false);
+                hideOverlay();
+                updateChaosMapButtonStates();
+            }
+        }
+
+        // Generate and plot chaotic map (original behavior)
+        async function generateAndPlotChaoticMap() {
+            await generateChaoticMapOnly();
+            if (storedChaoticMap) {
+                await plotStoredChaoticMap();
+            }
+        }
+
+        // Fractal Generation with enhanced error handling and logging
+        async function generateFractal() {
+            if (isLoading) return;
+            
+            // Enhanced pre-flight checks
+            if (!generator) {
+                const errorMsg = 'WebAssembly not loaded. Please check setup instructions or refresh the page.';
+                showNotification(errorMsg, 'error');
+                console.error('❌ Generation failed:', errorMsg);
+                
+                if (window.debugFractal) {
+                    console.log('💡 Run window.debugFractal.checkModuleStatus() for detailed diagnostics');
+                }
+                return;
+            }
+
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            const iterations = parseInt(elements.iterations.value);
+            const canvasSize = parseInt(elements.canvasSize.value);
+            const aspectRatio = elements.aspectRatio.value;
+            const colorScheme = parseInt(elements.colorScheme.value);
+
+            // Parameter validation with detailed feedback
+            const paramValidation = {
+                iterations: iterations > 0 && iterations <= 10000000,
+                canvasSize: canvasSize > 0 && canvasSize <= 8192,
+                colorScheme: colorScheme >= 0 && colorScheme <= 6
+            };
+            
+            const invalidParams = Object.entries(paramValidation)
+                .filter(([param, valid]) => !valid)
+                .map(([param]) => param);
+                
+            if (invalidParams.length > 0) {
+                const errorMsg = `Invalid parameters: ${invalidParams.join(', ')}. Please check your input values.`;
+                showNotification(errorMsg, 'error');
+                console.error('❌ Parameter validation failed:', { 
+                    method, fractalType, iterations, canvasSize, colorScheme 
+                });
+                return;
+            }
+
+            // Calculate canvas dimensions based on aspect ratio
+            let canvasWidth = canvasSize;
+            let canvasHeight = canvasSize;
+            
+            if (aspectRatio === 'portrait') {
+                canvasWidth = Math.round(canvasSize * 3 / 4);
+                canvasHeight = canvasSize;
+            } else if (aspectRatio === 'landscape') {
+                canvasWidth = canvasSize;
+                canvasHeight = Math.round(canvasSize * 3 / 4);
+            }
+
+            // Update canvas size
+            elements.canvas.width = canvasWidth;
+            elements.canvas.height = canvasHeight;
+
+            setLoading(true);
+            showOverlay();
+            
+            // Enhanced logging for generation start
+            console.log('🚀 Starting fractal generation:', {
+                method,
+                fractalType,
+                iterations,
+                canvasSize: `${canvasWidth}x${canvasHeight}`,
+                colorScheme
+            });
+
+            // Start performance monitoring if debug helpers available
+            let startMemory = 0;
+            if (window.debugFractal && performance.memory) {
+                startMemory = performance.memory.usedJSHeapSize;
+            }
+
+            try {
+                const startTime = performance.now();
+                let result;
+                let actualPointsUsed = iterations; // Default for escape-time fractals
+                
+                // Get WASM classes from global scope
+                const { Rule, FractalPresets } = window;
+                
+                if (method === 'escape_time') {
+                    // Escape-time fractals (Mandelbrot, Julia, Burning Ship)
+                    actualPointsUsed = `${canvasWidth}x${canvasHeight} pixels`;
+                    
+                    console.log(`🔢 Generating ${fractalType} fractal...`);
+                    
+                    if (fractalType === 'mandelbrot') {
+                        const bounds = getMandelbrotBounds(Math.max(canvasWidth, canvasHeight));
+                        console.log('📐 Mandelbrot bounds:', bounds);
+                        
+                        const iterCounts = generator.mandelbrot_set(
+                            canvasWidth, canvasHeight, 
+                            bounds.xMin, bounds.xMax, 
+                            bounds.yMin, bounds.yMax, 
+                            iterations
+                        );
+                        result = generator.iterations_to_rgba(iterCounts, canvasWidth, canvasHeight, iterations, colorScheme);
+                        
+                    } else if (fractalType === 'julia') {
+                        const bounds = getJuliaBounds(Math.max(canvasWidth, canvasHeight));
+                        const real = parseFloat(elements.juliaReal.value);
+                        const imag = parseFloat(elements.juliaImag.value);
+                        
+                        console.log('🌀 Julia parameters:', { real, imag, bounds });
+                        
+                        const iterCounts = generator.julia_set(
+                            canvasWidth, canvasHeight,
+                            bounds.xMin, bounds.xMax,
+                            bounds.yMin, bounds.yMax,
+                            real, imag, iterations
+                        );
+                        result = generator.iterations_to_rgba(iterCounts, canvasWidth, canvasHeight, iterations, colorScheme);
+                        
+                    } else if (fractalType === 'burning_ship') {
+                        const bounds = getBurningShipBounds(Math.max(canvasWidth, canvasHeight));
+                        console.log('🚢 Burning Ship bounds:', bounds);
+                        
+                        const iterCounts = generator.burning_ship(
+                            canvasWidth, canvasHeight,
+                            bounds.xMin, bounds.xMax,
+                            bounds.yMin, bounds.yMax,
+                            iterations
+                        );
+                        result = generator.iterations_to_rgba(iterCounts, canvasWidth, canvasHeight, iterations, colorScheme);
+                    }
+                    
+                } else if (method === 'chaos_game') {
+                    // Chaos game fractals - scale iterations with resolution for consistent brightness
+                    const baseResolution = 600 * 600; // Base resolution for scaling
+                    const currentResolution = canvasWidth * canvasHeight;
+                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    const scaledIterations = Math.round(iterations * scalingFactor);
+                    actualPointsUsed = scaledIterations;
+                    
+                    const compressionRatio = parseFloat(elements.compressionRatio.value);
+                    const rotationAngle = parseFloat(elements.rotationAngle.value);
+                    const ruleLength = parseInt(elements.ruleLength.value);
+                    let ruleOffset = parseInt(elements.ruleOffset.value);
+                    const ruleSymmetry = elements.ruleSymmetry.value === 'true';
+                    
+                    // For techs pattern, use techs skew as offset
+                    if (fractalType === 'techs') {
+                        ruleOffset = parseInt(elements.techsSkew.value);
+                    }
+                    
+                    console.log('🎯 Chaos game parameters:', {
+                        fractalType,
+                        scaledIterations,
+                        compressionRatio,
+                        rotationAngle,
+                        ruleLength,
+                        ruleOffset,
+                        ruleSymmetry
+                    });
+                    
+                    const transforms = [[compressionRatio, rotationAngle]];
+                    const rule = new Rule(ruleLength, ruleOffset, ruleSymmetry);
+                    
+                    if (fractalType === 'sierpinski') {
+                        const vertices = FractalPresets.sierpinski_triangle();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                        
+                    } else if (fractalType === 'sierpinski_carpet') {
+                        const vertices = FractalPresets.sierpinski_carpet();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                        
+                    } else if (fractalType === 'vicsek') {
+                        const vertices = FractalPresets.vicsek_square();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                        
+                    } else if (fractalType === 't_square') {
+                        const vertices = FractalPresets.t_square();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                        
+                    } else if (fractalType === 'techs') {
+                        const vertices = FractalPresets.techs_pattern();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                        
+                    } else if (fractalType === 'webs') {
+                        const vertices = FractalPresets.web_pattern();
+                        const points = generator.chaos_game(vertices, 0.0, 0.0, scaledIterations, transforms, rule);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                    }
+                    
+                } else if (method === 'ifs') {
+                    // IFS fractals using user-defined parameters - scale iterations with resolution for consistent brightness
+                    const baseResolution = 600 * 600; // Base resolution for scaling
+                    const currentResolution = canvasWidth * canvasHeight;
+                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    const scaledIterations = Math.round(iterations * scalingFactor);
+                    actualPointsUsed = scaledIterations;
+                    
+                    const startX = parseFloat(elements.ifsStartX.value);
+                    const startY = parseFloat(elements.ifsStartY.value);
+                    
+                    console.log('🔄 IFS parameters:', {
+                        fractalType,
+                        startX,
+                        startY,
+                        scaledIterations
+                    });
+                    
+                    try {
+                        const { transforms, probabilities, parseMode } = getIFSParameters();
+                        console.log('🔧 IFS configuration:', { transforms, probabilities, parseMode });
+                        
+                        const points = generator.ifs_fractal(startX, startY, scaledIterations, transforms, probabilities, parseMode);
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                    } catch (error) {
+                        console.error('❌ IFS parameter error:', error);
+                        showNotification(`IFS Error: ${error.message}`, 'error');
+                        setLoading(false);
+                        return;
+                    }
+                    
+                } else if (method === 'random_chaos') {
+                    // Random chaos finder - scale plot points with resolution for consistent brightness
+                    const baseResolution = 600 * 600; // Base resolution for scaling
+                    const currentResolution = canvasWidth * canvasHeight;
+                    const scalingFactor = Math.sqrt(currentResolution / baseResolution);
+                    
+                    const chaosType = elements.chaosFinderType.value;
+                    const basePlotPoints = parseInt(elements.chaosPlotPoints.value);
+                    const scaledPlotPoints = Math.round(basePlotPoints * scalingFactor);
+                    actualPointsUsed = scaledPlotPoints;
+                    const testPoints = parseInt(elements.chaosTestPoints.value);
+                    const discardPoints = parseInt(elements.chaosDiscardPoints.value);
+                    const useAlphabet = elements.chaosRandomizationType.value === 'discrete';
+                    const isCubic = chaosType === 'cubic';
+                    
+                    console.log('🎲 Random chaos parameters:', {
+                        chaosType,
+                        scaledPlotPoints,
+                        testPoints,
+                        discardPoints,
+                        useAlphabet,
+                        isCubic
+                    });
+                    
+                    showOverlay(`Searching for chaotic ${chaosType} map...`);
+                    
+                    // Try to call extended WebAssembly function with new parameters, fallback if not available
+                    try {
+                        const result_data = generator.find_random_chaos_extended(scaledPlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
+                        
+                        // Extract points and map equation if available
+                        const points = result_data.points || result_data;
+                        
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                    } catch (error) {
+                        // Fallback to original function if extended one is not available
+                        console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
+                        const points = generator.find_random_chaos(scaledPlotPoints, testPoints, isCubic);
+                        
+                        result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                    }
+                }
+
+                // Validate result
+                if (!result || result.length === 0) {
+                    throw new Error('WebAssembly function returned empty result');
+                }
+                
+                if (result.length !== canvasWidth * canvasHeight * 4) {
+                    console.warn(`⚠️ Result size mismatch: expected ${canvasWidth * canvasHeight * 4}, got ${result.length}`);
+                }
+
+                // Display result
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                ctx.putImageData(imageData, 0, 0);
+
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                // Enhanced performance and memory logging
+                let memoryUsed = 0;
+                if (window.debugFractal && performance.memory) {
+                    const endMemory = performance.memory.usedJSHeapSize;
+                    memoryUsed = (endMemory - startMemory) / 1024 / 1024; // MB
+                }
+                
+                // Update status with detailed metrics
+                const pointInfo = typeof actualPointsUsed === 'string' ? actualPointsUsed : `${actualPointsUsed.toLocaleString()} points`;
+                const throughput = typeof actualPointsUsed === 'number' 
+                    ? (actualPointsUsed / duration * 1000).toFixed(0) + ' points/sec'
+                    : ((canvasWidth * canvasHeight) / duration * 1000).toFixed(0) + ' pixels/sec';
+                    
+                console.log('✅ Generation completed:', {
+                    fractalType,
+                    pointInfo,
+                    duration: `${duration}ms`,
+                    throughput,
+                    memoryUsed: memoryUsed > 0 ? `${memoryUsed.toFixed(2)} MB` : 'N/A',
+                    resultSize: result.length
+                });
+                    
+                showNotification(`Fractal generated successfully! (${pointInfo} in ${duration}ms)`, 'success');
+                
+                // Auto-collapse sidebar on mobile after successful generation
+                if (window.autoCollapseMobileAfterGeneration) {
+                    setTimeout(() => {
+                        window.autoCollapseMobileAfterGeneration();
+                    }, 1000); // Small delay to let user see the success message
+                }
+                
+                // Adapt background color based on fractal colors
+                adaptBackgroundColor(result, canvasWidth, canvasHeight);
+                
+                currentFractal = {
+                    type: fractalType,
+                    method: method,
+                    imageData: result,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    generationTime: duration,
+                    throughput: throughput
+                };
+                
+                viewState.fractalType = fractalType;
+
+            } catch (error) {
+                console.error('❌ Fractal generation failed:', error);
+                
+                // Enhanced error reporting with context
+                const errorContext = {
+                    method,
+                    fractalType,
+                    iterations,
+                    canvasSize: `${canvasWidth}x${canvasHeight}`,
+                    errorMessage: error.message,
+                    errorStack: error.stack,
+                    timestamp: new Date().toISOString()
+                };
+                
+                if (window.debugFractal) {
+                    window.debugFractal.logError('GENERATION_FAILURE', JSON.stringify(errorContext));
+                }
+                
+                // User-friendly error messages based on error type
+                let userMessage = 'Error generating fractal. ';
+                
+                if (error.message.includes('memory')) {
+                    userMessage += 'Try reducing the number of iterations or canvas size.';
+                } else if (error.message.includes('parameter')) {
+                    userMessage += 'Check your parameter values and try again.';
+                } else if (error.message.includes('timeout')) {
+                    userMessage += 'Generation took too long. Try simpler parameters.';
+                } else {
+                    userMessage += 'Check the browser console for details.';
+                }
+                
+                showNotification(userMessage, 'error');
+                
+                console.log('💡 Troubleshooting suggestions:');
+                console.log('  1. Try reducing iterations or canvas size');
+                console.log('  2. Use window.debugFractal.validateParameters() to check inputs');
+                console.log('  3. Run window.debugFractal.runBasicTests() to verify functionality');
+                
+            } finally {
+                setLoading(false);
+                hideOverlay();
+            }
+        }
+
+        // Background color adaptation based on fractal colors
+        function adaptBackgroundColor(imageData, width, height) {
+            // Sample colors from the fractal to get dominant hues
+            const sampleSize = Math.min(1000, width * height / 10); // Sample 10% or max 1000 pixels
+            const step = Math.floor(imageData.length / 4 / sampleSize);
+            
+            let totalR = 0, totalG = 0, totalB = 0;
+            let sampleCount = 0;
+            
+            for (let i = 0; i < imageData.length; i += step * 4) {
+                const r = imageData[i];
+                const g = imageData[i + 1];
+                const b = imageData[i + 2];
+                const alpha = imageData[i + 3];
+                
+                // Only sample visible pixels
+                if (alpha > 128) {
+                    totalR += r;
+                    totalG += g;
+                    totalB += b;
+                    sampleCount++;
+                }
+            }
+            
+            if (sampleCount > 0) {
+                const avgR = Math.floor(totalR / sampleCount);
+                const avgG = Math.floor(totalG / sampleCount);
+                const avgB = Math.floor(totalB / sampleCount);
+                
+                // Create a darker, more muted version for background
+                const bgR = Math.floor(avgR * 0.3);
+                const bgG = Math.floor(avgG * 0.3);
+                const bgB = Math.floor(avgB * 0.3);
+                
+                // Apply as gradient background
+                document.body.style.background = `linear-gradient(135deg, rgb(${bgR}, ${bgG}, ${bgB}) 0%, rgb(${Math.floor(bgR * 0.7)}, ${Math.floor(bgG * 0.7)}, ${Math.floor(bgB * 0.7)}) 100%)`;
+            }
+        }
+
+        // Get bounds for different fractal types based on zoom and pan
+        function getMandelbrotBounds(size) {
+            const baseWidth = 3.5;
+            const baseHeight = 2.5;
+            const width = baseWidth / viewState.zoom;
+            const height = baseHeight / viewState.zoom;
+            
+            return {
+                xMin: viewState.centerX - width / 2,
+                xMax: viewState.centerX + width / 2,
+                yMin: viewState.centerY - height / 2,
+                yMax: viewState.centerY + height / 2
+            };
+        }
+
+        function getJuliaBounds(size) {
+            const baseWidth = 4.0;
+            const baseHeight = 4.0;
+            const width = baseWidth / viewState.zoom;
+            const height = baseHeight / viewState.zoom;
+            
+            return {
+                xMin: viewState.centerX - width / 2,
+                xMax: viewState.centerX + width / 2,
+                yMin: viewState.centerY - height / 2,
+                yMax: viewState.centerY + height / 2
+            };
+        }
+
+        function getBurningShipBounds(size) {
+            const baseWidth = 3.5;
+            const baseHeight = 3.0;
+            const width = baseWidth / viewState.zoom;
+            const height = baseHeight / viewState.zoom;
+            
+            return {
+                xMin: viewState.centerX - width / 2,
+                xMax: viewState.centerX + width / 2,
+                yMin: viewState.centerY - height / 2,
+                yMax: viewState.centerY + height / 2
+            };
+        }
+
+        // Canvas Interaction
+        function getCanvasCoordinates(clientX, clientY) {
+            const rect = elements.canvas.getBoundingClientRect();
+            const x = (clientX - rect.left) / rect.width;
+            const y = (clientY - rect.top) / rect.height;
+            return { x, y };
+        }
+
+        function canvasToFractalCoordinates(x, y) {
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            
+            // Only escape-time fractals support coordinate-based interaction
+            if (method !== 'escape_time') {
+                return { x: 0, y: 0 }; // Non-coordinate fractals
+            }
+            
+            let bounds;
+            
+            if (fractalType === 'mandelbrot') {
+                bounds = getMandelbrotBounds(elements.canvas.width);
+            } else if (fractalType === 'julia') {
+                bounds = getJuliaBounds(elements.canvas.width);
+            } else if (fractalType === 'burning_ship') {
+                bounds = getBurningShipBounds(elements.canvas.width);
+            } else {
+                return { x: 0, y: 0 };
+            }
+            
+            const fractalX = bounds.xMin + x * (bounds.xMax - bounds.xMin);
+            const fractalY = bounds.yMin + y * (bounds.yMax - bounds.yMin);
+            
+            return { x: fractalX, y: fractalY };
+        }
+
+        // Zoom functionality
+        function zoomIn(centerX = null, centerY = null) {
+            if (centerX !== null && centerY !== null) {
+                const coords = canvasToFractalCoordinates(centerX, centerY);
+                viewState.centerX = coords.x;
+                viewState.centerY = coords.y;
+            }
+            viewState.zoom *= 2.0;
+            updateStatus();
+            generateFractal();
+        }
+
+        function zoomOut() {
+            viewState.zoom /= 2.0;
+            updateStatus();
+            generateFractal();
+        }
+
+        function resetView() {
+            viewState.centerX = 0;
+            viewState.centerY = 0;
+            viewState.zoom = 1.0;
+            updateStatus();
+            generateFractal();
+        }
+
+        // Download functionality
+        function downloadPNG() {
+            if (!currentFractal) return;
+            
+            const link = document.createElement('a');
+            link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
+            link.href = elements.canvas.toDataURL('image/png');
+            link.click();
+            
+            showNotification('Fractal image downloaded!', 'success');
+        }
+
+        // Dynamic control visibility
+        function updateControlVisibility() {
+            const method = elements.fractalMethod.value;
+            
+            // Hide all preset selectors
+            elements.escapeTimePresets.style.display = 'none';
+            elements.chaosGamePresets.style.display = 'none';
+            elements.ifsPresets.style.display = 'none';
+            elements.chaosFinderMethods.style.display = 'none';
+            
+            // Hide all method control sections
+            elements.escapeTimeControls.style.display = 'none';
+            elements.chaosGameControls.style.display = 'none';
+            elements.ifsControls.style.display = 'none';
+            elements.chaosFinderControls.style.display = 'none';
+            
+            // Show/hide appropriate buttons
+            if (method === 'random_chaos') {
+                // Show chaos map specific buttons, hide standard generate button
+                elements.standardButtons.style.display = 'none';
+                elements.chaosMapButtons.style.display = 'flex';
+                updateChaosMapButtonStates();
+            } else {
+                // Show standard generate button, hide chaos map specific buttons
+                elements.standardButtons.style.display = 'flex';
+                elements.chaosMapButtons.style.display = 'none';
+            }
+            
+            // Always show download section
+            elements.downloadSection.style.display = 'flex';
+            
+            // Show relevant preset selector and controls
+            if (method === 'escape_time') {
+                elements.escapeTimePresets.style.display = 'block';
+                elements.escapeTimeControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Maximum iterations for escape-time calculation';
+                updateEscapeTimeControls();
+                
+            } else if (method === 'chaos_game') {
+                elements.chaosGamePresets.style.display = 'block';
+                elements.chaosGameControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Number of points to generate with chaos game';
+                updateChaosGameDefaults();
+                
+            } else if (method === 'ifs') {
+                elements.ifsPresets.style.display = 'block';
+                elements.ifsControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Number of points to generate with IFS';
+                
+                // Initialize transformation inputs and load default preset
+                createTransformationInputs();
+                loadIFSPreset();
+                
+            } else if (method === 'random_chaos') {
+                elements.chaosFinderMethods.style.display = 'block';
+                elements.chaosFinderControls.style.display = 'block';
+                elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
+            }
+            
+            // Update iterations visibility after all other updates
+            updateIterationsVisibility();
+        }
+        
+        function updateEscapeTimeControls() {
+            const fractalType = elements.escapeTimeType.value;
+            
+            // Hide all escape-time specific controls
+            elements.juliaControls.classList.remove('active');
+            
+            // Show relevant controls
+            if (fractalType === 'julia') {
+                elements.juliaControls.classList.add('active');
+            }
+        }
+        
+        function getCurrentFractalType() {
+            const method = elements.fractalMethod.value;
+            
+            if (method === 'escape_time') {
+                return elements.escapeTimeType.value;
+            } else if (method === 'chaos_game') {
+                return elements.chaosGameType.value;
+            } else if (method === 'ifs') {
+                const ifsType = elements.ifsType.value;
+                // Map IFS types to internal names
+                if (ifsType === 'sierpinski_ifs') return 'sierpinski_ifs';
+                return ifsType;
+            } else if (method === 'random_chaos') {
+                return 'random_chaos';
+            }
+            
+            return 'mandelbrot'; // fallback
+        }
+
+        function updateChaosGameDefaults() {
+            const chaosType = elements.chaosGameType.value;
+            
+            // Hide techs-specific controls
+            elements.techsSkewGroup.style.display = 'none';
+            
+            // Set appropriate defaults for different chaos game patterns
+            if (chaosType === 'sierpinski') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 0;
+                elements.ruleOffset.value = 0;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 'sierpinski_carpet') {
+                elements.compressionRatio.value = 0.67; // 2/3
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 0;
+                elements.ruleOffset.value = 0;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 'vicsek') {
+                elements.compressionRatio.value = 0.67; // 2/3
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 0;
+                elements.ruleOffset.value = 0;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 't_square') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 1;
+                elements.ruleOffset.value = 2;
+                elements.ruleSymmetry.value = 'false';
+                
+            } else if (chaosType === 'techs') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0;
+                elements.ruleLength.value = 1;
+                elements.ruleOffset.value = 0; // Will be overridden by techsSkew
+                elements.ruleSymmetry.value = 'false';
+                elements.techsSkewGroup.style.display = 'block';
+                
+            } else if (chaosType === 'webs') {
+                elements.compressionRatio.value = 0.5;
+                elements.rotationAngle.value = 0.1;
+                elements.ruleLength.value = 2;
+                elements.ruleOffset.value = -1;
+                elements.ruleSymmetry.value = 'true';
+            }
+        }
+
+        // IFS parameter management functions
+        function createTransformationInputs() {
+            const count = parseInt(elements.ifsTransformCount.value);
+            const container = elements.ifsTransformations;
+            container.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const transformDiv = document.createElement('div');
+                transformDiv.className = 'ifs-transform';
+                transformDiv.innerHTML = `
+                    <h4>Transformation ${i + 1}</h4>
+                    <div class="ifs-params">
+                        <div>
+                            <label>a</label>
+                            <input type="number" id="ifs_a_${i}" value="0" step="0.01">
+                        </div>
+                        <div>
+                            <label>b</label>
+                            <input type="number" id="ifs_b_${i}" value="0" step="0.01">
+                        </div>
+                        <div>
+                            <label>c</label>
+                            <input type="number" id="ifs_c_${i}" value="0" step="0.01">
+                        </div>
+                        <div>
+                            <label>d</label>
+                            <input type="number" id="ifs_d_${i}" value="0" step="0.01">
+                        </div>
+                        <div>
+                            <label>e</label>
+                            <input type="number" id="ifs_e_${i}" value="0" step="0.01">
+                        </div>
+                        <div>
+                            <label>f</label>
+                            <input type="number" id="ifs_f_${i}" value="0" step="0.01">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(transformDiv);
+            }
+            
+            // Update probabilities placeholder
+            const probPlaceholder = Array(count).fill(1.0 / count).map(p => p.toFixed(2)).join(', ');
+            elements.ifsProbabilities.placeholder = `e.g., ${probPlaceholder}`;
+        }
+
+        function loadIFSPreset() {
+            const presetName = elements.ifsType.value;
+            
+            // Preset data based on documentation
+            const presets = {
+                'dragon': {
+                    transforms: [
+                        [0.824074, 0.281428, -0.212346, 0.864198, -1.882290, -0.110607],
+                        [0.088272, 0.520988, -0.463889, -0.377778, 0.785360, 8.095795]
+                    ],
+                    probabilities: [0.8, 0.2],
+                    parseMode: 'borke'
+                },
+                'fern': {
+                    transforms: [
+                        [0.0, 0.0, 0.0, 0.16, 0.0, 0.0],
+                        [0.2, -0.26, 0.23, 0.22, 0.0, 1.6],
+                        [-0.15, 0.28, 0.26, 0.24, 0.0, 0.44],
+                        [0.85, 0.04, -0.04, 0.85, 0.0, 1.6]
+                    ],
+                    probabilities: [0.01, 0.07, 0.07, 0.85],
+                    parseMode: 'borke'
+                },
+                'leaf': {
+                    transforms: [
+                        [0.14, 0.01, 0.0, 0.51, -0.08, -1.31],
+                        [0.43, 0.52, -0.45, 0.5, 1.49, -0.75],
+                        [0.45, -0.49, 0.47, 0.47, -1.62, -0.74],
+                        [0.49, 0.0, 0.0, 0.51, 0.02, 1.62]
+                    ],
+                    probabilities: [0.25, 0.25, 0.25, 0.25],
+                    parseMode: 'borke'
+                },
+                'christmas': {
+                    transforms: [
+                        [0.0, -0.5, 0.5, 0.0, 0.5, 0.0],
+                        [0.0, 0.5, -0.5, 0.0, 0.5, 0.5],
+                        [0.5, 0.0, 0.0, 0.5, 0.25, 0.5]
+                    ],
+                    probabilities: [0.33, 0.33, 0.34],
+                    parseMode: 'borke'
+                },
+                'spiral': {
+                    transforms: [
+                        [0.787879, -0.424242, 0.242424, 0.859848, 1.758647, 1.408065],
+                        [-0.121212, 0.257576, 0.151515, 0.053030, -6.721654, 1.377236],
+                        [0.181818, -0.136364, 0.090909, 0.181818, 6.086107, 1.568035]
+                    ],
+                    probabilities: [0.9, 0.05, 0.05],
+                    parseMode: 'borke'
+                },
+                'mandelbrot_like': {
+                    transforms: [
+                        [0.2020, -0.8050, -0.3730, -0.6890, -0.3420, -0.6530],
+                        [0.1380, 0.6650, 0.6600, -0.5020, -0.2220, -0.2770]
+                    ],
+                    probabilities: [0.5, 0.5],
+                    parseMode: 'regular'
+                },
+                'sierpinski_ifs': {
+                    transforms: [
+                        [0.5, 0.0, 0.0, 0.0, 0.5, 0.0],
+                        [0.5, 0.0, 0.5, 0.0, 0.5, 0.0],
+                        [0.5, 0.0, 0.0, 0.0, 0.5, 0.5]
+                    ],
+                    probabilities: [0.33, 0.33, 0.34],
+                    parseMode: 'regular'
+                }
+            };
+            
+            const preset = presets[presetName];
+            if (!preset) return;
+            
+            // Set transform count and parsing mode
+            elements.ifsTransformCount.value = preset.transforms.length;
+            elements.ifsParseMode.value = preset.parseMode;
+            
+            // Create transform inputs with the correct count
+            createTransformationInputs();
+            
+            // Fill in the transformation parameters
+            preset.transforms.forEach((transform, i) => {
+                document.getElementById(`ifs_a_${i}`).value = transform[0];
+                document.getElementById(`ifs_b_${i}`).value = transform[1];
+                document.getElementById(`ifs_c_${i}`).value = transform[2];
+                document.getElementById(`ifs_d_${i}`).value = transform[3];
+                document.getElementById(`ifs_e_${i}`).value = transform[4];
+                document.getElementById(`ifs_f_${i}`).value = transform[5];
+            });
+            
+            // Set probabilities
+            elements.ifsProbabilities.value = preset.probabilities.join(', ');
+        }
+
+        function getIFSParameters() {
+            const count = parseInt(elements.ifsTransformCount.value);
+            const transforms = [];
+            
+            for (let i = 0; i < count; i++) {
+                const transform = [
+                    parseFloat(document.getElementById(`ifs_a_${i}`).value),
+                    parseFloat(document.getElementById(`ifs_b_${i}`).value),
+                    parseFloat(document.getElementById(`ifs_c_${i}`).value),
+                    parseFloat(document.getElementById(`ifs_d_${i}`).value),
+                    parseFloat(document.getElementById(`ifs_e_${i}`).value),
+                    parseFloat(document.getElementById(`ifs_f_${i}`).value)
+                ];
+                transforms.push(transform);
+            }
+            
+            // Parse probabilities
+            const probStr = elements.ifsProbabilities.value.trim();
+            const probabilities = probStr.split(',').map(p => parseFloat(p.trim()));
+            
+            // Validate probabilities
+            if (probabilities.length !== count) {
+                throw new Error(`Number of probabilities (${probabilities.length}) must match number of transformations (${count})`);
+            }
+            
+            const probSum = probabilities.reduce((sum, p) => sum + p, 0);
+            if (Math.abs(probSum - 1.0) > 0.1) {
+                throw new Error(`Probabilities must sum to ~1.0 (current sum: ${probSum.toFixed(3)})`);
+            }
+            
+            return {
+                transforms,
+                probabilities,
+                parseMode: elements.ifsParseMode.value
+            };
+        }
+
+        // Event Listeners
+        elements.generateBtn.addEventListener('click', generateFractal);
+        elements.downloadBtn.addEventListener('click', downloadPNG);
+        
+        // Chaos map specific button event listeners
+        elements.generateAndPlotBtn.addEventListener('click', generateAndPlotChaoticMap);
+        elements.generateMapBtn.addEventListener('click', generateChaoticMapOnly);
+        elements.plotMapBtn.addEventListener('click', plotStoredChaoticMap);
+        
+        // Enter key to generate fractal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isLoading) {
+                e.preventDefault();
+                const method = elements.fractalMethod.value;
+                if (method === 'random_chaos') {
+                    generateAndPlotChaoticMap();
+                } else {
+                    generateFractal();
+                }
+            }
+        });
+        
+        // Method and preset change handlers
+        elements.fractalMethod.addEventListener('change', updateControlVisibility);
+        elements.escapeTimeType.addEventListener('change', updateEscapeTimeControls);
+        elements.chaosGameType.addEventListener('change', updateChaosGameDefaults);
+        elements.ifsType.addEventListener('change', loadIFSPreset);
+        elements.ifsTransformCount.addEventListener('change', createTransformationInputs);
+
+        // Canvas click events - only for escape-time fractals
+        elements.canvas.addEventListener('click', (e) => {
+            if (isLoading) return;
+            
+            const method = elements.fractalMethod.value;
+            if (method !== 'escape_time') return; // Only escape-time fractals support zooming
+            
+            const rect = elements.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            zoomIn(x, y);
+        });
+
+        elements.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (isLoading) return;
+            
+            const method = elements.fractalMethod.value;
+            if (method !== 'escape_time') return; // Only escape-time fractals support zooming
+            
+            zoomOut();
+        });
+
+        // Canvas size change (disabled auto-regeneration for chaos maps)
+        elements.canvasSize.addEventListener('change', function() {
+            updateCanvasDisplaySize();
+            
+            const method = elements.fractalMethod.value;
+            if (currentFractal && method !== 'random_chaos') {
+                generateFractal();
+            }
+        });
+        
+        // Aspect ratio change (disabled auto-regeneration for chaos maps)
+        elements.aspectRatio.addEventListener('change', function() {
+            updateCanvasDisplaySize();
+            
+            const method = elements.fractalMethod.value;
+            if (currentFractal && method !== 'random_chaos') {
+                generateFractal();
+            }
+        });
+        
+        function updateCanvasDisplaySize() {
+            const size = parseInt(elements.canvasSize.value);
+            const aspectRatio = elements.aspectRatio.value;
+            const isMobile = window.innerWidth <= 768;
+            
+            // Calculate canvas dimensions based on aspect ratio
+            let canvasWidth = size;
+            let canvasHeight = size;
+            
+            if (aspectRatio === 'portrait') {
+                canvasWidth = Math.round(size * 3 / 4);
+                canvasHeight = size;
+            } else if (aspectRatio === 'landscape') {
+                canvasWidth = size;
+                canvasHeight = Math.round(size * 3 / 4);
+            }
+            
+            // Update actual canvas size
+            elements.canvas.width = canvasWidth;
+            elements.canvas.height = canvasHeight;
+            
+            // Calculate maximum display size
+            const sidebar = document.getElementById('sidebar');
+            let maxDisplayWidth, maxDisplayHeight;
+            
+            if (isMobile) {
+                // On mobile, use full viewport when sidebar is collapsed
+                const sidebarCollapsed = sidebar.classList.contains('mobile-collapsed');
+                maxDisplayWidth = window.innerWidth - 20; // Account for padding
+                maxDisplayHeight = sidebarCollapsed 
+                    ? window.innerHeight - 20 
+                    : window.innerHeight - 200; // Leave space for collapsed controls
+            } else {
+                // Desktop calculation
+                const sidebarWidth = sidebar.classList.contains('collapsed') ? 40 : 300;
+                maxDisplayWidth = window.innerWidth - sidebarWidth - 40;
+                maxDisplayHeight = window.innerHeight - 40;
+            }
+            
+            // Scale display while maintaining aspect ratio
+            const scaleX = maxDisplayWidth / canvasWidth;
+            const scaleY = maxDisplayHeight / canvasHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond actual size
+            
+            const displayWidth = canvasWidth * scale;
+            const displayHeight = canvasHeight * scale;
+            
+            elements.canvas.style.width = displayWidth + 'px';
+            elements.canvas.style.height = displayHeight + 'px';
+            
+            // Center the canvas on mobile
+            if (isMobile) {
+                elements.container.style.display = 'flex';
+                elements.container.style.justifyContent = 'center';
+                elements.container.style.alignItems = 'center';
+            }
+        }
+        
+        // Update canvas display size on window resize
+        window.addEventListener('resize', updateCanvasDisplaySize);
+
+        // Real-time parameter updates for Julia set (disabled for chaos maps)
+        elements.juliaReal.addEventListener('input', () => {
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            if (method === 'escape_time' && fractalType === 'julia' && !isLoading) {
+                clearTimeout(window.juliaTimeout);
+                window.juliaTimeout = setTimeout(generateFractal, 500);
+            }
+        });
+
+        elements.juliaImag.addEventListener('input', () => {
+            const method = elements.fractalMethod.value;
+            const fractalType = getCurrentFractalType();
+            if (method === 'escape_time' && fractalType === 'julia' && !isLoading) {
+                clearTimeout(window.juliaTimeout);
+                window.juliaTimeout = setTimeout(generateFractal, 500);
+            }
+        });
+
+        // Color scheme real-time update (disabled for chaos maps to prevent unwanted generation)
+        elements.colorScheme.addEventListener('change', () => {
+            const method = elements.fractalMethod.value;
+            // For color scheme, fractalType is not relevant, pass undefined
+            if (shouldAutoRegenerate(method, undefined)) {
+                generateFractal();
+            }
+        });
+
+        // Initialize application
+        function initializeApp() {
+            // Mobile detection
+            const isMobile = window.innerWidth <= 768;
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            // Detect mobile and set default aspect ratio
+            if (isMobile) {
+                elements.aspectRatio.value = 'portrait';
+                elements.canvasSize.value = '1024'; // Use smaller default for mobile
+            } else {
+                elements.aspectRatio.value = 'landscape';
+            }
+            
+            // Set up sidebar toggle
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const appContainer = document.querySelector('.app-container');
+            const mobileShowControls = document.getElementById('mobileShowControls');
+            
+            // Enhanced mobile support
+            function handleMobileLayout() {
+                const isMobileView = window.innerWidth <= 768;
+                
+                if (isMobileView) {
+                    // Mobile controls button is disabled as requested
+                    // if (sidebar.classList.contains('mobile-collapsed')) {
+                    //     mobileShowControls.classList.add('visible');
+                    // }
+                } else {
+                    // Hide mobile controls button on desktop
+                    // mobileShowControls.classList.remove('visible');
+                    sidebar.classList.remove('mobile-collapsed');
+                }
+            }
+            
+            // Auto-collapse sidebar on mobile after generation
+            function autoCollapseMobileAfterGeneration() {
+                const isMobileView = window.innerWidth <= 768;
+                if (isMobileView) {
+                    sidebar.classList.add('mobile-collapsed');
+                    // Mobile controls button is disabled as requested
+                    // mobileShowControls.classList.add('visible');
+                }
+            }
+            
+            // Store reference for use in generation function
+            window.autoCollapseMobileAfterGeneration = autoCollapseMobileAfterGeneration;
+            
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                appContainer.classList.toggle('sidebar-collapsed');
+                
+                // Update toggle button
+                sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '→' : '←';
+                
+                // Update canvas display size after sidebar toggle
+                setTimeout(updateCanvasDisplaySize, 300);
+            });
+            
+            // Mobile show controls button (disabled as requested)
+            mobileShowControls.addEventListener('click', () => {
+                // Functionality disabled as mobile controls button should not be visible
+                // sidebar.classList.remove('mobile-collapsed');
+                // mobileShowControls.classList.remove('visible');
+                // 
+                // // Scroll to top to show controls
+                // window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                handleMobileLayout();
+                updateCanvasDisplaySize();
+            });
+            
+            // Initial mobile layout setup
+            handleMobileLayout();
+            
+            // Hide iterations parameter for Random Chaos Finder to avoid redundancy
+            updateIterationsVisibility();
+            
+            // Add mobile-specific touch event handlers for canvas
+            if (isTouchDevice) {
+                setupMobileTouchHandlers();
+            }
+        }
+        
+        // Setup mobile touch handlers for better mobile interaction
+        function setupMobileTouchHandlers() {
+            let touchStartTime = 0;
+            let touchStartX = 0;
+            let touchStartY = 0;
+            
+            elements.canvas.addEventListener('touchstart', (e) => {
+                if (isLoading) return;
+                
+                touchStartTime = Date.now();
+                const touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                
+                // Prevent default to avoid scrolling
+                e.preventDefault();
+            });
+            
+            elements.canvas.addEventListener('touchend', (e) => {
+                if (isLoading) return;
+                
+                const touchEndTime = Date.now();
+                const touchDuration = touchEndTime - touchStartTime;
+                
+                // Only handle tap (not swipe or long press)
+                if (touchDuration < 200) {
+                    const method = elements.fractalMethod.value;
+                    if (method !== 'escape_time') return; // Only escape-time fractals support zooming
+                    
+                    const touch = e.changedTouches[0];
+                    const rect = elements.canvas.getBoundingClientRect();
+                    const x = (touch.clientX - rect.left) / rect.width;
+                    const y = (touch.clientY - rect.top) / rect.height;
+                    
+                    zoomIn(x, y);
+                }
+                
+                e.preventDefault();
+            });
+            
+            // Handle double tap for zoom out
+            let lastTap = 0;
+            elements.canvas.addEventListener('touchend', (e) => {
+                if (isLoading) return;
+                
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                
+                if (tapLength < 500 && tapLength > 0) {
+                    // Double tap detected
+                    const method = elements.fractalMethod.value;
+                    if (method === 'escape_time') {
+                        zoomOut();
+                    }
+                    e.preventDefault();
+                }
+                
+                lastTap = currentTime;
+            });
+        }
+        
+        function updateIterationsVisibility() {
+            const method = elements.fractalMethod.value;
+            const iterationsGroup = elements.iterations.closest('.control-group');
+            
+            // Only hide iterations for Random Chaos Finder, show for all other methods
+            if (method === 'random_chaos') {
+                iterationsGroup.style.display = 'none';
+            } else {
+                iterationsGroup.style.display = 'block';
+            }
+        }
+        
+        initializeApp();
+        initWasm();
+        updateControlVisibility();
+        updateStatus();
+        updateCanvasDisplaySize();
+    </script>
+</body>
+</html>
