@@ -144,6 +144,155 @@
             margin-bottom: 1rem;
         }
         
+        /* Chaotic Map Display Styles */
+        .equation-display {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .equation-section {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .equation-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .equation-label {
+            font-weight: bold;
+            color: #2d3748;
+            min-width: 50px;
+        }
+        
+        .equation-formula {
+            color: #1a365d;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .map-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #4a5568;
+            flex-wrap: wrap;
+        }
+        
+        .map-stats span {
+            background: #e2e8f0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .parameter-editor {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .parameter-section {
+            margin-bottom: 1rem;
+        }
+        
+        .parameter-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .parameter-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .parameter-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 0.5rem;
+        }
+        
+        .parameter-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .parameter-input-group label {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+        
+        .parameter-input-group input {
+            width: 100%;
+            padding: 0.25rem;
+            font-size: 0.8rem;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .parameter-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .parameter-controls .btn {
+            flex: 1;
+            min-width: 80px;
+        }
+        
+        .saved-maps-select {
+            margin-bottom: 0.5rem;
+        }
+        
+        .saved-map-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .saved-map-controls .btn {
+            flex: 1;
+        }
+        
+        /* Mobile responsiveness for chaotic map display */
+        @media (max-width: 768px) {
+            .equation-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .equation-label {
+                margin-bottom: 0.25rem;
+            }
+            
+            .map-stats {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .parameter-inputs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .parameter-controls {
+                flex-direction: column;
+            }
+        }
+        
         .control-group label {
             display: block;
             margin-bottom: 0.5rem;
@@ -740,6 +889,58 @@
                         <small>Maximum attempts to find chaotic map</small>
                     </div>
                 </div>
+                
+                <!-- Chaotic Map Display and Editor -->
+                <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
+                    <div class="control-group">
+                        <label>Current Chaotic Map</label>
+                        <div id="mapEquationDisplay" class="equation-display">
+                            <div class="equation-section">
+                                <span class="equation-label">x<sub>n+1</sub> = </span>
+                                <span id="xEquation" class="equation-formula">No map generated</span>
+                            </div>
+                            <div class="equation-section">
+                                <span class="equation-label">y<sub>n+1</sub> = </span>
+                                <span id="yEquation" class="equation-formula">No map generated</span>
+                            </div>
+                        </div>
+                        <div id="mapStatistics" class="map-stats">
+                            <span id="maxLyapunov">Max Lyapunov: -</span>
+                            <span id="minLyapunov">Min Lyapunov: -</span>
+                            <span id="fractalDim">Fractal Dim: -</span>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Edit Parameters</label>
+                        <div id="parameterEditor" class="parameter-editor">
+                            <div class="parameter-section">
+                                <label class="parameter-label">X-Equation Parameters:</label>
+                                <div id="xParameters" class="parameter-inputs"></div>
+                            </div>
+                            <div class="parameter-section">
+                                <label class="parameter-label">Y-Equation Parameters:</label>
+                                <div id="yParameters" class="parameter-inputs"></div>
+                            </div>
+                        </div>
+                        <div class="parameter-controls">
+                            <button id="applyParametersBtn" class="btn btn-secondary">Apply Changes</button>
+                            <button id="saveMapBtn" class="btn btn-secondary">Save Map</button>
+                            <button id="loadMapBtn" class="btn btn-secondary">Load Saved Map</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Saved Maps</label>
+                        <select id="savedMapsSelect" class="saved-maps-select">
+                            <option value="">No saved maps</option>
+                        </select>
+                        <div class="saved-map-controls">
+                            <button id="loadSelectedMapBtn" class="btn btn-secondary">Load Selected</button>
+                            <button id="deleteMapBtn" class="btn btn-secondary">Delete</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="control-section">
@@ -866,7 +1067,26 @@
             chaosTestPoints: document.getElementById('chaosTestPoints'),
             chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
             chaosRandomizationType: document.getElementById('chaosRandomizationType'),
-            searchAttempts: document.getElementById('searchAttempts')
+            searchAttempts: document.getElementById('searchAttempts'),
+            
+            // Chaotic map display elements
+            chaoticMapDisplay: document.getElementById('chaoticMapDisplay'),
+            mapEquationDisplay: document.getElementById('mapEquationDisplay'),
+            xEquation: document.getElementById('xEquation'),
+            yEquation: document.getElementById('yEquation'),
+            mapStatistics: document.getElementById('mapStatistics'),
+            maxLyapunov: document.getElementById('maxLyapunov'),
+            minLyapunov: document.getElementById('minLyapunov'),
+            fractalDim: document.getElementById('fractalDim'),
+            parameterEditor: document.getElementById('parameterEditor'),
+            xParameters: document.getElementById('xParameters'),
+            yParameters: document.getElementById('yParameters'),
+            applyParametersBtn: document.getElementById('applyParametersBtn'),
+            saveMapBtn: document.getElementById('saveMapBtn'),
+            loadMapBtn: document.getElementById('loadMapBtn'),
+            savedMapsSelect: document.getElementById('savedMapsSelect'),
+            loadSelectedMapBtn: document.getElementById('loadSelectedMapBtn'),
+            deleteMapBtn: document.getElementById('deleteMapBtn')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -1103,6 +1323,11 @@
                         isCubic
                     );
 
+                    // Display the chaotic map information if extended data is available
+                    if (result_data.x_params && result_data.y_params) {
+                        displayChaoticMap(result_data);
+                    }
+
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
                     console.log('✅ Chaotic map stored for plotting');
 
@@ -1119,6 +1344,13 @@
                         useAlphabet,
                         isCubic
                     );
+
+                    // For basic version, show limited information
+                    elements.xEquation.textContent = 'Basic version - equation details not available';
+                    elements.yEquation.textContent = 'Basic version - equation details not available';
+                    elements.maxLyapunov.textContent = 'Max Lyapunov: N/A';
+                    elements.minLyapunov.textContent = 'Min Lyapunov: N/A';
+                    elements.fractalDim.textContent = 'Fractal Dim: N/A';
 
                     showNotification('Chaotic map found successfully! You can now plot it.', 'success');
                     console.log('✅ Chaotic map stored for plotting');
@@ -1756,6 +1988,7 @@
             elements.chaosGameControls.style.display = 'none';
             elements.ifsControls.style.display = 'none';
             elements.chaosFinderControls.style.display = 'none';
+            elements.chaoticMapDisplay.style.display = 'none';
             
             // Show/hide appropriate buttons
             if (method === 'random_chaos') {
@@ -1797,6 +2030,7 @@
             } else if (method === 'random_chaos') {
                 elements.chaosFinderMethods.style.display = 'block';
                 elements.chaosFinderControls.style.display = 'block';
+                elements.chaoticMapDisplay.style.display = 'block';
                 elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
             }
             
@@ -2387,11 +2621,249 @@
             }
         }
         
+        // Chaotic Map Display and Management Functions
+        let currentChaoticMapData = null;
+        let savedChaoticMaps = JSON.parse(localStorage.getItem('savedChaoticMaps') || '[]');
+        
+        function formatChaoticMapEquation(params, isCubic) {
+            if (!params || params.length === 0) return 'No parameters available';
+            
+            if (isCubic) {
+                // Cubic: f(x,y) = a + bx + cx² + dx³ + ex²y + fxy + gxy² + hy + iy² + jy³
+                const [a, b, c, d, e, f, g, h, i, j] = params;
+                return `${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x² + ${d.toFixed(3)}x³ + ${e.toFixed(3)}x²y + ${f.toFixed(3)}xy + ${g.toFixed(3)}xy² + ${h.toFixed(3)}y + ${i.toFixed(3)}y² + ${j.toFixed(3)}y³`;
+            } else {
+                // Quadratic: f(x,y) = a + bx + cx² + dxy + ey + fy²
+                const [a, b, c, d, e, f] = params;
+                return `${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x² + ${d.toFixed(3)}xy + ${e.toFixed(3)}y + ${f.toFixed(3)}y²`;
+            }
+        }
+        
+        function displayChaoticMap(mapData) {
+            currentChaoticMapData = mapData;
+            
+            // Update equation display
+            elements.xEquation.textContent = formatChaoticMapEquation(mapData.x_params, mapData.is_cubic);
+            elements.yEquation.textContent = formatChaoticMapEquation(mapData.y_params, mapData.is_cubic);
+            
+            // Update statistics
+            elements.maxLyapunov.textContent = `Max Lyapunov: ${mapData.max_lyapunov.toFixed(4)}`;
+            elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
+            elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
+            
+            // Create parameter editing inputs
+            createParameterInputs(mapData.x_params, mapData.y_params, mapData.is_cubic);
+        }
+        
+        function createParameterInputs(xParams, yParams, isCubic) {
+            const paramNames = isCubic 
+                ? ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+                : ['a', 'b', 'c', 'd', 'e', 'f'];
+            
+            // Clear existing inputs
+            elements.xParameters.innerHTML = '';
+            elements.yParameters.innerHTML = '';
+            
+            // Create X parameter inputs
+            xParams.forEach((value, index) => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'parameter-input-group';
+                
+                const label = document.createElement('label');
+                label.textContent = paramNames[index];
+                
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.step = '0.001';
+                input.value = value.toFixed(6);
+                input.id = `xParam_${index}`;
+                
+                inputGroup.appendChild(label);
+                inputGroup.appendChild(input);
+                elements.xParameters.appendChild(inputGroup);
+            });
+            
+            // Create Y parameter inputs
+            yParams.forEach((value, index) => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'parameter-input-group';
+                
+                const label = document.createElement('label');
+                label.textContent = paramNames[index];
+                
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.step = '0.001';
+                input.value = value.toFixed(6);
+                input.id = `yParam_${index}`;
+                
+                inputGroup.appendChild(label);
+                inputGroup.appendChild(input);
+                elements.yParameters.appendChild(inputGroup);
+            });
+        }
+        
+        function getEditedParameters() {
+            const xParams = [];
+            const yParams = [];
+            
+            // Get X parameters
+            const xInputs = elements.xParameters.querySelectorAll('input');
+            xInputs.forEach(input => {
+                xParams.push(parseFloat(input.value));
+            });
+            
+            // Get Y parameters
+            const yInputs = elements.yParameters.querySelectorAll('input');
+            yInputs.forEach(input => {
+                yParams.push(parseFloat(input.value));
+            });
+            
+            return { xParams, yParams };
+        }
+        
+        function getAspectRatio() {
+            const aspectRatio = elements.aspectRatio.value;
+            if (aspectRatio === 'portrait') {
+                return 3/4; // width/height
+            } else if (aspectRatio === 'landscape') {
+                return 4/3; // width/height  
+            } else {
+                return 1; // square
+            }
+        }
+        
+        function regenerateWithCustomParameters() {
+            if (!currentChaoticMapData || !generator) return;
+            
+            const { xParams, yParams } = getEditedParameters();
+            const plotPoints = parseInt(elements.chaosPlotPoints.value);
+            const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
+            const canvasHeight = Math.round(canvasWidth / getAspectRatio());
+            const colorScheme = parseInt(elements.colorScheme.value);
+            
+            try {
+                setLoading(true);
+                showOverlay('Generating fractal with custom parameters...');
+                
+                const points = generator.generate_chaotic_map_points(xParams, yParams, plotPoints, currentChaoticMapData.is_cubic);
+                const result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                
+                // Display result on canvas
+                elements.canvas.width = canvasWidth;
+                elements.canvas.height = canvasHeight;
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Update current fractal data
+                currentFractal = {
+                    type: 'chaotic_map',
+                    method: 'random_chaos',
+                    imageData: result,
+                    width: canvasWidth,
+                    height: canvasHeight
+                };
+                
+                // Update equation display with new parameters
+                elements.xEquation.textContent = formatChaoticMapEquation(xParams, currentChaoticMapData.is_cubic);
+                elements.yEquation.textContent = formatChaoticMapEquation(yParams, currentChaoticMapData.is_cubic);
+                
+                // Update the stored data
+                currentChaoticMapData.x_params = xParams;
+                currentChaoticMapData.y_params = yParams;
+                
+                hideOverlay();
+                setLoading(false);
+                showNotification('Fractal regenerated with custom parameters!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error regenerating with custom parameters:', error);
+                hideOverlay();
+                setLoading(false);
+                showNotification('Error regenerating fractal. Check parameter values.', 'error');
+            }
+        }
+        
+        function saveCurrentMap() {
+            if (!currentChaoticMapData) {
+                showNotification('No chaotic map to save!', 'error');
+                return;
+            }
+            
+            const mapName = prompt('Enter a name for this chaotic map:');
+            if (!mapName) return;
+            
+            const mapToSave = {
+                name: mapName,
+                timestamp: new Date().toISOString(),
+                ...currentChaoticMapData
+            };
+            
+            savedChaoticMaps.push(mapToSave);
+            localStorage.setItem('savedChaoticMaps', JSON.stringify(savedChaoticMaps));
+            updateSavedMapsSelect();
+            showNotification(`Map "${mapName}" saved successfully!`, 'success');
+        }
+        
+        function loadSavedMap() {
+            const selectedIndex = elements.savedMapsSelect.selectedIndex;
+            if (selectedIndex <= 0) {
+                showNotification('Please select a map to load!', 'error');
+                return;
+            }
+            
+            const selectedMap = savedChaoticMaps[selectedIndex - 1];
+            displayChaoticMap(selectedMap);
+            showNotification(`Map "${selectedMap.name}" loaded successfully!`, 'success');
+        }
+        
+        function deleteSavedMap() {
+            const selectedIndex = elements.savedMapsSelect.selectedIndex;
+            if (selectedIndex <= 0) {
+                showNotification('Please select a map to delete!', 'error');
+                return;
+            }
+            
+            const selectedMap = savedChaoticMaps[selectedIndex - 1];
+            if (confirm(`Delete map "${selectedMap.name}"?`)) {
+                savedChaoticMaps.splice(selectedIndex - 1, 1);
+                localStorage.setItem('savedChaoticMaps', JSON.stringify(savedChaoticMaps));
+                updateSavedMapsSelect();
+                showNotification(`Map "${selectedMap.name}" deleted!`, 'success');
+            }
+        }
+        
+        function updateSavedMapsSelect() {
+            elements.savedMapsSelect.innerHTML = '<option value="">No saved maps</option>';
+            
+            if (savedChaoticMaps.length > 0) {
+                elements.savedMapsSelect.innerHTML = '<option value="">Select a saved map...</option>';
+                savedChaoticMaps.forEach((map, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${map.name} (${new Date(map.timestamp).toLocaleDateString()})`;
+                    elements.savedMapsSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Event listeners for chaotic map functionality
+        function setupChaoticMapEventListeners() {
+            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParameters);
+            elements.saveMapBtn.addEventListener('click', saveCurrentMap);
+            elements.loadMapBtn.addEventListener('click', loadSavedMap);
+            elements.loadSelectedMapBtn.addEventListener('click', loadSavedMap);
+            elements.deleteMapBtn.addEventListener('click', deleteSavedMap);
+        }
+        
         initializeApp();
         initWasm();
         updateControlVisibility();
         updateStatus();
         updateCanvasDisplaySize();
+        setupChaoticMapEventListeners();
+        updateSavedMapsSelect();
     </script>
 </body>
 </html>
