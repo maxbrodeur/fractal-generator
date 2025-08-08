@@ -2869,12 +2869,15 @@
             }
             
             const selectedMap = savedChaoticMaps[selectedIndex - 1];
-            if (confirm(`Delete map "${selectedMap.name}"?`)) {
-                savedChaoticMaps.splice(selectedIndex - 1, 1);
-                localStorage.setItem('savedChaoticMaps', JSON.stringify(savedChaoticMaps));
-                updateSavedMapsSelect();
-                showNotification(`Map "${selectedMap.name}" deleted!`, 'success');
-            }
+            showConfirmationModal(
+                `Delete map "${selectedMap.name}"?`,
+                () => {
+                    savedChaoticMaps.splice(selectedIndex - 1, 1);
+                    localStorage.setItem('savedChaoticMaps', JSON.stringify(savedChaoticMaps));
+                    updateSavedMapsSelect();
+                    showNotification(`Map "${selectedMap.name}" deleted!`, 'success');
+                }
+            );
         }
         
         function updateSavedMapsSelect() {
