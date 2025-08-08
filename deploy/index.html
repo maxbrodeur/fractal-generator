@@ -307,6 +307,13 @@
             transition: transform 0.3s ease;
         }
         
+        /* Hide notifications on mobile to prevent obstruction of parameters */
+        @media (max-width: 768px) {
+            .notification {
+                display: none !important;
+            }
+        }
+        
         .notification.show {
             transform: translateX(0);
         }
@@ -335,7 +342,7 @@
             }
             
             .sidebar {
-                max-height: none;
+                max-height: 40vh; /* Limit sidebar height to 40% of viewport */
                 padding: 1rem;
                 order: 1;
                 background: rgba(255, 255, 255, 0.95);
@@ -343,20 +350,23 @@
                 border-bottom: 1px solid #e2e8f0;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                 transition: all 0.3s ease;
+                overflow-y: auto; /* Enable scrolling for controls */
             }
             
             .sidebar.mobile-collapsed {
-                transform: translateY(-100%);
-                visibility: hidden;
-                height: 0;
-                padding: 0;
-                margin: 0;
+                max-height: 60px; /* Show just the header when collapsed */
+                overflow: hidden;
+            }
+            
+            .sidebar.mobile-collapsed .sidebar-content > *:not(.sidebar-header) {
+                display: none; /* Hide all content except header when collapsed */
             }
             
             .main-content {
                 padding: 0.5rem;
                 order: 2;
-                min-height: 0;
+                min-height: 60vh; /* Ensure main content takes at least 60% of viewport */
+                flex: 1;
             }
             
             .canvas-container {
@@ -390,7 +400,9 @@
                 box-shadow: 0 4px 12px rgba(0,0,0,0.3);
                 backdrop-filter: blur(10px);
                 transition: all 0.3s ease;
-                display: none !important; /* Force hidden by default */
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             
             .mobile-show-controls:hover {
@@ -398,10 +410,9 @@
                 transform: scale(1.1);
             }
             
-            .mobile-show-controls.visible {
-                display: flex;
-                align-items: center;
-                justify-content: center;
+            /* Hide mobile toggle button when sidebar is expanded */
+            .mobile-show-controls.hidden {
+                display: none;
             }
         }
         
@@ -2251,13 +2262,14 @@
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // Mobile controls button is disabled as requested
-                    // if (sidebar.classList.contains('mobile-collapsed')) {
-                    //     mobileShowControls.classList.add('visible');
-                    // }
+                    // On mobile, start with collapsed sidebar to show canvas
+                    if (!sidebar.classList.contains('mobile-collapsed')) {
+                        sidebar.classList.add('mobile-collapsed');
+                    }
+                    mobileShowControls.classList.remove('hidden');
                 } else {
                     // Hide mobile controls button on desktop
-                    // mobileShowControls.classList.remove('visible');
+                    mobileShowControls.classList.add('hidden');
                     sidebar.classList.remove('mobile-collapsed');
                 }
             }
@@ -2267,8 +2279,7 @@
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
                     sidebar.classList.add('mobile-collapsed');
-                    // Mobile controls button is disabled as requested
-                    // mobileShowControls.classList.add('visible');
+                    mobileShowControls.classList.remove('hidden');
                 }
             }
             
@@ -2286,14 +2297,20 @@
                 setTimeout(updateCanvasDisplaySize, 300);
             });
             
-            // Mobile show controls button (disabled as requested)
+            // Mobile show controls button
             mobileShowControls.addEventListener('click', () => {
-                // Functionality disabled as mobile controls button should not be visible
-                // sidebar.classList.remove('mobile-collapsed');
-                // mobileShowControls.classList.remove('visible');
-                // 
-                // // Scroll to top to show controls
-                // window.scrollTo({ top: 0, behavior: 'smooth' });
+                const isMobileView = window.innerWidth <= 768;
+                if (isMobileView) {
+                    // Toggle sidebar visibility on mobile
+                    sidebar.classList.toggle('mobile-collapsed');
+                    
+                    // Update button visibility
+                    if (sidebar.classList.contains('mobile-collapsed')) {
+                        mobileShowControls.classList.remove('hidden');
+                    } else {
+                        mobileShowControls.classList.add('hidden');
+                    }
+                }
             });
             
             // Handle window resize
