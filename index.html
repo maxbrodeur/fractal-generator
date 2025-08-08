@@ -2625,18 +2625,37 @@
         let currentChaoticMapData = null;
         let savedChaoticMaps = JSON.parse(localStorage.getItem('savedChaoticMaps') || '[]');
         
+        // Equation term structures for maintainability
+        const CHAOTIC_MAP_EQUATION_TERMS = {
+            cubic: [
+                { idx: 0, fmt: v => `${v} ` },           // a
+                { idx: 1, fmt: v => `+ ${v}x ` },        // b
+                { idx: 2, fmt: v => `+ ${v}x² ` },       // c
+                { idx: 3, fmt: v => `+ ${v}x³ ` },       // d
+                { idx: 4, fmt: v => `+ ${v}x²y ` },      // e
+                { idx: 5, fmt: v => `+ ${v}xy ` },       // f
+                { idx: 6, fmt: v => `+ ${v}xy² ` },      // g
+                { idx: 7, fmt: v => `+ ${v}y ` },        // h
+                { idx: 8, fmt: v => `+ ${v}y² ` },       // i
+                { idx: 9, fmt: v => `+ ${v}y³` },        // j
+            ],
+            quadratic: [
+                { idx: 0, fmt: v => `${v} ` },           // a
+                { idx: 1, fmt: v => `+ ${v}x ` },        // b
+                { idx: 2, fmt: v => `+ ${v}x² ` },       // c
+                { idx: 3, fmt: v => `+ ${v}xy ` },       // d
+                { idx: 4, fmt: v => `+ ${v}y ` },        // e
+                { idx: 5, fmt: v => `+ ${v}y²` },        // f
+            ]
+        };
+
         function formatChaoticMapEquation(params, isCubic) {
             if (!params || params.length === 0) return 'No parameters available';
-            
-            if (isCubic) {
-                // Cubic: f(x,y) = a + bx + cx² + dx³ + ex²y + fxy + gxy² + hy + iy² + jy³
-                const [a, b, c, d, e, f, g, h, i, j] = params;
-                return `${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x² + ${d.toFixed(3)}x³ + ${e.toFixed(3)}x²y + ${f.toFixed(3)}xy + ${g.toFixed(3)}xy² + ${h.toFixed(3)}y + ${i.toFixed(3)}y² + ${j.toFixed(3)}y³`;
-            } else {
-                // Quadratic: f(x,y) = a + bx + cx² + dxy + ey + fy²
-                const [a, b, c, d, e, f] = params;
-                return `${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x² + ${d.toFixed(3)}xy + ${e.toFixed(3)}y + ${f.toFixed(3)}y²`;
-            }
+
+            const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
+            // Defensive: if params shorter than terms, fill with zeros
+            const safeParams = Array.from({length: terms.length}, (_, i) => params[i] !== undefined ? params[i] : 0);
+            return terms.map((term, i) => term.fmt(safeParams[term.idx].toFixed(3))).join('').trim();
         }
         
         function displayChaoticMap(mapData) {
