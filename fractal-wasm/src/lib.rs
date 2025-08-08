@@ -1398,8 +1398,7 @@ impl FractalGenerator {
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result_points = Vec::with_capacity(points.len() * 2);
                 for point in points {
-                    result_points.push(point[0]);
-                    result_points.push(point[1]);
+                    result_points.extend_from_slice(&point);
                 }
 
                 console_log!("Found chaotic map! Max LE: {:.4}, Min LE: {:.4}, FD: {:.4}", max_le, min_le, fd);
