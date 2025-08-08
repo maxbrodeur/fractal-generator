@@ -931,6 +931,12 @@
                     </div>
                     
                     <div class="control-group">
+                        <label>Save Map</label>
+                        <input type="text" id="mapNameInput" placeholder="Enter map name..." maxlength="50">
+                        <small>Enter a name for the current chaotic map to save it</small>
+                    </div>
+                    
+                    <div class="control-group">
                         <label>Saved Maps</label>
                         <select id="savedMapsSelect" class="saved-maps-select">
                             <option value="">No saved maps</option>
@@ -1086,7 +1092,8 @@
             loadMapBtn: document.getElementById('loadMapBtn'),
             savedMapsSelect: document.getElementById('savedMapsSelect'),
             loadSelectedMapBtn: document.getElementById('loadSelectedMapBtn'),
-            deleteMapBtn: document.getElementById('deleteMapBtn')
+            deleteMapBtn: document.getElementById('deleteMapBtn'),
+            mapNameInput: document.getElementById('mapNameInput')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -2625,18 +2632,37 @@
         let currentChaoticMapData = null;
         let savedChaoticMaps = JSON.parse(localStorage.getItem('savedChaoticMaps') || '[]');
         
+        // Equation term structures for maintainability
+        const CHAOTIC_MAP_EQUATION_TERMS = {
+            cubic: [
+                { idx: 0, fmt: v => `${v} ` },           // a
+                { idx: 1, fmt: v => `+ ${v}x ` },        // b
+                { idx: 2, fmt: v => `+ ${v}x² ` },       // c
+                { idx: 3, fmt: v => `+ ${v}x³ ` },       // d
+                { idx: 4, fmt: v => `+ ${v}x²y ` },      // e
+                { idx: 5, fmt: v => `+ ${v}xy ` },       // f
+                { idx: 6, fmt: v => `+ ${v}xy² ` },      // g
+                { idx: 7, fmt: v => `+ ${v}y ` },        // h
+                { idx: 8, fmt: v => `+ ${v}y² ` },       // i
+                { idx: 9, fmt: v => `+ ${v}y³` },        // j
+            ],
+            quadratic: [
+                { idx: 0, fmt: v => `${v} ` },           // a
+                { idx: 1, fmt: v => `+ ${v}x ` },        // b
+                { idx: 2, fmt: v => `+ ${v}x² ` },       // c
+                { idx: 3, fmt: v => `+ ${v}xy ` },       // d
+                { idx: 4, fmt: v => `+ ${v}y ` },        // e
+                { idx: 5, fmt: v => `+ ${v}y²` },        // f
+            ]
+        };
+
         function formatChaoticMapEquation(params, isCubic) {
             if (!params || params.length === 0) return 'No parameters available';
-            
-            if (isCubic) {
-                // Cubic: f(x,y) = a + bx + cx² + dx³ + ex²y + fxy + gxy² + hy + iy² + jy³
-                const [a, b, c, d, e, f, g, h, i, j] = params;
-                return `${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x² + ${d.toFixed(3)}x³ + ${e.toFixed(3)}x²y + ${f.toFixed(3)}xy + ${g.toFixed(3)}xy² + ${h.toFixed(3)}y + ${i.toFixed(3)}y² + ${j.toFixed(3)}y³`;
-            } else {
-                // Quadratic: f(x,y) = a + bx + cx² + dxy + ey + fy²
-                const [a, b, c, d, e, f] = params;
-                return `${a.toFixed(3)} + ${b.toFixed(3)}x + ${c.toFixed(3)}x² + ${d.toFixed(3)}xy + ${e.toFixed(3)}y + ${f.toFixed(3)}y²`;
-            }
+
+            const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
+            // Defensive: if params shorter than terms, fill with zeros
+            const safeParams = Array.from({length: terms.length}, (_, i) => params[i] !== undefined ? params[i] : 0);
+            return terms.map((term, i) => term.fmt(safeParams[term.idx].toFixed(3))).join('').trim();
         }
         
         function displayChaoticMap(mapData) {
@@ -2791,8 +2817,21 @@
                 return;
             }
             
-            const mapName = prompt('Enter a name for this chaotic map:');
-            if (!mapName) return;
+            const mapName = elements.mapNameInput.value.trim();
+            if (!mapName) {
+                showNotification('Please enter a name for the map!', 'error');
+                elements.mapNameInput.focus();
+                return;
+            }
+            
+            // Check if name already exists
+            const existingMap = savedChaoticMaps.find(map => map.name === mapName);
+            if (existingMap) {
+                showNotification('A map with this name already exists! Please choose a different name.', 'error');
+                elements.mapNameInput.focus();
+                elements.mapNameInput.select();
+                return;
+            }
             
             const mapToSave = {
                 name: mapName,
@@ -2803,6 +2842,10 @@
             savedChaoticMaps.push(mapToSave);
             localStorage.setItem('savedChaoticMaps', JSON.stringify(savedChaoticMaps));
             updateSavedMapsSelect();
+            
+            // Clear the input field after successful save
+            elements.mapNameInput.value = '';
+            
             showNotification(`Map "${mapName}" saved successfully!`, 'success');
         }
         
@@ -2855,6 +2898,14 @@
             elements.loadMapBtn.addEventListener('click', loadSavedMap);
             elements.loadSelectedMapBtn.addEventListener('click', loadSavedMap);
             elements.deleteMapBtn.addEventListener('click', deleteSavedMap);
+            
+            // Allow saving by pressing Enter in the map name input
+            elements.mapNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveCurrentMap();
+                }
+            });
         }
         
         initializeApp();

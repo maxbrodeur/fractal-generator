@@ -931,6 +931,12 @@
                     </div>
                     
                     <div class="control-group">
+                        <label>Save Map</label>
+                        <input type="text" id="mapNameInput" placeholder="Enter map name..." maxlength="50">
+                        <small>Enter a name for the current chaotic map to save it</small>
+                    </div>
+                    
+                    <div class="control-group">
                         <label>Saved Maps</label>
                         <select id="savedMapsSelect" class="saved-maps-select">
                             <option value="">No saved maps</option>
@@ -1086,7 +1092,8 @@
             loadMapBtn: document.getElementById('loadMapBtn'),
             savedMapsSelect: document.getElementById('savedMapsSelect'),
             loadSelectedMapBtn: document.getElementById('loadSelectedMapBtn'),
-            deleteMapBtn: document.getElementById('deleteMapBtn')
+            deleteMapBtn: document.getElementById('deleteMapBtn'),
+            mapNameInput: document.getElementById('mapNameInput')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -2810,8 +2817,21 @@
                 return;
             }
             
-            const mapName = prompt('Enter a name for this chaotic map:');
-            if (!mapName) return;
+            const mapName = elements.mapNameInput.value.trim();
+            if (!mapName) {
+                showNotification('Please enter a name for the map!', 'error');
+                elements.mapNameInput.focus();
+                return;
+            }
+            
+            // Check if name already exists
+            const existingMap = savedChaoticMaps.find(map => map.name === mapName);
+            if (existingMap) {
+                showNotification('A map with this name already exists! Please choose a different name.', 'error');
+                elements.mapNameInput.focus();
+                elements.mapNameInput.select();
+                return;
+            }
             
             const mapToSave = {
                 name: mapName,
@@ -2822,6 +2842,10 @@
             savedChaoticMaps.push(mapToSave);
             localStorage.setItem('savedChaoticMaps', JSON.stringify(savedChaoticMaps));
             updateSavedMapsSelect();
+            
+            // Clear the input field after successful save
+            elements.mapNameInput.value = '';
+            
             showNotification(`Map "${mapName}" saved successfully!`, 'success');
         }
         
@@ -2874,6 +2898,14 @@
             elements.loadMapBtn.addEventListener('click', loadSavedMap);
             elements.loadSelectedMapBtn.addEventListener('click', loadSavedMap);
             elements.deleteMapBtn.addEventListener('click', deleteSavedMap);
+            
+            // Allow saving by pressing Enter in the map name input
+            elements.mapNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveCurrentMap();
+                }
+            });
         }
         
         initializeApp();
