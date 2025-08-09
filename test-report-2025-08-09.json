@@ -1,0 +1,64 @@
+{
+  "timestamp": "2025-08-09T20:24:32.184Z",
+  "testResults": {
+    "prerequisites": true,
+    "buildIntegrity": {
+      "wasmFileExists": true,
+      "jsBindingExists": true,
+      "debugHelpersExists": true,
+      "documentationExists": true,
+      "packageJsonValid": true,
+      "wasmFileSize": 148751,
+      "jsBindingSize": 30830,
+      "wasmSizeOk": true,
+      "jsSizeOk": true
+    },
+    "parameterValidation": {
+      "Valid basic params": {
+        "passed": true,
+        "isValid": true,
+        "expected": true
+      },
+      "Valid high params": {
+        "passed": true,
+        "isValid": true,
+        "expected": true
+      },
+      "Zero iterations": {
+        "passed": true,
+        "isValid": false,
+        "expected": false
+      },
+      "Negative iterations": {
+        "passed": true,
+        "isValid": false,
+        "expected": false
+      },
+      "Zero canvas size": {
+        "passed": true,
+        "isValid": false,
+        "expected": false
+      },
+      "Invalid fractal type": {
+        "passed": true,
+        "isValid": false,
+        "expected": false
+      },
+      "Very high iterations": {
+        "passed": true,
+        "isValid": true,
+        "expected": true
+      },
+      "Very large canvas": {
+        "passed": true,
+        "isValid": true,
+        "expected": true
+      }
+    },
+    "serverStarted": false
+  },
+  "nodeVersion": "v20.19.4",
+  "platform": "linux",
+  "architecture": "x64",
+  "cwd": "/home/runner/work/fractal-generator/fractal-generator"
+}

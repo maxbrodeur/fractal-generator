@@ -144,6 +144,172 @@
             margin-bottom: 1rem;
         }
         
+        /* Chaotic Map Display Styles */
+        .equation-display {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .equation-section {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .equation-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .equation-label {
+            font-weight: bold;
+            color: #2d3748;
+            min-width: 50px;
+        }
+        
+        .equation-formula {
+            color: #1a365d;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .inline-param {
+            background: #f7fafc;
+            border: 1px solid #cbd5e0;
+            border-radius: 3px;
+            padding: 2px 4px;
+            width: 60px;
+            font-size: 0.85em;
+            text-align: center;
+            margin: 0 2px;
+        }
+        
+        .inline-param:focus {
+            background: #fff;
+            border-color: #3182ce;
+            outline: none;
+        }
+        
+        .map-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #4a5568;
+            flex-wrap: wrap;
+        }
+        
+        .map-stats span {
+            background: #e2e8f0;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .parameter-editor {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .parameter-section {
+            margin-bottom: 1rem;
+        }
+        
+        .parameter-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .parameter-label {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        
+        .parameter-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 0.5rem;
+        }
+        
+        .parameter-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .parameter-input-group label {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+        
+        .parameter-input-group input {
+            width: 100%;
+            padding: 0.25rem;
+            font-size: 0.8rem;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .parameter-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .parameter-controls .btn {
+            flex: 1;
+            min-width: 80px;
+        }
+        
+        .saved-maps-select {
+            margin-bottom: 0.5rem;
+        }
+        
+        .saved-map-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .saved-map-controls .btn {
+            flex: 1;
+        }
+        
+        /* Mobile responsiveness for chaotic map display */
+        @media (max-width: 768px) {
+            .equation-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .equation-label {
+                margin-bottom: 0.25rem;
+            }
+            
+            .map-stats {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .parameter-inputs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .parameter-controls {
+                flex-direction: column;
+            }
+        }
+        
         .control-group label {
             display: block;
             margin-bottom: 0.5rem;
@@ -342,7 +508,7 @@
             }
             
             .sidebar {
-                max-height: 40vh; /* Limit sidebar height to 40% of viewport */
+                max-height: var(--sidebar-max-height-mobile); /* Limit sidebar height to 40% of viewport */
                 padding: 1rem;
                 order: 1;
                 background: rgba(255, 255, 255, 0.95);
@@ -354,7 +520,7 @@
             }
             
             .sidebar.mobile-collapsed {
-                max-height: 60px; /* Show just the header when collapsed */
+                max-height: var(--collapsed-header-height); /* Show just the header when collapsed */
                 overflow: hidden;
             }
             
@@ -365,7 +531,7 @@
             .main-content {
                 padding: 0.5rem;
                 order: 2;
-                min-height: 60vh; /* Ensure main content takes at least 60% of viewport */
+                min-height: var(--main-content-min-height); /* Ensure main content takes at least 60% of viewport */
                 flex: 1;
             }
             
@@ -384,36 +550,7 @@
                 object-fit: contain;
             }
             
-            /* Mobile-specific button styling */
-            .mobile-show-controls {
-                position: fixed;
-                top: 1rem;
-                right: 1rem;
-                z-index: 1000;
-                background: rgba(102, 126, 234, 0.9);
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 50px;
-                height: 50px;
-                font-size: 1.2rem;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                backdrop-filter: blur(10px);
-                transition: all 0.3s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .mobile-show-controls:hover {
-                background: rgba(90, 103, 216, 0.9);
-                transform: scale(1.1);
-            }
-            
-            /* Hide mobile toggle button when sidebar is expanded */
-            .mobile-show-controls.hidden {
-                display: none;
-            }
+
         }
         
         @media (max-width: 480px) {
@@ -498,8 +635,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Mobile show controls button -->
-        <button class="mobile-show-controls" id="mobileShowControls">⚙️</button>
         
         <aside class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebarToggle">←</button>
@@ -751,6 +886,33 @@
                         <small>Maximum attempts to find chaotic map</small>
                     </div>
                 </div>
+                
+                <!-- Chaotic Map Display and Editor -->
+                <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
+                    <div class="control-group">
+                        <label>Current Chaotic Map</label>
+                        <div id="mapEquationDisplay" class="equation-display">
+                            <div class="equation-section">
+                                <span class="equation-label">x<sub>n+1</sub> = </span>
+                                <span id="xEquation" class="equation-formula editable-equation">No map generated</span>
+                            </div>
+                            <div class="equation-section">
+                                <span class="equation-label">y<sub>n+1</sub> = </span>
+                                <span id="yEquation" class="equation-formula editable-equation">No map generated</span>
+                            </div>
+                        </div>
+                        <div class="parameter-controls">
+                            <button id="applyParametersBtn" class="btn btn-secondary" style="display: none;">Apply Changes</button>
+                            <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
+                            <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
+                        </div>
+                        <div id="mapStatistics" class="map-stats">
+                            <span id="maxLyapunov">Max Lyapunov: -</span>
+                            <span id="minLyapunov">Min Lyapunov: -</span>
+                            <span id="fractalDim">Fractal Dim: -</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="control-section">
@@ -877,7 +1039,20 @@
             chaosTestPoints: document.getElementById('chaosTestPoints'),
             chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
             chaosRandomizationType: document.getElementById('chaosRandomizationType'),
-            searchAttempts: document.getElementById('searchAttempts')
+            searchAttempts: document.getElementById('searchAttempts'),
+            
+            // Chaotic map display elements
+            chaoticMapDisplay: document.getElementById('chaoticMapDisplay'),
+            mapEquationDisplay: document.getElementById('mapEquationDisplay'),
+            xEquation: document.getElementById('xEquation'),
+            yEquation: document.getElementById('yEquation'),
+            mapStatistics: document.getElementById('mapStatistics'),
+            maxLyapunov: document.getElementById('maxLyapunov'),
+            minLyapunov: document.getElementById('minLyapunov'),
+            fractalDim: document.getElementById('fractalDim'),
+            applyParametersBtn: document.getElementById('applyParametersBtn'),
+            copyParametersBtn: document.getElementById('copyParametersBtn'),
+            pasteParametersBtn: document.getElementById('pasteParametersBtn')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -1114,7 +1289,11 @@
                         isCubic
                     );
 
-                    showNotification('Chaotic map found successfully! You can now plot it.', 'success');
+                    // Display the chaotic map information if extended data is available
+                    if (result_data.x_params && result_data.y_params) {
+                        displayChaoticMap(result_data);
+                    }
+
                     console.log('✅ Chaotic map stored for plotting');
 
                 } catch (error) {
@@ -1131,7 +1310,13 @@
                         isCubic
                     );
 
-                    showNotification('Chaotic map found successfully! You can now plot it.', 'success');
+                    // For basic version, show limited information
+                    elements.xEquation.textContent = 'Basic version - equation details not available';
+                    elements.yEquation.textContent = 'Basic version - equation details not available';
+                    elements.maxLyapunov.textContent = 'Max Lyapunov: N/A';
+                    elements.minLyapunov.textContent = 'Min Lyapunov: N/A';
+                    elements.fractalDim.textContent = 'Fractal Dim: N/A';
+
                     console.log('✅ Chaotic map stored for plotting');
                 }
 
@@ -1194,7 +1379,6 @@
                 ctx.putImageData(imageData, 0, 0);
 
                 const pointCount = storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 0;
-                showNotification(`Chaotic map plotted successfully! (${pointCount.toLocaleString()} points)`, 'success');
                 
                 currentFractal = {
                     type: 'chaotic_map',
@@ -1740,16 +1924,159 @@
             generateFractal();
         }
 
-        // Download functionality
+        // Download functionality with metadata embedding
         function downloadPNG() {
             if (!currentFractal) return;
             
-            const link = document.createElement('a');
-            link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
-            link.href = elements.canvas.toDataURL('image/png');
-            link.click();
+            try {
+                // Get PNG data from canvas
+                const dataURL = elements.canvas.toDataURL('image/png');
+                
+                // Add metadata if we have chaotic map data
+                let finalDataURL = dataURL;
+                if (currentChaoticMapData && currentFractal.method === 'random_chaos') {
+                    finalDataURL = addMetadataToPNG(dataURL, {
+                        fractalType: currentFractal.type,
+                        method: currentFractal.method,
+                        xParams: currentChaoticMapData.x_params,
+                        yParams: currentChaoticMapData.y_params,
+                        isCubic: currentChaoticMapData.is_cubic,
+                        maxLyapunov: currentChaoticMapData.max_lyapunov,
+                        minLyapunov: currentChaoticMapData.min_lyapunov,
+                        fractalDimension: currentChaoticMapData.fractal_dimension,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                const link = document.createElement('a');
+                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
+                link.href = finalDataURL;
+                link.click();
+                
+                showNotification('Fractal image downloaded with metadata!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error downloading PNG:', error);
+                // Fallback to basic download
+                const link = document.createElement('a');
+                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
+                link.href = elements.canvas.toDataURL('image/png');
+                link.click();
+                showNotification('Fractal image downloaded!', 'success');
+            }
+        }
+        
+        // Add metadata to PNG file
+        function addMetadataToPNG(dataURL, metadata) {
+            try {
+                // Convert data URL to binary data
+                const base64Data = dataURL.split(',')[1];
+                const binaryData = atob(base64Data);
+                const bytes = new Uint8Array(binaryData.length);
+                for (let i = 0; i < binaryData.length; i++) {
+                    bytes[i] = binaryData.charCodeAt(i);
+                }
+                
+                // Create metadata text chunk
+                const metadataText = JSON.stringify(metadata, null, 2);
+                const textChunk = createPNGTextChunk('FractalParams', metadataText);
+                
+                // Insert text chunk after IHDR (should be at position 33 for standard PNG)
+                const newBytes = insertPNGChunk(bytes, textChunk, 33);
+                
+                // Convert back to data URL
+                let binaryString = '';
+                for (let i = 0; i < newBytes.length; i++) {
+                    binaryString += String.fromCharCode(newBytes[i]);
+                }
+                
+                return 'data:image/png;base64,' + btoa(binaryString);
+                
+            } catch (error) {
+                console.error('❌ Error adding metadata to PNG:', error);
+                return dataURL; // Return original if metadata addition fails
+            }
+        }
+        
+        // Create PNG text chunk (tEXt format)
+        function createPNGTextChunk(keyword, text) {
+            const keywordBytes = new TextEncoder().encode(keyword);
+            const textBytes = new TextEncoder().encode(text);
+            const dataLength = keywordBytes.length + 1 + textBytes.length; // +1 for null separator
             
-            showNotification('Fractal image downloaded!', 'success');
+            // Create chunk data
+            const chunkData = new Uint8Array(dataLength);
+            chunkData.set(keywordBytes, 0);
+            chunkData[keywordBytes.length] = 0; // null separator
+            chunkData.set(textBytes, keywordBytes.length + 1);
+            
+            // Calculate CRC32
+            const crc = calculateCRC32('tEXt', chunkData);
+            
+            // Create full chunk: length (4) + type (4) + data + crc (4)
+            const chunk = new Uint8Array(4 + 4 + dataLength + 4);
+            const view = new DataView(chunk.buffer);
+            
+            // Length (big-endian)
+            view.setUint32(0, dataLength, false);
+            
+            // Type
+            chunk.set(new TextEncoder().encode('tEXt'), 4);
+            
+            // Data
+            chunk.set(chunkData, 8);
+            
+            // CRC (big-endian)
+            view.setUint32(8 + dataLength, crc, false);
+            
+            return chunk;
+        }
+        
+        // Insert chunk into PNG data
+        function insertPNGChunk(pngBytes, chunk, position) {
+            const newBytes = new Uint8Array(pngBytes.length + chunk.length);
+            newBytes.set(pngBytes.slice(0, position), 0);
+            newBytes.set(chunk, position);
+            newBytes.set(pngBytes.slice(position), position + chunk.length);
+            return newBytes;
+        }
+        
+        // Simple CRC32 calculation for PNG chunks
+        function calculateCRC32(type, data) {
+            const typeBytes = new TextEncoder().encode(type);
+            const combined = new Uint8Array(typeBytes.length + data.length);
+            combined.set(typeBytes, 0);
+            combined.set(data, typeBytes.length);
+            
+            let crc = 0xFFFFFFFF;
+            const table = getCRC32Table();
+            
+            for (let i = 0; i < combined.length; i++) {
+                crc = table[(crc ^ combined[i]) & 0xFF] ^ (crc >>> 8);
+            }
+            
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+        
+        // Get CRC32 lookup table
+        function getCRC32Table() {
+            if (getCRC32Table.table) return getCRC32Table.table;
+            
+            const table = new Array(256);
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let j = 0; j < 8; j++) {
+                    if (c & 1) {
+                        c = 0xEDB88320 ^ (c >>> 1);
+                    } else {
+                        c = c >>> 1;
+                    }
+                }
+                table[i] = c;
+            }
+            
+            getCRC32Table.table = table;
+            return table;
         }
 
         // Dynamic control visibility
@@ -1767,6 +2094,7 @@
             elements.chaosGameControls.style.display = 'none';
             elements.ifsControls.style.display = 'none';
             elements.chaosFinderControls.style.display = 'none';
+            elements.chaoticMapDisplay.style.display = 'none';
             
             // Show/hide appropriate buttons
             if (method === 'random_chaos') {
@@ -1808,6 +2136,7 @@
             } else if (method === 'random_chaos') {
                 elements.chaosFinderMethods.style.display = 'block';
                 elements.chaosFinderControls.style.display = 'block';
+                elements.chaoticMapDisplay.style.display = 'block';
                 elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
             }
             
@@ -2255,21 +2584,15 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const appContainer = document.querySelector('.app-container');
-            const mobileShowControls = document.getElementById('mobileShowControls');
             
             // Enhanced mobile support
             function handleMobileLayout() {
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // On mobile, start with collapsed sidebar to show canvas
-                    if (!sidebar.classList.contains('mobile-collapsed')) {
-                        sidebar.classList.add('mobile-collapsed');
-                    }
-                    mobileShowControls.classList.remove('hidden');
+                    // Mobile layout handling
                 } else {
-                    // Hide mobile controls button on desktop
-                    mobileShowControls.classList.add('hidden');
+                    // Desktop layout
                     sidebar.classList.remove('mobile-collapsed');
                 }
             }
@@ -2279,7 +2602,6 @@
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
                     sidebar.classList.add('mobile-collapsed');
-                    mobileShowControls.classList.remove('hidden');
                 }
             }
             
@@ -2295,22 +2617,6 @@
                 
                 // Update canvas display size after sidebar toggle
                 setTimeout(updateCanvasDisplaySize, 300);
-            });
-            
-            // Mobile show controls button
-            mobileShowControls.addEventListener('click', () => {
-                const isMobileView = window.innerWidth <= 768;
-                if (isMobileView) {
-                    // Toggle sidebar visibility on mobile
-                    sidebar.classList.toggle('mobile-collapsed');
-                    
-                    // Update button visibility
-                    if (sidebar.classList.contains('mobile-collapsed')) {
-                        mobileShowControls.classList.remove('hidden');
-                    } else {
-                        mobileShowControls.classList.add('hidden');
-                    }
-                }
             });
             
             // Handle window resize
@@ -2404,11 +2710,251 @@
             }
         }
         
+        // Chaotic Map Display and Management Functions
+        let currentChaoticMapData = null;
+        
+        // Equation term structures for maintainability
+        const CHAOTIC_MAP_EQUATION_TERMS = {
+            cubic: [
+                { idx: 0, fmt: v => `${v} ` },           // a
+                { idx: 1, fmt: v => `+ ${v}x ` },        // b
+                { idx: 2, fmt: v => `+ ${v}x² ` },       // c
+                { idx: 3, fmt: v => `+ ${v}x³ ` },       // d
+                { idx: 4, fmt: v => `+ ${v}x²y ` },      // e
+                { idx: 5, fmt: v => `+ ${v}xy ` },       // f
+                { idx: 6, fmt: v => `+ ${v}xy² ` },      // g
+                { idx: 7, fmt: v => `+ ${v}y ` },        // h
+                { idx: 8, fmt: v => `+ ${v}y² ` },       // i
+                { idx: 9, fmt: v => `+ ${v}y³` },        // j
+            ],
+            quadratic: [
+                { idx: 0, fmt: v => `${v} ` },           // a
+                { idx: 1, fmt: v => `+ ${v}x ` },        // b
+                { idx: 2, fmt: v => `+ ${v}x² ` },       // c
+                { idx: 3, fmt: v => `+ ${v}xy ` },       // d
+                { idx: 4, fmt: v => `+ ${v}y ` },        // e
+                { idx: 5, fmt: v => `+ ${v}y²` },        // f
+            ]
+        };
+
+        // Helper to defensively fill missing parameters with zeros
+        function fillParams(params, length) {
+            return Array.from({length}, (_, i) => params && params[i] !== undefined ? params[i] : 0);
+        }
+
+        function formatChaoticMapEquation(params, isCubic) {
+            if (!params || params.length === 0) return 'No parameters available';
+
+            const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
+            const safeParams = fillParams(params, terms.length);
+            return terms.map((term) => term.fmt(safeParams[term.idx].toFixed(3))).join('').trim();
+        }
+        
+        function createEditableEquation(params, isCubic, axis) {
+            const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
+            const safeParams = fillParams(params, terms.length);
+            
+            return terms.map((term, i) => {
+                const value = safeParams[term.idx].toFixed(3);
+                return term.fmt(`<input type="number" step="0.001" value="${value}" data-param-axis="${axis}" data-param-index="${term.idx}" class="inline-param">`);
+            }).join('').trim();
+        }
+        
+        function setupParameterChangeListeners() {
+            const paramInputs = document.querySelectorAll('.inline-param');
+            paramInputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    // Show parameter buttons when parameters change
+                    elements.applyParametersBtn.style.display = 'inline-block';
+                    elements.copyParametersBtn.style.display = 'inline-block';
+                    elements.pasteParametersBtn.style.display = 'inline-block';
+                });
+            });
+        }
+        
+        function displayChaoticMap(mapData) {
+            currentChaoticMapData = mapData;
+            
+            // Update equation display with editable parameters inline
+            elements.xEquation.innerHTML = createEditableEquation(mapData.x_params, mapData.is_cubic, 'x');
+            elements.yEquation.innerHTML = createEditableEquation(mapData.y_params, mapData.is_cubic, 'y');
+            
+            // Update statistics
+            elements.maxLyapunov.textContent = `Max Lyapunov: ${mapData.max_lyapunov.toFixed(4)}`;
+            elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
+            elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
+            
+            // Show parameter buttons
+            elements.applyParametersBtn.style.display = 'inline-block';
+            elements.copyParametersBtn.style.display = 'inline-block';
+            elements.pasteParametersBtn.style.display = 'inline-block';
+            
+            // Set up event listeners for parameter changes
+            setupParameterChangeListeners();
+        }
+        
+        function getEditedParameters() {
+            const xParams = [];
+            const yParams = [];
+            
+            // Get X parameters from inline inputs
+            const xInputs = document.querySelectorAll('input[data-param-axis="x"]');
+            xInputs.forEach(input => {
+                const index = parseInt(input.dataset.paramIndex);
+                xParams[index] = parseFloat(input.value);
+            });
+            
+            // Get Y parameters from inline inputs
+            const yInputs = document.querySelectorAll('input[data-param-axis="y"]');
+            yInputs.forEach(input => {
+                const index = parseInt(input.dataset.paramIndex);
+                yParams[index] = parseFloat(input.value);
+            });
+            
+            return { xParams, yParams };
+        }
+        
+        function getAspectRatio() {
+            const aspectRatio = elements.aspectRatio.value;
+            if (aspectRatio === 'portrait') {
+                return 3/4; // width/height
+            } else if (aspectRatio === 'landscape') {
+                return 4/3; // width/height  
+            } else {
+                return 1; // square
+            }
+        }
+        
+        function regenerateWithCustomParameters() {
+            if (!currentChaoticMapData || !generator) return;
+            
+            const { xParams, yParams } = getEditedParameters();
+            const plotPoints = parseInt(elements.chaosPlotPoints.value);
+            const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
+            const canvasHeight = Math.round(canvasWidth / getAspectRatio());
+            const colorScheme = parseInt(elements.colorScheme.value);
+            
+            try {
+                setLoading(true);
+                showOverlay('Generating fractal with custom parameters...');
+                
+                const points = generator.generate_chaotic_map_points(xParams, yParams, plotPoints, currentChaoticMapData.is_cubic);
+                const result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
+                
+                // Display result on canvas
+                elements.canvas.width = canvasWidth;
+                elements.canvas.height = canvasHeight;
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Update current fractal data
+                currentFractal = {
+                    type: 'chaotic_map',
+                    method: 'random_chaos',
+                    imageData: result,
+                    width: canvasWidth,
+                    height: canvasHeight
+                };
+                
+                // Update equation display with new parameters
+                elements.xEquation.textContent = formatChaoticMapEquation(xParams, currentChaoticMapData.is_cubic);
+                elements.yEquation.textContent = formatChaoticMapEquation(yParams, currentChaoticMapData.is_cubic);
+                
+                // Update the stored data
+                currentChaoticMapData.x_params = xParams;
+                currentChaoticMapData.y_params = yParams;
+                
+                hideOverlay();
+                setLoading(false);
+                showNotification('Fractal regenerated with custom parameters!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error regenerating with custom parameters:', error);
+                hideOverlay();
+                setLoading(false);
+                showNotification('Error regenerating fractal. Check parameter values.', 'error');
+            }
+        }
+        
+        // Copy all parameters to clipboard
+        async function copyParametersToClipboard() {
+            try {
+                const { xParams, yParams } = getEditedParameters();
+                const parametersData = {
+                    xParams: xParams,
+                    yParams: yParams,
+                    isCubic: currentChaoticMapData ? currentChaoticMapData.is_cubic : false
+                };
+                
+                const parametersString = JSON.stringify(parametersData, null, 2);
+                await navigator.clipboard.writeText(parametersString);
+                showNotification('Parameters copied to clipboard!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error copying parameters:', error);
+                showNotification('Failed to copy parameters to clipboard', 'error');
+            }
+        }
+        
+        // Paste parameters from clipboard
+        async function pasteParametersFromClipboard() {
+            try {
+                const clipboardText = await navigator.clipboard.readText();
+                const parametersData = JSON.parse(clipboardText);
+                
+                // Validate the data structure
+                if (!parametersData.xParams || !parametersData.yParams || 
+                    !Array.isArray(parametersData.xParams) || !Array.isArray(parametersData.yParams)) {
+                    throw new Error('Invalid parameters format');
+                }
+                
+                // Update the inline parameter inputs
+                const xInputs = document.querySelectorAll('.inline-param[data-param-axis="x"]');
+                const yInputs = document.querySelectorAll('.inline-param[data-param-axis="y"]');
+                
+                // Update X parameters
+                parametersData.xParams.forEach((value, index) => {
+                    const input = document.querySelector(`.inline-param[data-param-axis="x"][data-param-index="${index}"]`);
+                    if (input) {
+                        input.value = value.toFixed(6);
+                    }
+                });
+                
+                // Update Y parameters
+                parametersData.yParams.forEach((value, index) => {
+                    const input = document.querySelector(`.inline-param[data-param-axis="y"][data-param-index="${index}"]`);
+                    if (input) {
+                        input.value = value.toFixed(6);
+                    }
+                });
+                
+                // Show parameter buttons
+                elements.applyParametersBtn.style.display = 'inline-block';
+                elements.copyParametersBtn.style.display = 'inline-block';
+                elements.pasteParametersBtn.style.display = 'inline-block';
+                
+                showNotification('Parameters pasted successfully!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error pasting parameters:', error);
+                showNotification('Failed to paste parameters. Please check clipboard format.', 'error');
+            }
+        }
+        
+        // Event listeners for chaotic map functionality
+        function setupChaoticMapEventListeners() {
+            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParameters);
+            elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
+            elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
+        }
+        
         initializeApp();
         initWasm();
         updateControlVisibility();
         updateStatus();
         updateCanvasDisplaySize();
+        setupChaoticMapEventListeners();
     </script>
 </body>
 </html>
