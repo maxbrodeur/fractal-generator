@@ -3093,11 +3093,15 @@
                 if (points > batchSize) {
                     elements.chaosIterativeMode.checked = true;
                     const batches = Math.ceil(points / batchSize);
-                    elements.chaosIterativeMode.parentElement.querySelector('small').textContent = 
-                        `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
+                    const helpText = elements.chaosIterativeMode.closest('.control-group').querySelector('small');
+                    if (helpText) {
+                        helpText.textContent = `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
+                    }
                 } else {
-                    elements.chaosIterativeMode.parentElement.querySelector('small').textContent = 
-                        'Process in batches for higher resolution (>10M points)';
+                    const helpText = elements.chaosIterativeMode.closest('.control-group').querySelector('small');
+                    if (helpText) {
+                        helpText.textContent = 'Process in batches for higher resolution (>10M points)';
+                    }
                 }
             });
             
@@ -3108,8 +3112,10 @@
                 
                 if (points > batchSize) {
                     const batches = Math.ceil(points / batchSize);
-                    elements.chaosIterativeMode.parentElement.querySelector('small').textContent = 
-                        `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
+                    const helpText = elements.chaosIterativeMode.closest('.control-group').querySelector('small');
+                    if (helpText) {
+                        helpText.textContent = `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
+                    }
                 }
             });
         }
