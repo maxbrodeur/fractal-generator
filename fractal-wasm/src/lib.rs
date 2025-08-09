@@ -15,6 +15,57 @@ macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
 }
 
+/// Result structure for chaotic map with parameters
+#[wasm_bindgen]
+#[derive(Debug, Clone)]
+pub struct ChaoticMapResult {
+    points: Vec<f64>,
+    x_params: Vec<f64>,
+    y_params: Vec<f64>,
+    max_lyapunov: f64,
+    min_lyapunov: f64,
+    fractal_dimension: f64,
+    is_cubic: bool,
+}
+
+#[wasm_bindgen]
+impl ChaoticMapResult {
+    #[wasm_bindgen(getter)]
+    pub fn points(&self) -> Vec<f64> {
+        self.points.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn x_params(&self) -> Vec<f64> {
+        self.x_params.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn y_params(&self) -> Vec<f64> {
+        self.y_params.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn max_lyapunov(&self) -> f64 {
+        self.max_lyapunov
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn min_lyapunov(&self) -> f64 {
+        self.min_lyapunov
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn fractal_dimension(&self) -> f64 {
+        self.fractal_dimension
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn is_cubic(&self) -> bool {
+        self.is_cubic
+    }
+}
+
 /// Rule system for vertex selection constraints
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
@@ -1312,6 +1363,59 @@ impl FractalGenerator {
         exclude
     }
 
+    /// Find a random chaotic map with extended information
+    #[wasm_bindgen]
+    pub fn find_random_chaos_extended(&self, n_plot: usize, n_test: usize, _discard_points: usize, _use_alphabet: bool, is_cubic: bool) -> ChaoticMapResult {
+        let n_trans = 1000;
+        let thresh = 1e6;
+        let le_thresh = 1e-4;
+
+        let param_count = if is_cubic { 10 } else { 6 };
+        
+        // Keep searching until we find a chaotic map
+        loop {
+            let args1 = self.get_random_args(param_count);
+            let args2 = self.get_random_args(param_count);
+
+            let (max_le, min_le, c) = self.test_chaos(&args1, &args2, n_trans, n_test, thresh, is_cubic);
+            
+            if max_le == -1.0 {
+                continue; // Try again if test failed
+            }
+
+            let fd = self.fractal_dimension(max_le, min_le);
+
+            let exclude = if is_cubic {
+                self.exclude_cubic(max_le, min_le, c, fd, le_thresh)
+            } else {
+                self.exclude_quadratic(max_le, min_le, c, fd, le_thresh)
+            };
+
+            if !exclude {
+                // Found a good chaotic map!
+                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                
+                // Convert to flat array format for points_to_rgba compatibility
+                let mut result_points = Vec::with_capacity(points.len() * 2);
+                for point in points {
+                    result_points.extend_from_slice(&point);
+                }
+
+                console_log!("Found chaotic map! Max LE: {:.4}, Min LE: {:.4}, FD: {:.4}", max_le, min_le, fd);
+                
+                return ChaoticMapResult {
+                    points: result_points,
+                    x_params: args1,
+                    y_params: args2,
+                    max_lyapunov: max_le,
+                    min_lyapunov: min_le,
+                    fractal_dimension: fd,
+                    is_cubic,
+                };
+            }
+        }
+    }
+
     /// Find a random chaotic map
     #[wasm_bindgen]
     pub fn find_random_chaos(&self, n_plot: usize, n_test: usize, is_cubic: bool) -> Vec<f64> {
@@ -1355,5 +1459,20 @@ impl FractalGenerator {
                 return result;
             }
         }
+    }
+
+    /// Generate points from given chaotic map parameters
+    #[wasm_bindgen]
+    pub fn generate_chaotic_map_points(&self, x_params: &[f64], y_params: &[f64], n_points: usize, is_cubic: bool) -> Vec<f64> {
+        let points = self.iterate_map(x_params, y_params, n_points, is_cubic);
+        
+        // Flatten the points from Vec<[f64; 2]> to Vec<f64>
+        let mut result = Vec::with_capacity(points.len() * 2);
+        for point in points {
+            result.push(point[0]);
+            result.push(point[1]);
+        }
+        
+        result
     }
 }
