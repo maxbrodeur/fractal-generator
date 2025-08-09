@@ -2737,7 +2737,7 @@
 
             const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
             const safeParams = fillParams(params, terms.length);
-            return terms.map((term, i) => safeParams[term.idx].toFixed(3)).map((v, i) => terms[i].fmt(v)).join('').trim();
+            return terms.map((term) => term.fmt(safeParams[term.idx].toFixed(3))).join('').trim();
         }
         
         function createEditableEquation(params, isCubic, axis) {
