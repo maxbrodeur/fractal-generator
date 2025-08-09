@@ -2861,7 +2861,7 @@
                 showOverlay('Generating high-resolution fractal in batches...');
                 
                 // Calculate bounds using a small sample first
-                const samplePoints = Math.min(10000, batchSize);
+                const samplePoints = Math.min(BOUNDS_SAMPLE_SIZE, batchSize);
                 const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, currentChaoticMapData.is_cubic);
                 const bounds = generator.calculate_point_bounds(sampleData);
                 const [minX, maxX, minY, maxY] = bounds;
