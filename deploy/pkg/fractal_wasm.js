@@ -402,7 +402,10 @@ export class FractalGenerator {
         return v2;
     }
     /**
-     * Merge two density grids by adding their values
+     * Merges two density grids by element-wise addition.
+     *
+     * Each element in the returned grid is the sum of the corresponding elements in `grid1` and `grid2`.
+     * If the input grids have different sizes, a warning is logged and `grid1` is returned unchanged.
      * @param {Uint32Array} grid1
      * @param {Uint32Array} grid2
      * @returns {Uint32Array}
@@ -418,7 +421,22 @@ export class FractalGenerator {
         return v3;
     }
     /**
-     * Convert density grid to RGBA data
+     * Converts a density grid to RGBA pixel data.
+     *
+     * This function normalizes the density values in the grid by dividing each value by the maximum density,
+     * resulting in a linear normalization in the range [0, 1]. To improve visibility of low-density regions,
+     * a logarithmic mapping is applied using `ln_1p`, which compresses the dynamic range and enhances contrast
+     * for areas with low density. The normalized and mapped value is then used to select a color from the
+     * specified color scheme. The output is a flat RGBA array suitable for rendering.
+     *
+     * # Arguments
+     * * `density` - A slice of density values (u32) for each pixel.
+     * * `width` - The width of the grid.
+     * * `height` - The height of the grid.
+     * * `color_scheme` - The color scheme to use for mapping normalized density to color.
+     *
+     * # Returns
+     * A vector of RGBA bytes representing the image.
      * @param {Uint32Array} density
      * @param {number} width
      * @param {number} height

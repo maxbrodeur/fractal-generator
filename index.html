@@ -972,6 +972,10 @@
         // Chaotic map state for separate generation and plotting
         let storedChaoticMap = null;
         
+        // Constants
+        const DEFAULT_BATCH_SIZE = 10000000; // 10M points
+        const BOUNDS_SAMPLE_SIZE = 100000;   // 100K points for bounds calculation
+        
         // View State for zooming/panning
         let viewState = {
             centerX: 0,
@@ -1379,9 +1383,33 @@
                     pointCount: storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 'unknown'
                 });
 
-                // Validate and normalize the stored point data before converting to RGBA
+                // Validate and normalize the stored point data
                 const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
-                const result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
+                const totalPointCount = normalizedPointData.length / 2;
+                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
+                
+                let result;
+                
+                // Use iterative approach for large point sets to avoid memory issues
+                if (totalPointCount > batchSize) {
+                    console.log(`🔄 Using iterative plotting for ${totalPointCount.toLocaleString()} points`);
+                    showOverlay(`Plotting ${totalPointCount.toLocaleString()} points using iterative method...`);
+                    
+                    // Calculate bounds
+                    const bounds = generator.calculate_point_bounds(normalizedPointData);
+                    const [minX, maxX, minY, maxY] = bounds;
+                    
+                    // Convert points to density grid using iterative approach
+                    const density = generator.points_to_density_grid_with_bounds(
+                        normalizedPointData, canvasWidth, canvasHeight, minX, maxX, minY, maxY
+                    );
+                    
+                    // Convert density grid to RGBA
+                    result = generator.density_grid_to_rgba(density, canvasWidth, canvasHeight, colorScheme);
+                } else {
+                    // Use standard approach for smaller point sets
+                    result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
+                }
 
                 if (!result || result.length === 0) {
                     throw new Error('Plotting returned empty result');
@@ -2970,9 +2998,22 @@
             const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
             const canvasHeight = Math.round(canvasWidth / getAspectRatio());
             const colorScheme = parseInt(elements.colorScheme.value);
+            const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
             
             try {
                 setLoading(true);
+                
+                // Check if points exceed safe memory limit
+                if (plotPoints > batchSize) {
+                    showOverlay(`Cannot generate ${plotPoints.toLocaleString()} points in standard mode. Please reduce points or enable iterative mode.`);
+                    setTimeout(() => {
+                        hideOverlay();
+                        setLoading(false);
+                        showNotification(`Error: ${plotPoints.toLocaleString()} points exceeds memory limit. Reduce points to ${batchSize.toLocaleString()} or enable iterative mode.`, 'error');
+                    }, 2000);
+                    return;
+                }
+                
                 showOverlay('Generating fractal with custom parameters...');
                 
                 const points = generator.generate_chaotic_map_points(xParams, yParams, plotPoints, currentChaoticMapData.is_cubic);
@@ -3088,7 +3129,7 @@
             // Auto-enable iterative mode for high point counts
             elements.chaosPlotPoints.addEventListener('input', () => {
                 const points = parseInt(elements.chaosPlotPoints.value) || 0;
-                const batchSize = parseInt(elements.chaosBatchSize.value) || 10000000;
+                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
                 
                 if (points > batchSize) {
                     elements.chaosIterativeMode.checked = true;
@@ -3108,7 +3149,7 @@
             // Update batch count when batch size changes
             elements.chaosBatchSize.addEventListener('input', () => {
                 const points = parseInt(elements.chaosPlotPoints.value) || 0;
-                const batchSize = parseInt(elements.chaosBatchSize.value) || 10000000;
+                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
                 
                 if (points > batchSize) {
                     const batches = Math.ceil(points / batchSize);
