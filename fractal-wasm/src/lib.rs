@@ -539,7 +539,22 @@ impl FractalGenerator {
         grid1.iter().zip(grid2.iter()).map(|(a, b)| a + b).collect()
     }
     
-    /// Convert density grid to RGBA data
+    /// Converts a density grid to RGBA pixel data.
+    ///
+    /// This function normalizes the density values in the grid by dividing each value by the maximum density,
+    /// resulting in a linear normalization in the range [0, 1]. To improve visibility of low-density regions,
+    /// a logarithmic mapping is applied using `ln_1p`, which compresses the dynamic range and enhances contrast
+    /// for areas with low density. The normalized and mapped value is then used to select a color from the
+    /// specified color scheme. The output is a flat RGBA array suitable for rendering.
+    ///
+    /// # Arguments
+    /// * `density` - A slice of density values (u32) for each pixel.
+    /// * `width` - The width of the grid.
+    /// * `height` - The height of the grid.
+    /// * `color_scheme` - The color scheme to use for mapping normalized density to color.
+    ///
+    /// # Returns
+    /// A vector of RGBA bytes representing the image.
     #[wasm_bindgen]
     pub fn density_grid_to_rgba(
         &self,
