@@ -532,7 +532,11 @@ impl FractalGenerator {
     #[wasm_bindgen]
     pub fn merge_density_grids(&self, grid1: &[u32], grid2: &[u32]) -> Vec<u32> {
         if grid1.len() != grid2.len() {
-            console_log!("Warning: density grids have different sizes");
+            console_log!(
+                "Warning: density grids have different sizes ({} vs {})",
+                grid1.len(),
+                grid2.len()
+            );
             return grid1.to_vec();
         }
         
