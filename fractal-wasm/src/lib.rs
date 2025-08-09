@@ -525,7 +525,10 @@ impl FractalGenerator {
         density
     }
     
-    /// Merge two density grids by adding their values
+    /// Merges two density grids by element-wise addition.
+    ///
+    /// Each element in the returned grid is the sum of the corresponding elements in `grid1` and `grid2`.
+    /// If the input grids have different sizes, a warning is logged and `grid1` is returned unchanged.
     #[wasm_bindgen]
     pub fn merge_density_grids(&self, grid1: &[u32], grid2: &[u32]) -> Vec<u32> {
         if grid1.len() != grid2.len() {
