@@ -46,12 +46,6 @@ function getDataViewMemory0() {
     return cachedDataViewMemory0;
 }
 
-function _assertClass(instance, klass) {
-    if (!(instance instanceof klass)) {
-        throw new Error(`expected instance of ${klass.name}`);
-    }
-}
-
 let cachedFloat64ArrayMemory0 = null;
 
 function getFloat64ArrayMemory0() {
@@ -64,6 +58,12 @@ function getFloat64ArrayMemory0() {
 function getArrayF64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+function _assertClass(instance, klass) {
+    if (!(instance instanceof klass)) {
+        throw new Error(`expected instance of ${klass.name}`);
+    }
 }
 
 let WASM_VECTOR_LEN = 0;
@@ -167,6 +167,90 @@ export const ColorScheme = Object.freeze({
     GnuPlot: 5, "5": "GnuPlot",
     Bmy: 6, "6": "Bmy",
 });
+
+const ChaoticMapResultFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_chaoticmapresult_free(ptr >>> 0, 1));
+/**
+ * Result structure for chaotic map with parameters
+ */
+export class ChaoticMapResult {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(ChaoticMapResult.prototype);
+        obj.__wbg_ptr = ptr;
+        ChaoticMapResultFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ChaoticMapResultFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_chaoticmapresult_free(ptr, 0);
+    }
+    /**
+     * @returns {Float64Array}
+     */
+    get points() {
+        const ret = wasm.chaoticmapresult_points(this.__wbg_ptr);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * @returns {Float64Array}
+     */
+    get x_params() {
+        const ret = wasm.chaoticmapresult_x_params(this.__wbg_ptr);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * @returns {Float64Array}
+     */
+    get y_params() {
+        const ret = wasm.chaoticmapresult_y_params(this.__wbg_ptr);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * @returns {number}
+     */
+    get max_lyapunov() {
+        const ret = wasm.chaoticmapresult_max_lyapunov(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get min_lyapunov() {
+        const ret = wasm.chaoticmapresult_min_lyapunov(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {number}
+     */
+    get fractal_dimension() {
+        const ret = wasm.chaoticmapresult_fractal_dimension(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {boolean}
+     */
+    get is_cubic() {
+        const ret = wasm.chaoticmapresult_is_cubic(this.__wbg_ptr);
+        return ret !== 0;
+    }
+}
 
 const FractalGeneratorFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
@@ -315,6 +399,19 @@ export class FractalGenerator {
         return v2;
     }
     /**
+     * Find a random chaotic map with extended information
+     * @param {number} n_plot
+     * @param {number} n_test
+     * @param {number} _discard_points
+     * @param {boolean} _use_alphabet
+     * @param {boolean} is_cubic
+     * @returns {ChaoticMapResult}
+     */
+    find_random_chaos_extended(n_plot, n_test, _discard_points, _use_alphabet, is_cubic) {
+        const ret = wasm.fractalgenerator_find_random_chaos_extended(this.__wbg_ptr, n_plot, n_test, _discard_points, _use_alphabet, is_cubic);
+        return ChaoticMapResult.__wrap(ret);
+    }
+    /**
      * Find a random chaotic map
      * @param {number} n_plot
      * @param {number} n_test
@@ -326,6 +423,24 @@ export class FractalGenerator {
         var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v1;
+    }
+    /**
+     * Generate points from given chaotic map parameters
+     * @param {Float64Array} x_params
+     * @param {Float64Array} y_params
+     * @param {number} n_points
+     * @param {boolean} is_cubic
+     * @returns {Float64Array}
+     */
+    generate_chaotic_map_points(x_params, y_params, n_points, is_cubic) {
+        const ptr0 = passArrayF64ToWasm0(x_params, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayF64ToWasm0(y_params, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_generate_chaotic_map_points(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_points, is_cubic);
+        var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v3;
     }
 }
 
