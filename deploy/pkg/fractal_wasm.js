@@ -383,6 +383,70 @@ export class FractalGenerator {
         return v2;
     }
     /**
+     * Generate density grid from points with explicit bounds
+     * @param {Float64Array} points
+     * @param {number} width
+     * @param {number} height
+     * @param {number} min_x
+     * @param {number} max_x
+     * @param {number} min_y
+     * @param {number} max_y
+     * @returns {Uint32Array}
+     */
+    points_to_density_grid_with_bounds(points, width, height, min_x, max_x, min_y, max_y) {
+        const ptr0 = passArrayF64ToWasm0(points, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_points_to_density_grid_with_bounds(this.__wbg_ptr, ptr0, len0, width, height, min_x, max_x, min_y, max_y);
+        var v2 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v2;
+    }
+    /**
+     * Merge two density grids by adding their values
+     * @param {Uint32Array} grid1
+     * @param {Uint32Array} grid2
+     * @returns {Uint32Array}
+     */
+    merge_density_grids(grid1, grid2) {
+        const ptr0 = passArray32ToWasm0(grid1, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray32ToWasm0(grid2, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_merge_density_grids(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        var v3 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v3;
+    }
+    /**
+     * Convert density grid to RGBA data
+     * @param {Uint32Array} density
+     * @param {number} width
+     * @param {number} height
+     * @param {ColorScheme} color_scheme
+     * @returns {Uint8Array}
+     */
+    density_grid_to_rgba(density, width, height, color_scheme) {
+        const ptr0 = passArray32ToWasm0(density, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_density_grid_to_rgba(this.__wbg_ptr, ptr0, len0, width, height, color_scheme);
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * Calculate bounds for a set of points
+     * @param {Float64Array} points
+     * @returns {Float64Array}
+     */
+    calculate_point_bounds(points) {
+        const ptr0 = passArrayF64ToWasm0(points, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_calculate_point_bounds(this.__wbg_ptr, ptr0, len0);
+        var v2 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v2;
+    }
+    /**
      * Generate RGBA pixel data from points with color mapping
      * @param {Float64Array} points
      * @param {number} width
@@ -440,6 +504,32 @@ export class FractalGenerator {
         const ret = wasm.fractalgenerator_generate_chaotic_map_points(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_points, is_cubic);
         var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v3;
+    }
+    /**
+     * Generate points from given chaotic map parameters in batches
+     * Returns density grid that can be merged with other batches
+     * @param {Float64Array} x_params
+     * @param {Float64Array} y_params
+     * @param {number} n_points
+     * @param {boolean} is_cubic
+     * @param {number} width
+     * @param {number} height
+     * @param {number} min_x
+     * @param {number} max_x
+     * @param {number} min_y
+     * @param {number} max_y
+     * @param {number} start_iteration
+     * @returns {Uint32Array}
+     */
+    generate_chaotic_map_batch_to_density(x_params, y_params, n_points, is_cubic, width, height, min_x, max_x, min_y, max_y, start_iteration) {
+        const ptr0 = passArrayF64ToWasm0(x_params, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayF64ToWasm0(y_params, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_generate_chaotic_map_batch_to_density(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_points, is_cubic, width, height, min_x, max_x, min_y, max_y, start_iteration);
+        var v3 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v3;
     }
 }

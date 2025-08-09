@@ -859,8 +859,20 @@
                 <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
                         <label>Plot Points</label>
-                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000">
-                        <small>Number of points to plot for discovered map</small>
+                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000" max="100000000">
+                        <small>Total number of points to plot for discovered map</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Batch Size</label>
+                        <input type="number" id="chaosBatchSize" value="10000000" min="1000000" step="1000000" max="10000000">
+                        <small>Points per batch (larger = more memory, smaller = slower)</small>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="chaosIterativeMode" unchecked>
+                            Enable Iterative Mode
+                        </label>
+                        <small>Process in batches for higher resolution (>10M points)</small>
                     </div>
                     <div class="control-group">
                         <label>Test Points</label>
@@ -1036,6 +1048,8 @@
             
             // Chaos finder controls
             chaosPlotPoints: document.getElementById('chaosPlotPoints'),
+            chaosBatchSize: document.getElementById('chaosBatchSize'),
+            chaosIterativeMode: document.getElementById('chaosIterativeMode'),
             chaosTestPoints: document.getElementById('chaosTestPoints'),
             chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
             chaosRandomizationType: document.getElementById('chaosRandomizationType'),
@@ -2825,6 +2839,129 @@
             }
         }
         
+        function regenerateWithCustomParametersIterative() {
+            if (!currentChaoticMapData || !generator) return;
+            
+            const { xParams, yParams } = getEditedParameters();
+            const totalPoints = parseInt(elements.chaosPlotPoints.value);
+            const batchSize = parseInt(elements.chaosBatchSize.value);
+            const iterativeMode = elements.chaosIterativeMode.checked;
+            const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
+            const canvasHeight = Math.round(canvasWidth / getAspectRatio());
+            const colorScheme = parseInt(elements.colorScheme.value);
+            
+            // If not iterative mode or total points <= batch size, use regular generation
+            if (!iterativeMode || totalPoints <= batchSize) {
+                regenerateWithCustomParameters();
+                return;
+            }
+            
+            try {
+                setLoading(true);
+                showOverlay('Generating high-resolution fractal in batches...');
+                
+                // Calculate bounds using a small sample first
+                const samplePoints = Math.min(10000, batchSize);
+                const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, currentChaoticMapData.is_cubic);
+                const bounds = generator.calculate_point_bounds(sampleData);
+                const [minX, maxX, minY, maxY] = bounds;
+                
+                console.log(`🔄 Iterative generation: ${totalPoints} points in batches of ${batchSize}`);
+                console.log(`📏 Bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
+                
+                // Initialize accumulated density grid
+                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
+                let processedPoints = 0;
+                let batchCount = 0;
+                
+                // Process in batches
+                const processBatch = () => {
+                    const remainingPoints = totalPoints - processedPoints;
+                    const currentBatchSize = Math.min(batchSize, remainingPoints);
+                    
+                    if (currentBatchSize <= 0) {
+                        // All batches complete - generate final image
+                        const result = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                        
+                        // Display result on canvas
+                        elements.canvas.width = canvasWidth;
+                        elements.canvas.height = canvasHeight;
+                        const ctx = elements.canvas.getContext('2d');
+                        const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                        ctx.putImageData(imageData, 0, 0);
+                        
+                        // Update current fractal data
+                        currentFractal = {
+                            type: 'chaotic_map',
+                            method: 'random_chaos_iterative',
+                            imageData: result,
+                            width: canvasWidth,
+                            height: canvasHeight
+                        };
+                        
+                        // Update equation display with new parameters
+                        elements.xEquation.textContent = formatChaoticMapEquation(xParams, currentChaoticMapData.is_cubic);
+                        elements.yEquation.textContent = formatChaoticMapEquation(yParams, currentChaoticMapData.is_cubic);
+                        
+                        // Update the stored data
+                        currentChaoticMapData.x_params = xParams;
+                        currentChaoticMapData.y_params = yParams;
+                        
+                        hideOverlay();
+                        setLoading(false);
+                        showNotification(`High-resolution fractal generated! (${totalPoints.toLocaleString()} points in ${batchCount} batches)`, 'success');
+                        return;
+                    }
+                    
+                    batchCount++;
+                    const progress = Math.round((processedPoints / totalPoints) * 100);
+                    showOverlay(`Processing batch ${batchCount}... (${progress}% complete, ${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`);
+                    
+                    // Generate batch density grid
+                    setTimeout(() => {
+                        try {
+                            const batchDensity = generator.generate_chaotic_map_batch_to_density(
+                                xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
+                                canvasWidth, canvasHeight, minX, maxX, minY, maxY, processedPoints
+                            );
+                            
+                            // Merge with accumulated density
+                            accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
+                            
+                            processedPoints += currentBatchSize;
+                            
+                            // Show intermediate result if this is not the first batch
+                            if (batchCount > 1 && batchCount % 2 === 0) {
+                                const intermediateResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                                const ctx = elements.canvas.getContext('2d');
+                                const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
+                                ctx.putImageData(imageData, 0, 0);
+                            }
+                            
+                            // Process next batch
+                            processBatch();
+                            
+                        } catch (error) {
+                            console.error('❌ Error in batch processing:', error);
+                            hideOverlay();
+                            setLoading(false);
+                            showNotification('Error during batch processing. Try reducing batch size.', 'error');
+                        }
+                    }, 10); // Small delay to allow UI updates
+                };
+                
+                // Start batch processing
+                processBatch();
+                
+            } catch (error) {
+                console.error('❌ Error in iterative generation:', error);
+                hideOverlay();
+                setLoading(false);
+                showNotification('Error in iterative generation. Falling back to standard mode.', 'error');
+                regenerateWithCustomParameters();
+            }
+        }
+        
         function regenerateWithCustomParameters() {
             if (!currentChaoticMapData || !generator) return;
             
@@ -2944,9 +3081,37 @@
         
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
-            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParameters);
+            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParametersIterative);
             elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
             elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
+            
+            // Auto-enable iterative mode for high point counts
+            elements.chaosPlotPoints.addEventListener('input', () => {
+                const points = parseInt(elements.chaosPlotPoints.value) || 0;
+                const batchSize = parseInt(elements.chaosBatchSize.value) || 10000000;
+                
+                if (points > batchSize) {
+                    elements.chaosIterativeMode.checked = true;
+                    const batches = Math.ceil(points / batchSize);
+                    elements.chaosIterativeMode.parentElement.querySelector('small').textContent = 
+                        `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
+                } else {
+                    elements.chaosIterativeMode.parentElement.querySelector('small').textContent = 
+                        'Process in batches for higher resolution (>10M points)';
+                }
+            });
+            
+            // Update batch count when batch size changes
+            elements.chaosBatchSize.addEventListener('input', () => {
+                const points = parseInt(elements.chaosPlotPoints.value) || 0;
+                const batchSize = parseInt(elements.chaosBatchSize.value) || 10000000;
+                
+                if (points > batchSize) {
+                    const batches = Math.ceil(points / batchSize);
+                    elements.chaosIterativeMode.parentElement.querySelector('small').textContent = 
+                        `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
+                }
+            });
         }
         
         initializeApp();

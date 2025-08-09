@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-09T20:24:32.184Z",
+  "timestamp": "2025-08-09T20:30:57.723Z",
   "testResults": {
     "prerequisites": true,
     "buildIntegrity": {
@@ -8,8 +8,8 @@
       "debugHelpersExists": true,
       "documentationExists": true,
       "packageJsonValid": true,
-      "wasmFileSize": 148751,
-      "jsBindingSize": 30830,
+      "wasmFileSize": 153841,
+      "jsBindingSize": 34735,
       "wasmSizeOk": true,
       "jsSizeOk": true
     },
