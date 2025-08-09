@@ -13,6 +13,20 @@ export enum ColorScheme {
   Bmy = 6,
 }
 /**
+ * Result structure for chaotic map with parameters
+ */
+export class ChaoticMapResult {
+  private constructor();
+  free(): void;
+  readonly points: Float64Array;
+  readonly x_params: Float64Array;
+  readonly y_params: Float64Array;
+  readonly max_lyapunov: number;
+  readonly min_lyapunov: number;
+  readonly fractal_dimension: number;
+  readonly is_cubic: boolean;
+}
+/**
  * Main fractal generator struct
  */
 export class FractalGenerator {
@@ -43,13 +57,42 @@ export class FractalGenerator {
    */
   iterations_to_rgba(iterations: Uint32Array, width: number, height: number, max_iterations: number, color_scheme: ColorScheme): Uint8Array;
   /**
+   * Generate density grid from points with explicit bounds
+   */
+  points_to_density_grid_with_bounds(points: Float64Array, width: number, height: number, min_x: number, max_x: number, min_y: number, max_y: number): Uint32Array;
+  /**
+   * Merge two density grids by adding their values
+   */
+  merge_density_grids(grid1: Uint32Array, grid2: Uint32Array): Uint32Array;
+  /**
+   * Convert density grid to RGBA data
+   */
+  density_grid_to_rgba(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme): Uint8Array;
+  /**
+   * Calculate bounds for a set of points
+   */
+  calculate_point_bounds(points: Float64Array): Float64Array;
+  /**
    * Generate RGBA pixel data from points with color mapping
    */
   points_to_rgba(points: Float64Array, width: number, height: number, color_scheme: ColorScheme): Uint8Array;
   /**
+   * Find a random chaotic map with extended information
+   */
+  find_random_chaos_extended(n_plot: number, n_test: number, _discard_points: number, _use_alphabet: boolean, is_cubic: boolean): ChaoticMapResult;
+  /**
    * Find a random chaotic map
    */
   find_random_chaos(n_plot: number, n_test: number, is_cubic: boolean): Float64Array;
+  /**
+   * Generate points from given chaotic map parameters
+   */
+  generate_chaotic_map_points(x_params: Float64Array, y_params: Float64Array, n_points: number, is_cubic: boolean): Float64Array;
+  /**
+   * Generate points from given chaotic map parameters in batches
+   * Returns density grid that can be merged with other batches
+   */
+  generate_chaotic_map_batch_to_density(x_params: Float64Array, y_params: Float64Array, n_points: number, is_cubic: boolean, width: number, height: number, min_x: number, max_x: number, min_y: number, max_y: number, start_iteration: number): Uint32Array;
 }
 export class FractalPresets {
   private constructor();
@@ -165,6 +208,14 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
+  readonly __wbg_chaoticmapresult_free: (a: number, b: number) => void;
+  readonly chaoticmapresult_points: (a: number) => [number, number];
+  readonly chaoticmapresult_x_params: (a: number) => [number, number];
+  readonly chaoticmapresult_y_params: (a: number) => [number, number];
+  readonly chaoticmapresult_max_lyapunov: (a: number) => number;
+  readonly chaoticmapresult_min_lyapunov: (a: number) => number;
+  readonly chaoticmapresult_fractal_dimension: (a: number) => number;
+  readonly chaoticmapresult_is_cubic: (a: number) => number;
   readonly __wbg_rule_free: (a: number, b: number) => void;
   readonly rule_new: (a: number, b: number, c: number) => number;
   readonly rule_add: (a: number, b: number) => void;
@@ -177,6 +228,10 @@ export interface InitOutput {
   readonly fractalgenerator_julia_set: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
   readonly fractalgenerator_burning_ship: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
   readonly fractalgenerator_iterations_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+  readonly fractalgenerator_points_to_density_grid_with_bounds: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+  readonly fractalgenerator_merge_density_grids: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+  readonly fractalgenerator_density_grid_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+  readonly fractalgenerator_calculate_point_bounds: (a: number, b: number, c: number) => [number, number];
   readonly fractalgenerator_points_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly __wbg_fractalpresets_free: (a: number, b: number) => void;
   readonly fractalpresets_sierpinski_triangle: () => any;
@@ -198,7 +253,10 @@ export interface InitOutput {
   readonly fractalpresets_christmas_tree_probs: () => any;
   readonly fractalpresets_maple_leaf: () => any;
   readonly fractalpresets_maple_leaf_probs: () => any;
+  readonly fractalgenerator_find_random_chaos_extended: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
   readonly fractalgenerator_find_random_chaos: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly fractalgenerator_generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+  readonly fractalgenerator_generate_chaotic_map_batch_to_density: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number];
   readonly fractalpresets_vicsek_square_transforms: () => any;
   readonly fractalpresets_t_square_transforms: () => any;
   readonly fractalpresets_techs_pattern_transforms: () => any;
