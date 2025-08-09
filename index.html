@@ -540,35 +540,7 @@
                 object-fit: contain;
             }
             
-            /* Mobile-specific button styling */
-            .mobile-show-controls {
-                position: fixed;
-                top: 1rem;
-                right: 1rem;
-                z-index: 1000;
-                background: rgba(102, 126, 234, 0.9);
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 50px;
-                height: 50px;
-                font-size: 1.2rem;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                backdrop-filter: blur(10px);
-                transition: all 0.3s ease;
-                display: none !important; /* Force hidden by default */
-            }
-            
-            .mobile-show-controls:hover {
-                background: rgba(90, 103, 216, 0.9);
-                transform: scale(1.1);
-            }
-            
-            .mobile-show-controls.visible {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
+
         }
         
         @media (max-width: 480px) {
@@ -653,8 +625,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Mobile show controls button -->
-        <button class="mobile-show-controls" id="mobileShowControls">⚙️</button>
         
         <aside class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebarToggle">←</button>
@@ -923,6 +893,8 @@
                         </div>
                         <div class="parameter-controls">
                             <button id="applyParametersBtn" class="btn btn-secondary" style="display: none;">Apply Changes</button>
+                            <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
+                            <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
                         </div>
                         <div id="mapStatistics" class="map-stats">
                             <span id="maxLyapunov">Max Lyapunov: -</span>
@@ -1068,7 +1040,9 @@
             maxLyapunov: document.getElementById('maxLyapunov'),
             minLyapunov: document.getElementById('minLyapunov'),
             fractalDim: document.getElementById('fractalDim'),
-            applyParametersBtn: document.getElementById('applyParametersBtn')
+            applyParametersBtn: document.getElementById('applyParametersBtn'),
+            copyParametersBtn: document.getElementById('copyParametersBtn'),
+            pasteParametersBtn: document.getElementById('pasteParametersBtn')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -1940,16 +1914,159 @@
             generateFractal();
         }
 
-        // Download functionality
+        // Download functionality with metadata embedding
         function downloadPNG() {
             if (!currentFractal) return;
             
-            const link = document.createElement('a');
-            link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
-            link.href = elements.canvas.toDataURL('image/png');
-            link.click();
+            try {
+                // Get PNG data from canvas
+                const dataURL = elements.canvas.toDataURL('image/png');
+                
+                // Add metadata if we have chaotic map data
+                let finalDataURL = dataURL;
+                if (currentChaoticMapData && currentFractal.method === 'random_chaos') {
+                    finalDataURL = addMetadataToPNG(dataURL, {
+                        fractalType: currentFractal.type,
+                        method: currentFractal.method,
+                        xParams: currentChaoticMapData.x_params,
+                        yParams: currentChaoticMapData.y_params,
+                        isCubic: currentChaoticMapData.is_cubic,
+                        maxLyapunov: currentChaoticMapData.max_lyapunov,
+                        minLyapunov: currentChaoticMapData.min_lyapunov,
+                        fractalDimension: currentChaoticMapData.fractal_dimension,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                
+                const link = document.createElement('a');
+                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
+                link.href = finalDataURL;
+                link.click();
+                
+                showNotification('Fractal image downloaded with metadata!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error downloading PNG:', error);
+                // Fallback to basic download
+                const link = document.createElement('a');
+                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
+                link.href = elements.canvas.toDataURL('image/png');
+                link.click();
+                showNotification('Fractal image downloaded!', 'success');
+            }
+        }
+        
+        // Add metadata to PNG file
+        function addMetadataToPNG(dataURL, metadata) {
+            try {
+                // Convert data URL to binary data
+                const base64Data = dataURL.split(',')[1];
+                const binaryData = atob(base64Data);
+                const bytes = new Uint8Array(binaryData.length);
+                for (let i = 0; i < binaryData.length; i++) {
+                    bytes[i] = binaryData.charCodeAt(i);
+                }
+                
+                // Create metadata text chunk
+                const metadataText = JSON.stringify(metadata, null, 2);
+                const textChunk = createPNGTextChunk('FractalParams', metadataText);
+                
+                // Insert text chunk after IHDR (should be at position 33 for standard PNG)
+                const newBytes = insertPNGChunk(bytes, textChunk, 33);
+                
+                // Convert back to data URL
+                let binaryString = '';
+                for (let i = 0; i < newBytes.length; i++) {
+                    binaryString += String.fromCharCode(newBytes[i]);
+                }
+                
+                return 'data:image/png;base64,' + btoa(binaryString);
+                
+            } catch (error) {
+                console.error('❌ Error adding metadata to PNG:', error);
+                return dataURL; // Return original if metadata addition fails
+            }
+        }
+        
+        // Create PNG text chunk (tEXt format)
+        function createPNGTextChunk(keyword, text) {
+            const keywordBytes = new TextEncoder().encode(keyword);
+            const textBytes = new TextEncoder().encode(text);
+            const dataLength = keywordBytes.length + 1 + textBytes.length; // +1 for null separator
             
-            showNotification('Fractal image downloaded!', 'success');
+            // Create chunk data
+            const chunkData = new Uint8Array(dataLength);
+            chunkData.set(keywordBytes, 0);
+            chunkData[keywordBytes.length] = 0; // null separator
+            chunkData.set(textBytes, keywordBytes.length + 1);
+            
+            // Calculate CRC32
+            const crc = calculateCRC32('tEXt', chunkData);
+            
+            // Create full chunk: length (4) + type (4) + data + crc (4)
+            const chunk = new Uint8Array(4 + 4 + dataLength + 4);
+            const view = new DataView(chunk.buffer);
+            
+            // Length (big-endian)
+            view.setUint32(0, dataLength, false);
+            
+            // Type
+            chunk.set(new TextEncoder().encode('tEXt'), 4);
+            
+            // Data
+            chunk.set(chunkData, 8);
+            
+            // CRC (big-endian)
+            view.setUint32(8 + dataLength, crc, false);
+            
+            return chunk;
+        }
+        
+        // Insert chunk into PNG data
+        function insertPNGChunk(pngBytes, chunk, position) {
+            const newBytes = new Uint8Array(pngBytes.length + chunk.length);
+            newBytes.set(pngBytes.slice(0, position), 0);
+            newBytes.set(chunk, position);
+            newBytes.set(pngBytes.slice(position), position + chunk.length);
+            return newBytes;
+        }
+        
+        // Simple CRC32 calculation for PNG chunks
+        function calculateCRC32(type, data) {
+            const typeBytes = new TextEncoder().encode(type);
+            const combined = new Uint8Array(typeBytes.length + data.length);
+            combined.set(typeBytes, 0);
+            combined.set(data, typeBytes.length);
+            
+            let crc = 0xFFFFFFFF;
+            const table = getCRC32Table();
+            
+            for (let i = 0; i < combined.length; i++) {
+                crc = table[(crc ^ combined[i]) & 0xFF] ^ (crc >>> 8);
+            }
+            
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+        
+        // Get CRC32 lookup table
+        function getCRC32Table() {
+            if (getCRC32Table.table) return getCRC32Table.table;
+            
+            const table = new Array(256);
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let j = 0; j < 8; j++) {
+                    if (c & 1) {
+                        c = 0xEDB88320 ^ (c >>> 1);
+                    } else {
+                        c = c >>> 1;
+                    }
+                }
+                table[i] = c;
+            }
+            
+            getCRC32Table.table = table;
+            return table;
         }
 
         // Dynamic control visibility
@@ -2457,20 +2574,15 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const appContainer = document.querySelector('.app-container');
-            const mobileShowControls = document.getElementById('mobileShowControls');
             
             // Enhanced mobile support
             function handleMobileLayout() {
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // Mobile controls button is disabled as requested
-                    // if (sidebar.classList.contains('mobile-collapsed')) {
-                    //     mobileShowControls.classList.add('visible');
-                    // }
+                    // Mobile layout handling
                 } else {
-                    // Hide mobile controls button on desktop
-                    // mobileShowControls.classList.remove('visible');
+                    // Desktop layout
                     sidebar.classList.remove('mobile-collapsed');
                 }
             }
@@ -2480,8 +2592,6 @@
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
                     sidebar.classList.add('mobile-collapsed');
-                    // Mobile controls button is disabled as requested
-                    // mobileShowControls.classList.add('visible');
                 }
             }
             
@@ -2497,16 +2607,6 @@
                 
                 // Update canvas display size after sidebar toggle
                 setTimeout(updateCanvasDisplaySize, 300);
-            });
-            
-            // Mobile show controls button (disabled as requested)
-            mobileShowControls.addEventListener('click', () => {
-                // Functionality disabled as mobile controls button should not be visible
-                // sidebar.classList.remove('mobile-collapsed');
-                // mobileShowControls.classList.remove('visible');
-                // 
-                // // Scroll to top to show controls
-                // window.scrollTo({ top: 0, behavior: 'smooth' });
             });
             
             // Handle window resize
@@ -2654,8 +2754,10 @@
             const paramInputs = document.querySelectorAll('.inline-param');
             paramInputs.forEach(input => {
                 input.addEventListener('input', () => {
-                    // Show apply button when parameters change
+                    // Show parameter buttons when parameters change
                     elements.applyParametersBtn.style.display = 'inline-block';
+                    elements.copyParametersBtn.style.display = 'inline-block';
+                    elements.pasteParametersBtn.style.display = 'inline-block';
                 });
             });
         }
@@ -2672,8 +2774,10 @@
             elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
             elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
             
-            // Show apply button
+            // Show parameter buttons
             elements.applyParametersBtn.style.display = 'inline-block';
+            elements.copyParametersBtn.style.display = 'inline-block';
+            elements.pasteParametersBtn.style.display = 'inline-block';
             
             // Set up event listeners for parameter changes
             setupParameterChangeListeners();
@@ -2763,9 +2867,76 @@
             }
         }
         
+        // Copy all parameters to clipboard
+        async function copyParametersToClipboard() {
+            try {
+                const { xParams, yParams } = getEditedParameters();
+                const parametersData = {
+                    xParams: xParams,
+                    yParams: yParams,
+                    isCubic: currentChaoticMapData ? currentChaoticMapData.is_cubic : false
+                };
+                
+                const parametersString = JSON.stringify(parametersData, null, 2);
+                await navigator.clipboard.writeText(parametersString);
+                showNotification('Parameters copied to clipboard!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error copying parameters:', error);
+                showNotification('Failed to copy parameters to clipboard', 'error');
+            }
+        }
+        
+        // Paste parameters from clipboard
+        async function pasteParametersFromClipboard() {
+            try {
+                const clipboardText = await navigator.clipboard.readText();
+                const parametersData = JSON.parse(clipboardText);
+                
+                // Validate the data structure
+                if (!parametersData.xParams || !parametersData.yParams || 
+                    !Array.isArray(parametersData.xParams) || !Array.isArray(parametersData.yParams)) {
+                    throw new Error('Invalid parameters format');
+                }
+                
+                // Update the inline parameter inputs
+                const xInputs = document.querySelectorAll('.inline-param[data-param-axis="x"]');
+                const yInputs = document.querySelectorAll('.inline-param[data-param-axis="y"]');
+                
+                // Update X parameters
+                parametersData.xParams.forEach((value, index) => {
+                    const input = document.querySelector(`.inline-param[data-param-axis="x"][data-param-index="${index}"]`);
+                    if (input) {
+                        input.value = value.toFixed(6);
+                    }
+                });
+                
+                // Update Y parameters
+                parametersData.yParams.forEach((value, index) => {
+                    const input = document.querySelector(`.inline-param[data-param-axis="y"][data-param-index="${index}"]`);
+                    if (input) {
+                        input.value = value.toFixed(6);
+                    }
+                });
+                
+                // Show parameter buttons
+                elements.applyParametersBtn.style.display = 'inline-block';
+                elements.copyParametersBtn.style.display = 'inline-block';
+                elements.pasteParametersBtn.style.display = 'inline-block';
+                
+                showNotification('Parameters pasted successfully!', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error pasting parameters:', error);
+                showNotification('Failed to paste parameters. Please check clipboard format.', 'error');
+            }
+        }
+        
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
             elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParameters);
+            elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
+            elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
         }
         
         initializeApp();
@@ -2776,4 +2947,5 @@
         setupChaoticMapEventListeners();
     </script>
 </body>
+</html>
 </html>
