@@ -496,6 +496,63 @@
             background: #4299e1;
         }
         
+        /* Progress Bar Styles */
+        .progress-bar-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 1rem 0;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background-image: linear-gradient(
+                -45deg,
+                rgba(255, 255, 255, 0.2) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.2) 50%,
+                rgba(255, 255, 255, 0.2) 75%,
+                transparent 75%,
+                transparent
+            );
+            background-size: 30px 30px;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        
+        @keyframes progress-bar-stripes {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 30px 0;
+            }
+        }
+        
+        .progress-text {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #4a5568;
+            text-align: center;
+        }
+        
         /* Enhanced Mobile Support */
         @media (max-width: 768px) {
             .app-container {
@@ -508,7 +565,7 @@
             }
             
             .sidebar {
-                max-height: var(--sidebar-max-height-mobile); /* Limit sidebar height to 40% of viewport */
+                max-height: 40vh; /* Limit sidebar height to 40% of viewport */
                 padding: 1rem;
                 order: 1;
                 background: rgba(255, 255, 255, 0.95);
@@ -520,7 +577,7 @@
             }
             
             .sidebar.mobile-collapsed {
-                max-height: var(--collapsed-header-height); /* Show just the header when collapsed */
+                max-height: 60px; /* Show just the header when collapsed */
                 overflow: hidden;
             }
             
@@ -531,7 +588,7 @@
             .main-content {
                 padding: 0.5rem;
                 order: 2;
-                min-height: var(--main-content-min-height); /* Ensure main content takes at least 60% of viewport */
+                min-height: 60vh; /* Ensure main content takes at least 60% of viewport */
                 flex: 1;
             }
             
@@ -914,7 +971,6 @@
                             </div>
                         </div>
                         <div class="parameter-controls">
-                            <button id="applyParametersBtn" class="btn btn-secondary" style="display: none;">Apply Changes</button>
                             <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
                             <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
                         </div>
@@ -953,7 +1009,11 @@
                 <div class="canvas-overlay" id="canvasOverlay">
                     <div>
                         <div class="loading-spinner"></div>
-                        <p style="margin-top: 1rem;">Initializing WebAssembly...</p>
+                        <p id="overlayText" style="margin-top: 1rem;">Initializing WebAssembly...</p>
+                        <div class="progress-bar-container" id="progressBarContainer" style="display: none;">
+                            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-text" id="progressText" style="display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -1068,9 +1128,14 @@
             maxLyapunov: document.getElementById('maxLyapunov'),
             minLyapunov: document.getElementById('minLyapunov'),
             fractalDim: document.getElementById('fractalDim'),
-            applyParametersBtn: document.getElementById('applyParametersBtn'),
             copyParametersBtn: document.getElementById('copyParametersBtn'),
-            pasteParametersBtn: document.getElementById('pasteParametersBtn')
+            pasteParametersBtn: document.getElementById('pasteParametersBtn'),
+            
+            // Progress bar elements
+            progressBarContainer: document.getElementById('progressBarContainer'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText'),
+            overlayText: document.getElementById('overlayText')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -1155,6 +1220,30 @@
                     ${isMobile ? '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Please wait while your fractal generates...</p>' : ''}
                 </div>
             `;
+            elements.overlay.style.display = 'flex';
+            
+            // Hide progress bar for simple overlay
+            elements.progressBarContainer.style.display = 'none';
+            elements.progressText.style.display = 'none';
+        }
+        
+        function showOverlayWithProgress(message = 'Processing...', progress = 0, progressText = '') {
+            const isMobile = window.innerWidth <= 768;
+            elements.overlayText.textContent = message;
+            elements.overlayText.style.fontSize = isMobile ? '1.1rem' : '1rem';
+            elements.overlayText.style.maxWidth = isMobile ? '280px' : 'none';
+            
+            // Show and update progress bar
+            elements.progressBarContainer.style.display = 'block';
+            elements.progressBar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+            
+            if (progressText) {
+                elements.progressText.textContent = progressText;
+                elements.progressText.style.display = 'block';
+            } else {
+                elements.progressText.style.display = 'none';
+            }
+            
             elements.overlay.style.display = 'flex';
         }
 
@@ -1366,6 +1455,15 @@
             showOverlay('Plotting chaotic map...');
 
             try {
+                // Check if parameters have been edited and apply them automatically
+                const editedParams = getEditedParameters();
+                if (editedParams) {
+                    console.log('🔄 Applying edited parameters automatically...');
+                    // Update stored map with edited parameters
+                    storedChaoticMap.xParams = editedParams.xParams;
+                    storedChaoticMap.yParams = editedParams.yParams;
+                }
+
                 const canvasSize = parseInt(elements.canvasSize.value);
                 const aspectRatio = elements.aspectRatio.value;
                 const colorScheme = parseInt(elements.colorScheme.value);
@@ -2867,8 +2965,7 @@
             const paramInputs = document.querySelectorAll('.inline-param');
             paramInputs.forEach(input => {
                 input.addEventListener('input', () => {
-                    // Show parameter buttons when parameters change
-                    elements.applyParametersBtn.style.display = 'inline-block';
+                    // Show parameter buttons when parameters change (removed Apply Changes button)
                     elements.copyParametersBtn.style.display = 'inline-block';
                     elements.pasteParametersBtn.style.display = 'inline-block';
                 });
@@ -2887,8 +2984,7 @@
             elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
             elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
             
-            // Show parameter buttons
-            elements.applyParametersBtn.style.display = 'inline-block';
+            // Show parameter buttons (removed Apply Changes button)
             elements.copyParametersBtn.style.display = 'inline-block';
             elements.pasteParametersBtn.style.display = 'inline-block';
             
@@ -3004,7 +3100,11 @@
                     
                     batchCount++;
                     const progress = Math.round((processedPoints / totalPoints) * 100);
-                    showOverlay(`Processing batch ${batchCount}... (${progress}% complete, ${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`);
+                    showOverlayWithProgress(
+                        `Processing batch ${batchCount}...`, 
+                        progress, 
+                        `${progress}% complete (${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`
+                    );
                     
                     // Generate batch density grid
                     setTimeout(() => {
@@ -3168,8 +3268,7 @@
                     }
                 });
                 
-                // Show parameter buttons
-                elements.applyParametersBtn.style.display = 'inline-block';
+                // Show parameter buttons (removed Apply Changes button)
                 elements.copyParametersBtn.style.display = 'inline-block';
                 elements.pasteParametersBtn.style.display = 'inline-block';
                 
@@ -3183,7 +3282,6 @@
         
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
-            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParametersIterative);
             elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
             elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
             
