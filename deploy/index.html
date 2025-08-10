@@ -973,8 +973,7 @@
         let storedChaoticMap = null;
         
         // Constants
-        const DEFAULT_BATCH_SIZE = 10000000; // 10M points
-        const MAX_GENERATION_POINTS = 10000000; // 10M points - maximum for memory-safe generation
+        const DEFAULT_BATCH_SIZE = 1000000; // 1M points per batch for optimal memory usage
         const BOUNDS_SAMPLE_SIZE = 100000;   // 100K points for bounds calculation
         
         // View State for zooming/panning
@@ -1294,31 +1293,26 @@
                     isCubic
                 });
 
-                // Check if plot points exceeds generation limit
+                // Check if we should use iterative mode for all chaotic maps
                 const plotPoints = parseInt(elements.chaosPlotPoints.value);
-                const findPoints = Math.min(plotPoints, MAX_GENERATION_POINTS);
                 
-                if (plotPoints > MAX_GENERATION_POINTS) {
-                    console.log(`📊 Point generation limited to ${MAX_GENERATION_POINTS.toLocaleString()} for memory safety. Higher resolutions will use iterative plotting.`);
-                    showToast(`Generation limited to ${(MAX_GENERATION_POINTS/1000000).toFixed(0)}M points. The ${(plotPoints/1000000).toFixed(0)}M point resolution will be achieved through iterative plotting.`, 4000);
-                }
+                console.log(`🔄 Using iterative batch generation for ${plotPoints.toLocaleString()} points`);
 
                 try {
                     const result_data = generator.find_random_chaos_extended 
-                        ? generator.find_random_chaos_extended(findPoints, testPoints, discardPoints, useAlphabet, isCubic)
-                        : generator.find_random_chaos(findPoints, testPoints, isCubic);
+                        ? generator.find_random_chaos_extended(plotPoints, testPoints, discardPoints, useAlphabet, isCubic)
+                        : generator.find_random_chaos(plotPoints, testPoints, isCubic);
                     
                     // Store the chaotic map data for later plotting
-                    // Note: we store the original plotPoints value so plotting can use iterative mode for higher resolutions
                     storeChaoticMap(
                         result_data.points || result_data,
-                        result_data.coefficients || result_data.coeffs || null,
+                        result_data, // Store the full result for accessing parameters
                         chaosType,
                         testPoints,
                         discardPoints,
                         useAlphabet,
                         isCubic,
-                        plotPoints // Store original plot points for iterative plotting
+                        plotPoints // Store original plot points
                     );
 
                     // Display the chaotic map information if extended data is available
@@ -1329,21 +1323,18 @@
                     console.log('✅ Chaotic map stored for plotting');
 
                 } catch (error) {
-                    if (error.message && error.message.includes('exceeds maximum safe limit')) {
-                        throw new Error(`Point generation limit exceeded. Maximum ${MAX_GENERATION_POINTS.toLocaleString()} points allowed for memory safety.`);
-                    }
                     console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
-                    const pointData = generator.find_random_chaos(findPoints, testPoints, isCubic);
+                    const pointData = generator.find_random_chaos(plotPoints, testPoints, isCubic);
                     
                     storeChaoticMap(
                         pointData,
-                        pointData.coefficients || pointData.coeffs || pointData.parameters || null,
+                        null, // No extended data available from basic version
                         chaosType,
                         testPoints,
                         discardPoints,
                         useAlphabet,
                         isCubic,
-                        plotPoints // Store original plot points for iterative plotting
+                        plotPoints // Store original plot points
                     );
 
                     // For basic version, show limited information
@@ -1398,35 +1389,87 @@
                     originalType: storedChaoticMap.type,
                     canvasSize: `${canvasWidth}x${canvasHeight}`,
                     colorScheme,
-                    pointCount: storedChaoticMap.pointData ? storedChaoticMap.pointData.length / 2 : 'unknown'
+                    requestedPoints: storedChaoticMap.originalPlotPoints,
+                    hasParameters: !!(storedChaoticMap.coefficients && storedChaoticMap.coefficients.x_params)
                 });
 
-                // Validate and normalize the stored point data
-                const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
-                const totalPointCount = normalizedPointData.length / 2;
+                const requestedPoints = storedChaoticMap.originalPlotPoints;
                 const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
                 
                 let result;
                 
-                // Use iterative approach for large point sets to avoid memory issues
-                if (totalPointCount > batchSize) {
-                    console.log(`🔄 Using iterative plotting for ${totalPointCount.toLocaleString()} points`);
-                    showOverlay(`Plotting ${totalPointCount.toLocaleString()} points using iterative method...`);
+                // Check if we have parameters for iterative generation
+                const hasParameters = storedChaoticMap.coefficients && 
+                                    (storedChaoticMap.coefficients.x_params ||
+                                     storedChaoticMap.coefficients.x_params);
+                
+                if (hasParameters && requestedPoints > batchSize) {
+                    // Use iterative batch generation directly from parameters
+                    console.log(`🔄 Using iterative batch generation for ${requestedPoints.toLocaleString()} points`);
+                    showOverlay(`Generating ${requestedPoints.toLocaleString()} points in batches...`);
                     
-                    // Calculate bounds
-                    const bounds = generator.calculate_point_bounds(normalizedPointData);
+                    const xParams = storedChaoticMap.coefficients.x_params;
+                    const yParams = storedChaoticMap.coefficients.y_params;
+                    const isCubic = storedChaoticMap.isCubic;
+                    
+                    // Calculate bounds from a sample of points first
+                    const samplePoints = Math.min(batchSize, requestedPoints);
+                    const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, isCubic);
+                    const bounds = generator.calculate_point_bounds(sampleData);
                     const [minX, maxX, minY, maxY] = bounds;
                     
-                    // Convert points to density grid using iterative approach
-                    const density = generator.points_to_density_grid_with_bounds(
-                        normalizedPointData, canvasWidth, canvasHeight, minX, maxX, minY, maxY
-                    );
+                    // Initialize density grid
+                    let density = new Uint32Array(canvasWidth * canvasHeight);
                     
-                    // Convert density grid to RGBA
+                    // Generate in batches
+                    const totalBatches = Math.ceil(requestedPoints / batchSize);
+                    let currentIteration = 0;
+                    
+                    for (let batch = 0; batch < totalBatches; batch++) {
+                        const remainingPoints = requestedPoints - currentIteration;
+                        const currentBatchSize = Math.min(batchSize, remainingPoints);
+                        
+                        showOverlay(`Generating batch ${batch + 1}/${totalBatches} (${currentBatchSize.toLocaleString()} points)...`);
+                        
+                        const batchDensity = generator.generate_chaotic_map_batch_to_density(
+                            xParams, yParams, currentBatchSize, isCubic,
+                            canvasWidth, canvasHeight, minX, maxX, minY, maxY, currentIteration
+                        );
+                        
+                        // Merge batch density into total density
+                        const mergedDensity = generator.merge_density_grids(density, batchDensity);
+                        density = new Uint32Array(mergedDensity);
+                        
+                        currentIteration += currentBatchSize;
+                    }
+                    
+                    showOverlay('Converting density to image...');
                     result = generator.density_grid_to_rgba(density, canvasWidth, canvasHeight, colorScheme);
+                    
                 } else {
-                    // Use standard approach for smaller point sets
-                    result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
+                    // Fallback to existing point data for smaller sets or when parameters not available
+                    const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
+                    const totalPointCount = normalizedPointData.length / 2;
+                    
+                    if (totalPointCount > batchSize) {
+                        console.log(`🔄 Using density grid for ${totalPointCount.toLocaleString()} existing points`);
+                        showOverlay(`Processing ${totalPointCount.toLocaleString()} points...`);
+                        
+                        // Calculate bounds
+                        const bounds = generator.calculate_point_bounds(normalizedPointData);
+                        const [minX, maxX, minY, maxY] = bounds;
+                        
+                        // Convert points to density grid
+                        const density = generator.points_to_density_grid_with_bounds(
+                            normalizedPointData, canvasWidth, canvasHeight, minX, maxX, minY, maxY
+                        );
+                        
+                        // Convert density grid to RGBA
+                        result = generator.density_grid_to_rgba(density, canvasWidth, canvasHeight, colorScheme);
+                    } else {
+                        // Use standard approach for smaller point sets
+                        result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
+                    }
                 }
 
                 if (!result || result.length === 0) {

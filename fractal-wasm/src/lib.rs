@@ -241,8 +241,8 @@ pub struct FractalGenerator {
     rng: ThreadRng,
 }
 
-// Constants for memory management
-const MAX_POINT_GENERATION: usize = 10_000_000; // 10M points maximum for memory safety
+// Constants for batch processing
+const DEFAULT_BATCH_SIZE: usize = 1_000_000; // 1M points per batch for optimal memory usage
 
 #[wasm_bindgen]
 impl FractalGenerator {
@@ -1477,12 +1477,6 @@ impl FractalGenerator {
 
     /// Generate trajectory points for visualization
     fn iterate_map(&self, args1: &[f64], args2: &[f64], n_points: usize, is_cubic: bool) -> Vec<[f64; 2]> {
-        // Safety check: prevent memory allocation issues in WebAssembly
-        if n_points > MAX_POINT_GENERATION {
-            console_log!("⚠️ Point generation limited to {} points for memory safety", MAX_POINT_GENERATION);
-            panic!("Point generation exceeds maximum safe limit of {} points", MAX_POINT_GENERATION);
-        }
-
         let mut x = 0.05;
         let mut y = 0.05;
         let mut points = Vec::with_capacity(n_points);
@@ -1546,7 +1540,9 @@ impl FractalGenerator {
 
             if !exclude {
                 // Found a good chaotic map!
-                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                // Use smaller sample for discovery and store parameters for iterative generation
+                let discovery_points = DEFAULT_BATCH_SIZE.min(n_plot);
+                let points = self.iterate_map(&args1, &args2, discovery_points, is_cubic);
                 
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result_points = Vec::with_capacity(points.len() * 2);
@@ -1599,7 +1595,9 @@ impl FractalGenerator {
 
             if !exclude {
                 // Found a good chaotic map!
-                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                // Use smaller sample for discovery and store parameters for iterative generation
+                let discovery_points = DEFAULT_BATCH_SIZE.min(n_plot);
+                let points = self.iterate_map(&args1, &args2, discovery_points, is_cubic);
                 
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result = Vec::with_capacity(points.len() * 2);
