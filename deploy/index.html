@@ -974,6 +974,7 @@
         
         // Constants
         const DEFAULT_BATCH_SIZE = 10000000; // 10M points
+        const MAX_GENERATION_POINTS = 10000000; // 10M points - maximum for memory-safe generation
         const BOUNDS_SAMPLE_SIZE = 100000;   // 100K points for bounds calculation
         
         // View State for zooming/panning
@@ -1175,6 +1176,10 @@
             }, 3000);
         }
 
+        function showToast(message, duration = 3000) {
+            showNotification(message, 'info');
+        }
+
         function updateStatus() {
             // Status display removed
         }
@@ -1221,7 +1226,7 @@
         }
 
         // Store chaotic map data for later plotting
-        function storeChaoticMap(pointData, coefficients, chaosType, testPoints, discardPoints, useAlphabet, isCubic) {
+        function storeChaoticMap(pointData, coefficients, chaosType, testPoints, discardPoints, useAlphabet, isCubic, originalPlotPoints = null) {
             storedChaoticMap = {
                 type: chaosType,
                 testPoints: testPoints,
@@ -1230,7 +1235,9 @@
                 isCubic: isCubic,
                 // Store the actual point data that was found
                 pointData: pointData,
-                coefficients: coefficients
+                coefficients: coefficients,
+                // Store original plot points for iterative plotting if higher than generation limit
+                originalPlotPoints: originalPlotPoints || (pointData.length / 2)
             };
         }
 
@@ -1287,9 +1294,14 @@
                     isCubic
                 });
 
-                // Use the full plot points setting for high-resolution chaotic maps
+                // Check if plot points exceeds generation limit
                 const plotPoints = parseInt(elements.chaosPlotPoints.value);
-                const findPoints = plotPoints;
+                const findPoints = Math.min(plotPoints, MAX_GENERATION_POINTS);
+                
+                if (plotPoints > MAX_GENERATION_POINTS) {
+                    console.log(`📊 Point generation limited to ${MAX_GENERATION_POINTS.toLocaleString()} for memory safety. Higher resolutions will use iterative plotting.`);
+                    showToast(`Generation limited to ${(MAX_GENERATION_POINTS/1000000).toFixed(0)}M points. The ${(plotPoints/1000000).toFixed(0)}M point resolution will be achieved through iterative plotting.`, 4000);
+                }
 
                 try {
                     const result_data = generator.find_random_chaos_extended 
@@ -1297,6 +1309,7 @@
                         : generator.find_random_chaos(findPoints, testPoints, isCubic);
                     
                     // Store the chaotic map data for later plotting
+                    // Note: we store the original plotPoints value so plotting can use iterative mode for higher resolutions
                     storeChaoticMap(
                         result_data.points || result_data,
                         result_data.coefficients || result_data.coeffs || null,
@@ -1304,7 +1317,8 @@
                         testPoints,
                         discardPoints,
                         useAlphabet,
-                        isCubic
+                        isCubic,
+                        plotPoints // Store original plot points for iterative plotting
                     );
 
                     // Display the chaotic map information if extended data is available
@@ -1315,6 +1329,9 @@
                     console.log('✅ Chaotic map stored for plotting');
 
                 } catch (error) {
+                    if (error.message && error.message.includes('exceeds maximum safe limit')) {
+                        throw new Error(`Point generation limit exceeded. Maximum ${MAX_GENERATION_POINTS.toLocaleString()} points allowed for memory safety.`);
+                    }
                     console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
                     const pointData = generator.find_random_chaos(findPoints, testPoints, isCubic);
                     
@@ -1325,7 +1342,8 @@
                         testPoints,
                         discardPoints,
                         useAlphabet,
-                        isCubic
+                        isCubic,
+                        plotPoints // Store original plot points for iterative plotting
                     );
 
                     // For basic version, show limited information

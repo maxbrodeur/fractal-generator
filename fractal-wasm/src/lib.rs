@@ -241,6 +241,9 @@ pub struct FractalGenerator {
     rng: ThreadRng,
 }
 
+// Constants for memory management
+const MAX_POINT_GENERATION: usize = 10_000_000; // 10M points maximum for memory safety
+
 #[wasm_bindgen]
 impl FractalGenerator {
     #[wasm_bindgen(constructor)]
@@ -1474,6 +1477,12 @@ impl FractalGenerator {
 
     /// Generate trajectory points for visualization
     fn iterate_map(&self, args1: &[f64], args2: &[f64], n_points: usize, is_cubic: bool) -> Vec<[f64; 2]> {
+        // Safety check: prevent memory allocation issues in WebAssembly
+        if n_points > MAX_POINT_GENERATION {
+            console_log!("⚠️ Point generation limited to {} points for memory safety", MAX_POINT_GENERATION);
+            panic!("Point generation exceeds maximum safe limit of {} points", MAX_POINT_GENERATION);
+        }
+
         let mut x = 0.05;
         let mut y = 0.05;
         let mut points = Vec::with_capacity(n_points);
