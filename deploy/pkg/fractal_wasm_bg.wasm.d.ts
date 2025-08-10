@@ -1,6 +1,14 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_chaoticmapresult_free: (a: number, b: number) => void;
+export const chaoticmapresult_points: (a: number) => [number, number];
+export const chaoticmapresult_x_params: (a: number) => [number, number];
+export const chaoticmapresult_y_params: (a: number) => [number, number];
+export const chaoticmapresult_max_lyapunov: (a: number) => number;
+export const chaoticmapresult_min_lyapunov: (a: number) => number;
+export const chaoticmapresult_fractal_dimension: (a: number) => number;
+export const chaoticmapresult_is_cubic: (a: number) => number;
 export const __wbg_rule_free: (a: number, b: number) => void;
 export const rule_new: (a: number, b: number, c: number) => number;
 export const rule_add: (a: number, b: number) => void;
@@ -13,6 +21,10 @@ export const fractalgenerator_mandelbrot_set: (a: number, b: number, c: number, 
 export const fractalgenerator_julia_set: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => [number, number];
 export const fractalgenerator_burning_ship: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
 export const fractalgenerator_iterations_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+export const fractalgenerator_points_to_density_grid_with_bounds: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
+export const fractalgenerator_merge_density_grids: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const fractalgenerator_density_grid_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+export const fractalgenerator_calculate_point_bounds: (a: number, b: number, c: number) => [number, number];
 export const fractalgenerator_points_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const __wbg_fractalpresets_free: (a: number, b: number) => void;
 export const fractalpresets_sierpinski_triangle: () => any;
@@ -34,7 +46,10 @@ export const fractalpresets_christmas_tree: () => any;
 export const fractalpresets_christmas_tree_probs: () => any;
 export const fractalpresets_maple_leaf: () => any;
 export const fractalpresets_maple_leaf_probs: () => any;
+export const fractalgenerator_find_random_chaos_extended: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
 export const fractalgenerator_find_random_chaos: (a: number, b: number, c: number, d: number) => [number, number];
+export const fractalgenerator_generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+export const fractalgenerator_generate_chaotic_map_batch_to_density: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number];
 export const fractalpresets_vicsek_square_transforms: () => any;
 export const fractalpresets_t_square_transforms: () => any;
 export const fractalpresets_techs_pattern_transforms: () => any;

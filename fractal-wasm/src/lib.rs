@@ -241,6 +241,9 @@ pub struct FractalGenerator {
     rng: ThreadRng,
 }
 
+// Constants for batch processing
+const DEFAULT_BATCH_SIZE: usize = 1_000_000; // 1M points per batch for optimal memory usage
+
 #[wasm_bindgen]
 impl FractalGenerator {
     #[wasm_bindgen(constructor)]
@@ -491,6 +494,150 @@ impl FractalGenerator {
         rgba
     }
     
+    /// Generate density grid from points with explicit bounds
+    #[wasm_bindgen]
+    pub fn points_to_density_grid_with_bounds(
+        &self,
+        points: &[f64],
+        width: usize,
+        height: usize,
+        min_x: f64,
+        max_x: f64,
+        min_y: f64,
+        max_y: f64,
+    ) -> Vec<u32> {
+        if points.len() % 2 != 0 {
+            return vec![0; width * height];
+        }
+        
+        let mut density = vec![0u32; width * height];
+        
+        // Process points in chunks of 2 (x, y pairs)
+        for chunk in points.chunks(2) {
+            let x = chunk[0];
+            let y = chunk[1];
+            
+            let pixel_x = ((x - min_x) / (max_x - min_x) * width as f64) as usize;
+            let pixel_y = ((y - min_y) / (max_y - min_y) * height as f64) as usize;
+            
+            if pixel_x < width && pixel_y < height {
+                density[pixel_y * width + pixel_x] += 1;
+            }
+        }
+        
+        density
+    }
+    
+    /// Merges two density grids by element-wise addition.
+    ///
+    /// Each element in the returned grid is the sum of the corresponding elements in `grid1` and `grid2`.
+    /// If the input grids have different sizes, a warning is logged and `grid1` is returned unchanged.
+    #[wasm_bindgen]
+    pub fn merge_density_grids(&self, grid1: &[u32], grid2: &[u32]) -> Vec<u32> {
+        if grid1.len() != grid2.len() {
+            console_log!(
+                "Warning: density grids have different sizes ({} vs {})",
+                grid1.len(),
+                grid2.len()
+            );
+            return grid1.to_vec();
+        }
+        
+        grid1.iter().zip(grid2.iter()).map(|(a, b)| a + b).collect()
+    }
+    
+    /// Converts a density grid to RGBA pixel data.
+    ///
+    /// This function normalizes the density values in the grid by dividing each value by the maximum density,
+    /// resulting in a linear normalization in the range [0, 1]. To improve visibility of low-density regions,
+    /// a logarithmic mapping is applied using `ln_1p`, which compresses the dynamic range and enhances contrast
+    /// for areas with low density. The normalized and mapped value is then used to select a color from the
+    /// specified color scheme. The output is a flat RGBA array suitable for rendering.
+    ///
+    /// # Arguments
+    /// * `density` - A slice of density values (u32) for each pixel.
+    /// * `width` - The width of the grid.
+    /// * `height` - The height of the grid.
+    /// * `color_scheme` - The color scheme to use for mapping normalized density to color.
+    ///
+    /// # Returns
+    /// A vector of RGBA bytes representing the image.
+    #[wasm_bindgen]
+    pub fn density_grid_to_rgba(
+        &self,
+        density: &[u32],
+        width: usize,
+        height: usize,
+        color_scheme: ColorScheme,
+    ) -> Vec<u8> {
+        if density.len() != width * height {
+            return vec![0; width * height * 4];
+        }
+        
+        // Find max density for normalization
+        let max_density = *density.iter().max().unwrap_or(&1) as f64;
+        
+        // Generate RGBA data
+        let mut rgba = vec![0u8; width * height * 4];
+        
+        for i in 0..density.len() {
+            let normalized = if max_density > 0.0 {
+                let linear_norm = density[i] as f64 / max_density;
+                // Use a softer logarithmic mapping for better visibility
+                if linear_norm > 0.0 {
+                    (linear_norm * 10.0).ln_1p() / 10.0_f64.ln_1p()
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            };
+            
+            let color = self.apply_color_scheme(normalized, color_scheme);
+            
+            rgba[i * 4] = color.0;     // R
+            rgba[i * 4 + 1] = color.1; // G
+            rgba[i * 4 + 2] = color.2; // B
+            rgba[i * 4 + 3] = 255;     // A
+        }
+        
+        rgba
+    }
+    
+    /// Calculate bounds for a set of points
+    #[wasm_bindgen]
+    pub fn calculate_point_bounds(&self, points: &[f64]) -> Vec<f64> {
+        if points.len() < 2 {
+            return vec![0.0, 1.0, 0.0, 1.0]; // default bounds
+        }
+        
+        let mut min_x = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        
+        for chunk in points.chunks(2) {
+            let x = chunk[0];
+            let y = chunk[1];
+            
+            min_x = min_x.min(x);
+            max_x = max_x.max(x);
+            min_y = min_y.min(y);
+            max_y = max_y.max(y);
+        }
+        
+        // Add small padding
+        let padding_x = (max_x - min_x) * 0.1;
+        let padding_y = (max_y - min_y) * 0.1;
+        
+        vec![
+            min_x - padding_x,
+            max_x + padding_x,
+            min_y - padding_y,
+            max_y + padding_y,
+        ]
+    }
+
     /// Generate RGBA pixel data from points with color mapping
     pub fn points_to_rgba(
         &self,
@@ -1393,7 +1540,9 @@ impl FractalGenerator {
 
             if !exclude {
                 // Found a good chaotic map!
-                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                // Use smaller sample for discovery and store parameters for iterative generation
+                let discovery_points = DEFAULT_BATCH_SIZE.min(n_plot);
+                let points = self.iterate_map(&args1, &args2, discovery_points, is_cubic);
                 
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result_points = Vec::with_capacity(points.len() * 2);
@@ -1446,7 +1595,9 @@ impl FractalGenerator {
 
             if !exclude {
                 // Found a good chaotic map!
-                let points = self.iterate_map(&args1, &args2, n_plot, is_cubic);
+                // Use smaller sample for discovery and store parameters for iterative generation
+                let discovery_points = DEFAULT_BATCH_SIZE.min(n_plot);
+                let points = self.iterate_map(&args1, &args2, discovery_points, is_cubic);
                 
                 // Convert to flat array format for points_to_rgba compatibility
                 let mut result = Vec::with_capacity(points.len() * 2);
@@ -1474,5 +1625,64 @@ impl FractalGenerator {
         }
         
         result
+    }
+    
+    /// Generate points from given chaotic map parameters in batches
+    /// Returns density grid that can be merged with other batches
+    #[wasm_bindgen]
+    pub fn generate_chaotic_map_batch_to_density(
+        &self,
+        x_params: &[f64],
+        y_params: &[f64],
+        n_points: usize,
+        is_cubic: bool,
+        width: usize,
+        height: usize,
+        min_x: f64,
+        max_x: f64,
+        min_y: f64,
+        max_y: f64,
+        start_iteration: usize,
+    ) -> Vec<u32> {
+        // Generate points using the same iteration logic but starting from a specific iteration
+        let mut x = 0.05;
+        let mut y = 0.05;
+        
+        // Advance to the starting iteration (skip iterations to maintain continuity)
+        for _ in 0..start_iteration {
+            let (xp, yp) = (x, y);
+            if is_cubic {
+                x = self.f_cubic(x_params, xp, yp);
+                y = self.f_cubic(y_params, xp, yp);
+            } else {
+                x = self.f_quadratic(x_params, xp, yp);
+                y = self.f_quadratic(y_params, xp, yp);
+            }
+        }
+        
+        // Create density grid
+        let mut density = vec![0u32; width * height];
+        
+        // Generate the batch of points and directly add to density grid
+        for _ in 0..n_points {
+            let (xp, yp) = (x, y);
+            if is_cubic {
+                x = self.f_cubic(x_params, xp, yp);
+                y = self.f_cubic(y_params, xp, yp);
+            } else {
+                x = self.f_quadratic(x_params, xp, yp);
+                y = self.f_quadratic(y_params, xp, yp);
+            }
+            
+            // Add point to density grid
+            let pixel_x = ((x - min_x) / (max_x - min_x) * width as f64) as usize;
+            let pixel_y = ((y - min_y) / (max_y - min_y) * height as f64) as usize;
+            
+            if pixel_x < width && pixel_y < height {
+                density[pixel_y * width + pixel_x] += 1;
+            }
+        }
+        
+        density
     }
 }
