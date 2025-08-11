@@ -382,7 +382,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.7);
             z-index: 10;
         }
         
@@ -1256,6 +1256,9 @@
             }
             
             elements.overlay.style.display = 'flex';
+            
+            // Force repaint by accessing offsetHeight
+            elements.progressBar.offsetHeight;
         }
 
         function hideOverlay() {
@@ -1469,11 +1472,16 @@
             try {
                 // Check if parameters have been edited and apply them automatically
                 const editedParams = getEditedParameters();
-                if (editedParams) {
+                if (editedParams && editedParams.xParams && editedParams.xParams.length > 0 && 
+                    editedParams.yParams && editedParams.yParams.length > 0 &&
+                    editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
+                    editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
                     console.log('🔄 Applying edited parameters automatically...');
                     // Update stored map with edited parameters
                     storedChaoticMap.xParams = editedParams.xParams;
                     storedChaoticMap.yParams = editedParams.yParams;
+                } else {
+                    console.log('🔄 No valid edited parameters found, using stored parameters');
                 }
 
                 const canvasSize = parseInt(elements.canvasSize.value);
@@ -3012,11 +3020,33 @@
             setLoading(true);
             
             try {
-                const { xParams, yParams } = getEditedParameters();
+                // Get parameters - use edited ones if available, otherwise stored coefficients
+                let xParams, yParams;
+                const editedParams = getEditedParameters();
+                
+                // Validate edited parameters - use stored coefficients as fallback
+                if (editedParams.xParams && editedParams.xParams.length > 0 && 
+                    editedParams.yParams && editedParams.yParams.length > 0 &&
+                    editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
+                    editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    xParams = editedParams.xParams;
+                    yParams = editedParams.yParams;
+                    console.log('🔄 Using edited parameters for plotting');
+                } else if (storedChaoticMap.coefficients && 
+                          storedChaoticMap.coefficients.x_params && 
+                          storedChaoticMap.coefficients.y_params) {
+                    xParams = storedChaoticMap.coefficients.x_params;
+                    yParams = storedChaoticMap.coefficients.y_params;
+                    console.log('🔄 Using stored coefficients for plotting');
+                } else {
+                    throw new Error('No valid parameters available for plotting');
+                }
+                
                 const batchSize = parseInt(elements.chaosBatchSize.value);
                 const isCubic = storedChaoticMap.isCubic;
                 
                 console.log(`🔄 Iterative plotting: ${requestedPoints.toLocaleString()} points in batches of ${batchSize.toLocaleString()}`);
+                console.log(`🔄 Parameters: x[${xParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...], y[${yParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...]`);
                 
                 // Calculate bounds from a sample of points first
                 const samplePoints = Math.min(batchSize, requestedPoints);
@@ -3071,14 +3101,16 @@
                     
                     batchCount++;
                     const progress = Math.round((processedPoints / requestedPoints) * 100);
-                    showOverlayWithProgress(
-                        `Processing batch ${batchCount}...`, 
-                        progress, 
-                        `${progress}% complete (${processedPoints.toLocaleString()}/${requestedPoints.toLocaleString()} points)`
-                    );
+                    
+                    // Update progress with batch info for better user feedback
+                    const totalBatches = Math.ceil(requestedPoints / batchSize);
+                    const progressMessage = `Processing batch ${batchCount}/${totalBatches}...`;
+                    const progressDetail = `${progress}% complete (${processedPoints.toLocaleString()}/${requestedPoints.toLocaleString()} points)`;
+                    
+                    showOverlayWithProgress(progressMessage, progress, progressDetail);
                     
                     // Generate batch density grid
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         try {
                             const batchDensity = generator.generate_chaotic_map_batch_to_density(
                                 xParams, yParams, currentBatchSize, isCubic,
@@ -3091,12 +3123,15 @@
                             processedPoints += currentBatchSize;
                             
                             // Show intermediate result periodically for visual feedback
-                            if (batchCount > 1 && batchCount % 3 === 0) {
+                            if (batchCount > 1 && batchCount % 2 === 0) {
                                 const intermediateResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
                                 const ctx = elements.canvas.getContext('2d');
                                 const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
                                 ctx.putImageData(imageData, 0, 0);
                             }
+                            
+                            // Small delay to allow UI update before next batch
+                            await new Promise(resolve => setTimeout(resolve, 10));
                             
                             // Process next batch
                             processBatch();
@@ -3124,7 +3159,18 @@
         function regenerateWithCustomParametersIterative() {
             if (!currentChaoticMapData || !generator) return;
             
-            const { xParams, yParams } = getEditedParameters();
+            const editedParams = getEditedParameters();
+            
+            // Validate parameters
+            if (!editedParams.xParams || !editedParams.yParams || 
+                editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                showNotification('Invalid parameters. Please check that all parameter fields contain valid numbers.', 'error');
+                return;
+            }
+            
+            const { xParams, yParams } = editedParams;
             const totalPoints = parseInt(elements.chaosPlotPoints.value);
             const batchSize = parseInt(elements.chaosBatchSize.value);
             const iterativeMode = elements.chaosIterativeMode.checked;
@@ -3197,11 +3243,13 @@
                     
                     batchCount++;
                     const progress = Math.round((processedPoints / totalPoints) * 100);
-                    showOverlayWithProgress(
-                        `Processing batch ${batchCount}...`, 
-                        progress, 
-                        `${progress}% complete (${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`
-                    );
+                    
+                    // Update progress with batch info for better user feedback
+                    const totalBatches = Math.ceil(totalPoints / batchSize);
+                    const progressMessage = `Processing batch ${batchCount}/${totalBatches}...`;
+                    const progressDetail = `${progress}% complete (${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`;
+                    
+                    showOverlayWithProgress(progressMessage, progress, progressDetail);
                     
                     // Generate batch density grid
                     setTimeout(() => {
@@ -3251,7 +3299,18 @@
         function regenerateWithCustomParameters() {
             if (!currentChaoticMapData || !generator) return;
             
-            const { xParams, yParams } = getEditedParameters();
+            const editedParams = getEditedParameters();
+            
+            // Validate parameters
+            if (!editedParams.xParams || !editedParams.yParams || 
+                editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                showNotification('Invalid parameters. Please check that all parameter fields contain valid numbers.', 'error');
+                return;
+            }
+            
+            const { xParams, yParams } = editedParams;
             const plotPoints = parseInt(elements.chaosPlotPoints.value);
             const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
             const canvasHeight = Math.round(canvasWidth / getAspectRatio());
@@ -3316,7 +3375,18 @@
         // Copy all parameters to clipboard
         async function copyParametersToClipboard() {
             try {
-                const { xParams, yParams } = getEditedParameters();
+                const editedParams = getEditedParameters();
+                
+                // Validate parameters
+                if (!editedParams.xParams || !editedParams.yParams || 
+                    editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                    !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                    !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    showNotification('Invalid parameters. Cannot copy invalid parameter values.', 'error');
+                    return;
+                }
+                
+                const { xParams, yParams } = editedParams;
                 const parametersData = {
                     xParams: xParams,
                     yParams: yParams,
