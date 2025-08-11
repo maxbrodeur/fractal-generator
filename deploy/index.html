@@ -1228,6 +1228,17 @@
         }
         
         function showOverlayWithProgress(message = 'Processing...', progress = 0, progressText = '') {
+            // Input validation
+            if (typeof message !== 'string') {
+                message = String(message ?? '');
+            }
+            if (typeof progress !== 'number' || isNaN(progress)) {
+                progress = 0;
+            }
+            progress = Math.max(0, Math.min(100, progress));
+            if (typeof progressText !== 'string') {
+                progressText = String(progressText ?? '');
+            }
             const isMobile = window.innerWidth <= 768;
             elements.overlayText.textContent = message;
             elements.overlayText.style.fontSize = isMobile ? '1.1rem' : '1rem';
