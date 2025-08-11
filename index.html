@@ -1246,7 +1246,7 @@
             
             // Show and update progress bar
             elements.progressBarContainer.style.display = 'block';
-            elements.progressBar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+            elements.progressBar.style.width = `${clampProgress(progress)}%`;
             
             if (progressText) {
                 elements.progressText.textContent = progressText;
