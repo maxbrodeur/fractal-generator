@@ -109,6 +109,17 @@ export class FractalGenerator {
    */
   density_grid_to_rgba(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme): Uint8Array;
   /**
+   * Variant with selectable scaling mode for density mapping.
+   * scale_mode:
+   * 0 = soft log (current default: ln_1p(linear_norm * 10)/ln_1p(10))
+   * 1 = pure log: ln_1p(density)/ln_1p(max_density)
+   * 2 = linear: density/max_density
+   * 3 = sqrt(linear_norm)
+   * 4 = gamma 0.5 (sqrt) alias
+   * 5 = gamma 0.25 (4th root)
+   */
+  density_grid_to_rgba_scaled(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme, scale_mode: number): Uint8Array;
+  /**
    * Calculate bounds for a set of points
    */
   calculate_point_bounds(points: Float64Array): Float64Array;
@@ -276,6 +287,7 @@ export interface InitOutput {
   readonly fractalgenerator_points_to_density_grid_with_bounds: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
   readonly fractalgenerator_merge_density_grids: (a: number, b: number, c: number, d: number, e: number) => [number, number];
   readonly fractalgenerator_density_grid_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+  readonly fractalgenerator_density_grid_to_rgba_scaled: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly fractalgenerator_calculate_point_bounds: (a: number, b: number, c: number) => [number, number];
   readonly fractalgenerator_points_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly __wbg_fractalpresets_free: (a: number, b: number) => void;

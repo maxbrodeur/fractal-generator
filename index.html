@@ -868,6 +868,17 @@
                         <option value="23">White Magma</option>
                     </select>
                 </div>
+                <div class="control-group">
+                    <label>Density Scale</label>
+                    <select id="densityScaleMode">
+                        <option value="0" selected>Soft Log (Default)</option>
+                        <option value="1">Pure Log</option>
+                        <option value="2">Linear</option>
+                        <option value="3">Sqrt</option>
+                        <option value="5">4th Root</option>
+                    </select>
+                    <small>Adjust mapping of density to color intensity</small>
+                </div>
                 
                 <div class="control-group">
                     <label>Background Color</label>
@@ -3420,7 +3431,8 @@
                         console.log(`📊 Final density stats: max=${maxDensity}, min=${minDensity}, nonZero=${nonZeroCount}/${accumulatedDensity.length}, total=${totalPoints}`);
                         
                         // All batches complete - generate final image
-                        const result = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                        const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                        const result = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
                         
                         console.log(`🎨 Generated final result: length=${result.length}, expected=${canvasWidth * canvasHeight * 4}`);
                         
@@ -3515,7 +3527,8 @@
                             
                             // Update canvas after each batch completion with background for clarity
                             const ctx = elements.canvas.getContext('2d');
-                            const currentResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                            const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                            const currentResult = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
                             const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
                             const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
                             ctx.putImageData(bgImageData, 0, 0);
@@ -3571,7 +3584,8 @@
                             
                             // Show intermediate result periodically for visual feedback (without background color changes)
                             if (batchCount > 1 && batchCount % 2 === 0) {
-                                const intermediateResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                                const intermediateResult = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
                                 const ctx = elements.canvas.getContext('2d');
                                 const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
                                 const bgIntermediate = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
@@ -3599,7 +3613,8 @@
                                 console.log(`📊 Final density stats: max=${maxDensity}, min=${minDensity}, nonZero=${nonZeroCount}/${accumulatedDensity.length}, total=${totalPoints}`);
                                 
                                 // Generate final image
-                                const result = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                                const result = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
                                 
                                 console.log(`🎨 Generated final result: length=${result.length}, expected=${canvasWidth * canvasHeight * 4}`);
                                 
@@ -3887,9 +3902,10 @@
             try {
                 const newScheme = parseInt(elements.colorScheme.value);
                 const bgColor = elements.backgroundColor.value;
+                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
                 const w = currentFractal.width;
                 const h = currentFractal.height;
-                const rgba = generator.density_grid_to_rgba(lastAccumulatedDensity, w, h, newScheme);
+                const rgba = generator.density_grid_to_rgba_scaled(lastAccumulatedDensity, w, h, newScheme, scaleMode);
                 const ctx = elements.canvas.getContext('2d');
                 const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
                 const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
@@ -3909,6 +3925,12 @@
         elements.backgroundColor.addEventListener('input', () => {
             recolorCurrentFractal();
         });
+        const densityScaleSelect = document.getElementById('densityScaleMode');
+        if (densityScaleSelect) {
+            densityScaleSelect.addEventListener('change', () => {
+                recolorCurrentFractal();
+            });
+        }
         const noBg = document.getElementById('noBackgroundColor');
         if (noBg) {
             noBg.addEventListener('change', () => {

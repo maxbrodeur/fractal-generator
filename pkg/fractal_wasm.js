@@ -489,6 +489,30 @@ export class FractalGenerator {
         return v2;
     }
     /**
+     * Variant with selectable scaling mode for density mapping.
+     * scale_mode:
+     * 0 = soft log (current default: ln_1p(linear_norm * 10)/ln_1p(10))
+     * 1 = pure log: ln_1p(density)/ln_1p(max_density)
+     * 2 = linear: density/max_density
+     * 3 = sqrt(linear_norm)
+     * 4 = gamma 0.5 (sqrt) alias
+     * 5 = gamma 0.25 (4th root)
+     * @param {Uint32Array} density
+     * @param {number} width
+     * @param {number} height
+     * @param {ColorScheme} color_scheme
+     * @param {number} scale_mode
+     * @returns {Uint8Array}
+     */
+    density_grid_to_rgba_scaled(density, width, height, color_scheme, scale_mode) {
+        const ptr0 = passArray32ToWasm0(density, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_density_grid_to_rgba_scaled(this.__wbg_ptr, ptr0, len0, width, height, color_scheme, scale_mode);
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
      * Calculate bounds for a set of points
      * @param {Float64Array} points
      * @returns {Float64Array}

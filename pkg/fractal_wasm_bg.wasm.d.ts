@@ -24,6 +24,7 @@ export const fractalgenerator_iterations_to_rgba: (a: number, b: number, c: numb
 export const fractalgenerator_points_to_density_grid_with_bounds: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
 export const fractalgenerator_merge_density_grids: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const fractalgenerator_density_grid_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+export const fractalgenerator_density_grid_to_rgba_scaled: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
 export const fractalgenerator_calculate_point_bounds: (a: number, b: number, c: number) => [number, number];
 export const fractalgenerator_points_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const __wbg_fractalpresets_free: (a: number, b: number) => void;
