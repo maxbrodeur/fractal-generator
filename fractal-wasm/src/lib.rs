@@ -233,6 +233,23 @@ pub enum ColorScheme {
     ColorWheel,
     GnuPlot,
     Bmy,
+    Plasma,
+    Inferno,
+    Viridis,
+    Neon,
+    Pastel,
+    Magma,
+    Cividis,
+    Gray,
+    Cubehelix,
+    BlueOrange,
+    Heat,
+    Ice,
+    WhiteFire,
+    WhiteHeat,
+    WhiteBlue,
+    WhiteViridis,
+    WhiteMagma,
 }
 
 /// Main fractal generator struct
@@ -603,6 +620,59 @@ impl FractalGenerator {
         
         rgba
     }
+
+    /// Variant with selectable scaling mode for density mapping.
+    /// scale_mode:
+    /// 0 = soft log (current default: ln_1p(linear_norm * 10)/ln_1p(10))
+    /// 1 = pure log: ln_1p(density)/ln_1p(max_density)
+    /// 2 = linear: density/max_density
+    /// 3 = sqrt(linear_norm)
+    /// 4 = gamma 0.5 (sqrt) alias
+    /// 5 = gamma 0.25 (4th root)
+    #[wasm_bindgen]
+    pub fn density_grid_to_rgba_scaled(
+        &self,
+        density: &[u32],
+        width: usize,
+        height: usize,
+        color_scheme: ColorScheme,
+        scale_mode: u32,
+    ) -> Vec<u8> {
+        if density.len() != width * height {
+            return vec![0; width * height * 4];
+        }
+
+        let max_density_val = *density.iter().max().unwrap_or(&1) as f64;
+        let mut rgba = vec![0u8; width * height * 4];
+        if max_density_val <= 0.0 {
+            return rgba; // all zeros
+        }
+
+        for i in 0..density.len() {
+            let d = density[i] as f64;
+            let linear_norm = d / max_density_val;
+            let mapped = match scale_mode {
+                1 => { // pure log
+                    if d > 0.0 { d.ln_1p() / max_density_val.ln_1p() } else { 0.0 }
+                }
+                2 => linear_norm, // linear
+                3 | 4 => linear_norm.sqrt(), // sqrt variants
+                5 => linear_norm.powf(0.25), // 4th root
+                _ => { // soft log (default)
+                    if linear_norm > 0.0 {
+                        (linear_norm * 10.0).ln_1p() / 10.0_f64.ln_1p()
+                    } else { 0.0 }
+                }
+            };
+            let color = self.apply_color_scheme(mapped, color_scheme);
+            let base = i * 4;
+            rgba[base] = color.0;
+            rgba[base + 1] = color.1;
+            rgba[base + 2] = color.2;
+            rgba[base + 3] = 255;
+        }
+        rgba
+    }
     
     /// Calculate bounds for a set of points
     #[wasm_bindgen]
@@ -824,6 +894,23 @@ impl FractalGenerator {
             ColorScheme::ColorWheel => self.colorwheel_colormap(clamped),
             ColorScheme::GnuPlot => self.gnuplot_colormap(clamped),
             ColorScheme::Bmy => self.bmy_colormap(clamped),
+            ColorScheme::Plasma => self.plasma_colormap(clamped),
+            ColorScheme::Inferno => self.inferno_colormap(clamped),
+            ColorScheme::Viridis => self.viridis_colormap(clamped),
+            ColorScheme::Neon => self.neon_colormap(clamped),
+            ColorScheme::Pastel => self.pastel_colormap(clamped),
+            ColorScheme::Magma => self.magma_colormap(clamped),
+            ColorScheme::Cividis => self.cividis_colormap(clamped),
+            ColorScheme::Gray => self.gray_colormap(clamped),
+            ColorScheme::Cubehelix => self.cubehelix_colormap(clamped),
+            ColorScheme::BlueOrange => self.blueorange_colormap(clamped),
+            ColorScheme::Heat => self.heat_colormap(clamped),
+            ColorScheme::Ice => self.ice_colormap(clamped),
+            ColorScheme::WhiteFire => self.white_fire_colormap(clamped),
+            ColorScheme::WhiteHeat => self.white_heat_colormap(clamped),
+            ColorScheme::WhiteBlue => self.white_blue_colormap(clamped),
+            ColorScheme::WhiteViridis => self.white_viridis_colormap(clamped),
+            ColorScheme::WhiteMagma => self.white_magma_colormap(clamped),
         }
     }
     
@@ -902,6 +989,161 @@ impl FractalGenerator {
             let scaled = (t - 0.67) * 3.0;
             (255, (255.0 * (1.0 - scaled)) as u8, 0)
         }
+    }
+
+    // ----- NEW BRIGHT / MODERN COLOR MAPS -----
+    // Helper to interpolate along gradient stops
+    fn gradient_color(&self, t: f64, stops: &[(u8, u8, u8)]) -> (u8, u8, u8) {
+        if stops.is_empty() { return (0,0,0); }
+        if stops.len() == 1 { return stops[0]; }
+        let n = stops.len();
+        let scaled = t.clamp(0.0, 1.0) * (n as f64 - 1.0);
+        let idx = scaled.floor() as usize;
+        if idx >= n - 1 { return stops[n-1]; }
+        let frac = scaled - idx as f64;
+        let (r1,g1,b1) = stops[idx];
+        let (r2,g2,b2) = stops[idx+1];
+        let lerp = |a:u8,b:u8| -> u8 { (a as f64 + (b as f64 - a as f64)*frac).round() as u8 };
+        (lerp(r1,r2), lerp(g1,g2), lerp(b1,b2))
+    }
+
+    fn plasma_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // Approximate Matplotlib plasma
+        const STOPS: &[(u8,u8,u8)] = &[
+            (13,8,135), (106,0,168), (177,42,144), (225,100,98), (252,166,54), (240,249,33)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn inferno_colormap(&self, t: f64) -> (u8,u8,u8) {
+        const STOPS: &[(u8,u8,u8)] = &[
+            (0,0,4), (27,12,65), (74,12,107), (120,28,109), (165,44,96), (207,68,70),
+            (237,105,37), (251,155,6), (247,209,61), (252,255,164)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn viridis_colormap(&self, t: f64) -> (u8,u8,u8) {
+        const STOPS: &[(u8,u8,u8)] = &[
+            (68,1,84), (65,68,135), (42,120,142), (34,168,132), (122,209,81), (253,231,37)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn neon_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // High-contrast rainbow styled for bright output
+        const STOPS: &[(u8,u8,u8)] = &[
+            (255,0,255), (255,0,128), (255,0,0), (255,128,0), (255,255,0), (128,255,0),
+            (0,255,0), (0,255,128), (0,255,255), (0,128,255), (0,0,255)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn pastel_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // Soft muted tones for printable background-friendly images
+        const STOPS: &[(u8,u8,u8)] = &[
+            (248,232,244), (229,213,245), (208,229,245), (208,245,229), (245,243,208), (245,208,208)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn magma_colormap(&self, t: f64) -> (u8,u8,u8) {
+        const STOPS: &[(u8,u8,u8)] = &[
+            (0,0,4), (28,16,68), (79,18,123), (129,37,129), (181,54,122), (229,80,100), (252,126,74), (252,179,50), (245,233,191)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn cividis_colormap(&self, t: f64) -> (u8,u8,u8) {
+        const STOPS: &[(u8,u8,u8)] = &[
+            (0,32,76), (24,52,101), (42,73,123), (60,94,137), (81,117,142), (104,140,141), (130,164,135), (162,189,119), (198,216,87), (236,243,33)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn gray_colormap(&self, t: f64) -> (u8,u8,u8) {
+        let v = (t * 255.0).round() as u8;
+        (v,v,v)
+    }
+
+    fn cubehelix_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // Basic cubehelix implementation
+        let a = 0.5; // amplitude
+        let b = -1.5 + 2.0 * t; // rotation
+        let phi = 2.0 * PI * (b / 3.0);
+        let t2 = t * (1.0 - t);
+        let r = (255.0 * (t + a * t2 * (-0.14861 * phi.cos() + 1.78277 * phi.sin()))).clamp(0.0,255.0) as u8;
+        let g = (255.0 * (t + a * t2 * (-0.29227 * phi.cos() - 0.90649 * phi.sin()))).clamp(0.0,255.0) as u8;
+        let bch = (255.0 * (t + a * t2 * (1.97294 * phi.cos()))).clamp(0.0,255.0) as u8;
+        (r,g,bch)
+    }
+
+    fn blueorange_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // Diverging: deep blue -> white -> orange
+        const STOPS: &[(u8,u8,u8)] = &[
+            (0,32,96), (32,96,160), (128,192,224), (224,224,224), (255,192,128), (240,128,32), (192,64,0)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn heat_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // Black -> red -> yellow -> white
+        if t < 0.33 {
+            let f = t / 0.33; ( (255.0*f) as u8, 0, 0 )
+        } else if t < 0.66 {
+            let f = (t-0.33)/0.33; (255, (255.0*f) as u8, 0)
+        } else {
+            let f = (t-0.66)/0.34; (255,255,(255.0*f) as u8)
+        }
+    }
+
+    fn ice_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // Dark teal -> cyan -> very light blue/white
+        const STOPS: &[(u8,u8,u8)] = &[
+            (0,32,48), (0,64,96), (0,128,160), (64,192,224), (160,224,240), (230,247,255)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    // ---- White-zero variants ----
+    fn white_fire_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // White -> yellow -> orange -> red -> dark maroon
+        const STOPS: &[(u8,u8,u8)] = &[
+            (255,255,255), (255,255,210), (255,220,120), (255,140,0), (200,40,0), (60,0,0)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn white_heat_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // White -> pale yellow -> gold -> dark red -> near black
+        const STOPS: &[(u8,u8,u8)] = &[
+            (255,255,255), (255,248,200), (255,220,80), (230,120,0), (120,20,0), (10,0,0)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn white_blue_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // White -> very light blue -> sky -> royal -> navy -> almost black
+        const STOPS: &[(u8,u8,u8)] = &[
+            (255,255,255), (220,240,255), (170,210,255), (100,150,240), (40,80,180), (10,25,60)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn white_viridis_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // White -> light yellow-green -> viridis mid -> dark purple
+        const STOPS: &[(u8,u8,u8)] = &[
+            (255,255,255), (232,245,180), (188,223,130), (120,190,110), (38,130,142), (68,1,84)
+        ];
+        self.gradient_color(t, STOPS)
+    }
+
+    fn white_magma_colormap(&self, t: f64) -> (u8,u8,u8) {
+        // White -> light peach -> orange -> magenta -> deep purple -> black
+        const STOPS: &[(u8,u8,u8)] = &[
+            (255,255,255), (252,230,210), (247,180,120), (220,100,80), (150,40,120), (40,0,40), (0,0,0)
+        ];
+        self.gradient_color(t, STOPS)
     }
 }
 
@@ -1685,4 +1927,127 @@ impl FractalGenerator {
         
         density
     }
+
+    /// Generate points from given chaotic map parameters in batches with state continuity
+    /// Returns density grid and final state for efficient batch processing
+    #[wasm_bindgen]
+    pub fn generate_chaotic_map_batch_with_state(
+        &self,
+        x_params: &[f64],
+        y_params: &[f64],
+        n_points: usize,
+        is_cubic: bool,
+        width: usize,
+        height: usize,
+        min_x: f64,
+        max_x: f64,
+        min_y: f64,
+        max_y: f64,
+        start_x: f64,
+        start_y: f64,
+    ) -> Vec<f64> {
+        // Start from the provided state
+        let mut x = start_x;
+        let mut y = start_y;
+        
+        // Create density grid
+        let mut density = vec![0u32; width * height];
+        
+        // Track actual bounds encountered for debugging
+        let mut actual_min_x = x;
+        let mut actual_max_x = x;
+        let mut actual_min_y = y;
+        let mut actual_max_y = y;
+        let mut points_outside_bounds = 0;
+        
+        // Generate the batch of points and directly add to density grid
+        for _ in 0..n_points {
+            let (xp, yp) = (x, y);
+            if is_cubic {
+                x = self.f_cubic(x_params, xp, yp);
+                y = self.f_cubic(y_params, xp, yp);
+            } else {
+                x = self.f_quadratic(x_params, xp, yp);
+                y = self.f_quadratic(y_params, xp, yp);
+            }
+            
+            // Update actual bounds encountered
+            actual_min_x = actual_min_x.min(x);
+            actual_max_x = actual_max_x.max(x);
+            actual_min_y = actual_min_y.min(y);
+            actual_max_y = actual_max_y.max(y);
+            
+            // Add point to density grid if within bounds
+            if x >= min_x && x <= max_x && y >= min_y && y <= max_y {
+                let pixel_x = ((x - min_x) / (max_x - min_x) * width as f64) as usize;
+                let pixel_y = ((y - min_y) / (max_y - min_y) * height as f64) as usize;
+                
+                if pixel_x < width && pixel_y < height {
+                    density[pixel_y * width + pixel_x] += 1;
+                }
+            } else {
+                points_outside_bounds += 1;
+            }
+        }
+        
+        // Log bounds information for debugging
+        if points_outside_bounds > 0 {
+            console_log!(
+                "Batch bounds info: {} points outside bounds. Actual range: x[{:.3}, {:.3}], y[{:.3}, {:.3}] vs bounds x[{:.3}, {:.3}], y[{:.3}, {:.3}]",
+                points_outside_bounds, actual_min_x, actual_max_x, actual_min_y, actual_max_y, min_x, max_x, min_y, max_y
+            );
+        }
+        
+        // Return both density grid (as f64) and final state
+        let mut result = Vec::with_capacity(density.len() + 6);
+        
+        // First two elements are the final x, y state
+        result.push(x);
+        result.push(y);
+        
+        // Next four elements are the actual bounds encountered
+        result.push(actual_min_x);
+        result.push(actual_max_x);
+        result.push(actual_min_y);
+        result.push(actual_max_y);
+        
+        // Rest are the density values converted to f64
+        for d in density {
+            result.push(d as f64);
+        }
+        
+        result
+    }
+}
+
+/// Standalone function to generate chaotic map points
+/// This is called from JavaScript as generator.generate_chaotic_map_points()
+#[wasm_bindgen]
+pub fn generate_chaotic_map_points(chaos_type: &str, params: Vec<f64>, n_points: usize, discard_points: usize) -> Vec<f64> {
+    let generator = FractalGenerator::new();
+    
+    // Determine if it's cubic based on parameter count
+    let is_cubic = params.len() > 6;
+    
+    // Split parameters into x and y components
+    let param_count = if is_cubic { 10 } else { 6 };
+    if params.len() != param_count * 2 {
+        console_log!("Error: Invalid parameter count for {}: expected {}, got {}", chaos_type, param_count * 2, params.len());
+        return Vec::new();
+    }
+    
+    let x_params = &params[0..param_count];
+    let y_params = &params[param_count..];
+    
+    // Generate points
+    let points = generator.iterate_map(x_params, y_params, n_points + discard_points, is_cubic);
+    
+    // Discard initial points and flatten the result
+    let mut result = Vec::with_capacity((n_points) * 2);
+    for point in points.iter().skip(discard_points) {
+        result.push(point[0]);
+        result.push(point[1]);
+    }
+    
+    result
 }
