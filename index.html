@@ -825,6 +825,8 @@
                         <option value="2048" selected>2048x2048 (2K)</option>
                         <option value="4096">4096x4096 (4K)</option>
                         <option value="8192">8192x8192 (8K)</option>
+                        <option value="16384">16384x16384 (16K)</option>
+                        <option value="32768">32768x32768 (32K)</option>
                     </select>
                 </div>
                 
@@ -847,13 +849,35 @@
                         <option value="4">Color Wheel</option>
                         <option value="5">GNU Plot</option>
                         <option value="6">BMY</option>
+                        <option value="7">Plasma</option>
+                        <option value="8">Inferno</option>
+                        <option value="9">Viridis</option>
+                        <option value="10">Neon</option>
+                        <option value="11">Pastel</option>
+                        <option value="12">Magma</option>
+                        <option value="13">Cividis</option>
+                        <option value="14">Gray</option>
+                        <option value="15">Cubehelix</option>
+                        <option value="16">Blue-Orange</option>
+                        <option value="17">Heat</option>
+                        <option value="18">Ice</option>
+                        <option value="19">White Fire</option>
+                        <option value="20">White Heat</option>
+                        <option value="21">White Blue</option>
+                        <option value="22">White Viridis</option>
+                        <option value="23">White Magma</option>
                     </select>
                 </div>
                 
                 <div class="control-group">
                     <label>Background Color</label>
-                    <input type="color" id="backgroundColor" value="#000000">
-                    <small>Color for zero-value (background) pixels</small>
+                    <div style="display:flex; gap:4px; align-items:center;">
+                        <input type="color" id="backgroundColor" value="#000000" style="flex:1;">
+                        <label style="display:flex; gap:4px; align-items:center; font-size:0.7rem;">
+                            <input type="checkbox" id="noBackgroundColor"> None
+                        </label>
+                    </div>
+                    <small>Choose a color or check None to use raw colormap background</small>
                 </div>
             </div>
             
@@ -1092,7 +1116,9 @@
         let generator = null;
         let isLoading = false;
     let currentFractal = null;
+    let lastAccumulatedDensity = null; // cached density for dynamic recolor
     let abortRequested = false; // Abort flag for iterative batch processing
+    let activeGenerationToken = 0; // Monotonically increasing token to cancel previous runs
         
         // Chaotic map state for separate generation and plotting
         let storedChaoticMap = null;
@@ -1661,6 +1687,9 @@
 
         // Generate and plot chaotic map (original behavior)
         async function generateAndPlotChaoticMap() {
+            // Abort any in-progress iterative plotting
+            abortRequested = true;
+            activeGenerationToken++;
             await generateChaoticMapOnly();
             if (storedChaoticMap) {
                 await plotStoredChaoticMap();
@@ -1670,6 +1699,9 @@
         // Fractal Generation with enhanced error handling and logging
         async function generateFractal() {
             if (isLoading) return;
+            // Signal abort to any running iterative process
+            abortRequested = true;
+            activeGenerationToken++;
             
             // Enhanced pre-flight checks
             if (!generator) {
@@ -1694,7 +1726,7 @@
             const paramValidation = {
                 iterations: iterations > 0 && iterations <= 10000000,
                 canvasSize: canvasSize > 0 && canvasSize <= 8192,
-                colorScheme: colorScheme >= 0 && colorScheme <= 6
+                colorScheme: colorScheme >= 0 && colorScheme <= 23
             };
             
             const invalidParams = Object.entries(paramValidation)
@@ -3192,7 +3224,7 @@
             const b = parseInt(hex.substring(4, 6), 16);
             
             // Map numeric colorScheme to scheme name
-            const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY'];
+            const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
             const schemeName = schemeNames[colorScheme] || 'Fire';
             
             console.log(`🎨 Applying background color: ${backgroundColor} -> RGB(${r}, ${g}, ${b}) for ${schemeName} scheme`);
@@ -3205,12 +3237,34 @@
                 'Prism': [255, 0, 0],        // Red (sector 0, fraction 0)
                 'ColorWheel': [255, 127, 127], // cos(0)=1, sin(0)=0, cos(π/2)=0 -> 255,127,127
                 'Gnuplot': [0, 0, 255],      // Blue
-                'BMY': [0, 0, 255]           // Blue (t < 0.33 with scaled=0)
+                'BMY': [0, 0, 255],          // Blue (t < 0.33 with scaled=0)
+                'Plasma': [13, 8, 135],
+                'Inferno': [0, 0, 4],
+                'Viridis': [68, 1, 84],
+                'Neon': [255, 0, 255],
+                'Pastel': [248, 232, 244],
+                'Magma': [0,0,4],
+                'Cividis': [0,32,76],
+                'Gray': [0,0,0],
+                'Cubehelix': [0,0,0],
+                'BlueOrange': [0,32,96],
+                'Heat': [0,0,0],
+                'Ice': [0,32,48]
+                ,'WhiteFire': [255,255,255]
+                ,'WhiteHeat': [255,255,255]
+                ,'WhiteBlue': [255,255,255]
+                ,'WhiteViridis': [255,255,255]
+                ,'WhiteMagma': [255,255,255]
             };
             
             const targetColor = backgroundColors[schemeName] || [0, 0, 0]; // Default to black
             console.log(`🎯 Targeting background color for ${schemeName}: RGB(${targetColor})`);
             
+            // If "no background" option is enabled, skip recoloring
+            if (document.getElementById('noBackgroundColor')?.checked) {
+                return imageData; // leave original colormap background
+            }
+
             let pixelsChanged = 0;
             
             // Apply background color to pixels matching the colormap's zero-density color
@@ -3235,6 +3289,10 @@
         // Iterative plotting function with progress bars
         async function plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme) {
             console.log('🔄 plotChaoticMapIterative called with:', { requestedPoints, canvasWidth, canvasHeight, colorScheme });
+            // Capture a new token for this run
+            const runToken = ++activeGenerationToken;
+            // Ensure any previous loop sees abortRequested
+            abortRequested = false; // reset after increment to allow this run
             console.log('🔄 Global state check:', { 
                 storedChaoticMap: !!storedChaoticMap, 
                 generator: !!generator,
@@ -3317,6 +3375,11 @@
                 console.log(`🎯 Convergence mode: ${convergenceMode ? 'ON' : 'OFF'}${convergenceMode ? ` (rel<th ${(relativeGrowthThreshold*100).toFixed(3)}%, abs<th ${absoluteGrowthThreshold} px, min batches ${minBatchesBeforeConvergence}, stagnant ${requiredConsecutiveStagnant})` : ''}`);
                 
                 // Reset abort state and show abort button
+                // If a newer generation started, stop immediately
+                if (runToken !== activeGenerationToken) {
+                    console.log('⛔ Stale run detected before start; aborting.');
+                    return;
+                }
                 abortRequested = false;
                 const abortEl = document.getElementById('abortBatchesBtn');
                 if (abortEl) {
@@ -3338,6 +3401,11 @@
 
                     console.log(`🔄 processBatch called: processed=${processedPoints}, batchSize=${currentBatchSize}, mode=${convergenceMode ? 'convergence' : 'fixed'}`);
                     
+                    // Cancel early if superseded by a new generation
+                    if (runToken !== activeGenerationToken) {
+                        console.log(`⛔ Stale batch loop (token ${runToken} != active ${activeGenerationToken}); stopping.`);
+                        abortRequested = true;
+                    }
                     if (abortRequested || (!convergenceMode && currentBatchSize <= 0) || (convergenceMode && converged)) {
                         const reason = converged ? 'convergence detected' : 'all points processed';
                         if (abortRequested) console.log('⛔ Abort requested; finalizing image');
@@ -3373,8 +3441,12 @@
                             method: 'random_chaos_iterative',
                             imageData: result,
                             width: canvasWidth,
-                            height: canvasHeight
+                            height: canvasHeight,
+                            colorScheme,
+                            backgroundColor: elements.backgroundColor.value,
+                            density: accumulatedDensity.slice()
                         };
+                        lastAccumulatedDensity = accumulatedDensity.slice();
                         
                         // Update equation display with new parameters if edited
                         if (xParams && yParams) {
@@ -3455,6 +3527,10 @@
                             const coveragePctForDisplay = (currentNonZeroForDisplay / totalPixels) * 100;
 
                             // Improved convergence detection (early adaptive) - per-batch incremental check (only if enabled)
+                            if (runToken !== activeGenerationToken) {
+                                console.log('⛔ Stale run detected post-batch; forcing abort.');
+                                abortRequested = true;
+                            }
                             if (abortRequested) {
                                 console.log('⛔ Abort flag detected post-batch');
                             }
@@ -3506,7 +3582,7 @@
                             await new Promise(resolve => setTimeout(resolve, 10));
                             
                             // Process next batch if there are remaining points AND not converged
-                            const shouldContinue = !abortRequested && (convergenceMode ? !converged : processedPoints < requestedPoints);
+                            const shouldContinue = !abortRequested && runToken === activeGenerationToken && (convergenceMode ? !converged : processedPoints < requestedPoints);
                             if (shouldContinue) {
                                 processBatch();
                             } else {
@@ -3544,8 +3620,12 @@
                                     imageData: result,
                                     width: canvasWidth,
                                     height: canvasHeight,
-                                    parameters: { xParams, yParams, points: requestedPoints }
+                                    parameters: { xParams, yParams, points: requestedPoints },
+                                    colorScheme,
+                                    backgroundColor: elements.backgroundColor.value,
+                                    density: accumulatedDensity.slice()
                                 };
+                                lastAccumulatedDensity = accumulatedDensity.slice();
                                 
                                 // Hide overlay and show completion
                                 hideBatchProgress();
@@ -3799,6 +3879,43 @@
                 showNotification('Error in iterative generation.', 'error');
                 // Don't fall back to non-iterative mode - iterative is the only mode
             }
+        }
+
+        // --- Dynamic recoloring without recomputation ---
+        function recolorCurrentFractal() {
+            if (!generator || !currentFractal || !lastAccumulatedDensity) return;
+            try {
+                const newScheme = parseInt(elements.colorScheme.value);
+                const bgColor = elements.backgroundColor.value;
+                const w = currentFractal.width;
+                const h = currentFractal.height;
+                const rgba = generator.density_grid_to_rgba(lastAccumulatedDensity, w, h, newScheme);
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
+                const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
+                ctx.putImageData(finalImageData, 0, 0);
+                currentFractal.colorScheme = newScheme;
+                currentFractal.backgroundColor = bgColor;
+                currentFractal.imageData = rgba; // update stored image
+            } catch (e) {
+                console.error('Dynamic recolor failed', e);
+            }
+        }
+
+        // Listen for color scheme / background changes to live update
+        elements.colorScheme.addEventListener('change', () => {
+            recolorCurrentFractal();
+        });
+        elements.backgroundColor.addEventListener('input', () => {
+            recolorCurrentFractal();
+        });
+        const noBg = document.getElementById('noBackgroundColor');
+        if (noBg) {
+            noBg.addEventListener('change', () => {
+                // Disable/enable color picker UI feedback
+                elements.backgroundColor.disabled = noBg.checked;
+                recolorCurrentFractal();
+            });
         }
         
         function regenerateWithCustomParameters() {

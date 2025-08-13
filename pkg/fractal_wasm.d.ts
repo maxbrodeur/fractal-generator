@@ -16,6 +16,23 @@ export enum ColorScheme {
   ColorWheel = 4,
   GnuPlot = 5,
   Bmy = 6,
+  Plasma = 7,
+  Inferno = 8,
+  Viridis = 9,
+  Neon = 10,
+  Pastel = 11,
+  Magma = 12,
+  Cividis = 13,
+  Gray = 14,
+  Cubehelix = 15,
+  BlueOrange = 16,
+  Heat = 17,
+  Ice = 18,
+  WhiteFire = 19,
+  WhiteHeat = 20,
+  WhiteBlue = 21,
+  WhiteViridis = 22,
+  WhiteMagma = 23,
 }
 /**
  * Result structure for chaotic map with parameters

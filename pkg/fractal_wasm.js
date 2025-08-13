@@ -176,7 +176,7 @@ export function generate_chaotic_map_points(chaos_type, params, n_points, discar
 
 /**
  * Color mapping functions
- * @enum {0 | 1 | 2 | 3 | 4 | 5 | 6}
+ * @enum {0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23}
  */
 export const ColorScheme = Object.freeze({
     Fire: 0, "0": "Fire",
@@ -186,6 +186,23 @@ export const ColorScheme = Object.freeze({
     ColorWheel: 4, "4": "ColorWheel",
     GnuPlot: 5, "5": "GnuPlot",
     Bmy: 6, "6": "Bmy",
+    Plasma: 7, "7": "Plasma",
+    Inferno: 8, "8": "Inferno",
+    Viridis: 9, "9": "Viridis",
+    Neon: 10, "10": "Neon",
+    Pastel: 11, "11": "Pastel",
+    Magma: 12, "12": "Magma",
+    Cividis: 13, "13": "Cividis",
+    Gray: 14, "14": "Gray",
+    Cubehelix: 15, "15": "Cubehelix",
+    BlueOrange: 16, "16": "BlueOrange",
+    Heat: 17, "17": "Heat",
+    Ice: 18, "18": "Ice",
+    WhiteFire: 19, "19": "WhiteFire",
+    WhiteHeat: 20, "20": "WhiteHeat",
+    WhiteBlue: 21, "21": "WhiteBlue",
+    WhiteViridis: 22, "22": "WhiteViridis",
+    WhiteMagma: 23, "23": "WhiteMagma",
 });
 
 const ChaoticMapResultFinalization = (typeof FinalizationRegistry === 'undefined')
