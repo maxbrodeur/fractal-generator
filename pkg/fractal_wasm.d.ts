@@ -1,6 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+ * Standalone function to generate chaotic map points
+ * This is called from JavaScript as generator.generate_chaotic_map_points()
+ */
+export function generate_chaotic_map_points(chaos_type: string, params: Float64Array, n_points: number, discard_points: number): Float64Array;
+/**
  * Color mapping functions
  */
 export enum ColorScheme {
@@ -111,6 +116,11 @@ export class FractalGenerator {
    * Returns density grid that can be merged with other batches
    */
   generate_chaotic_map_batch_to_density(x_params: Float64Array, y_params: Float64Array, n_points: number, is_cubic: boolean, width: number, height: number, min_x: number, max_x: number, min_y: number, max_y: number, start_iteration: number): Uint32Array;
+  /**
+   * Generate points from given chaotic map parameters in batches with state continuity
+   * Returns density grid and final state for efficient batch processing
+   */
+  generate_chaotic_map_batch_with_state(x_params: Float64Array, y_params: Float64Array, n_points: number, is_cubic: boolean, width: number, height: number, min_x: number, max_x: number, min_y: number, max_y: number, start_x: number, start_y: number): Float64Array;
 }
 export class FractalPresets {
   private constructor();
@@ -275,6 +285,8 @@ export interface InitOutput {
   readonly fractalgenerator_find_random_chaos: (a: number, b: number, c: number, d: number) => [number, number];
   readonly fractalgenerator_generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly fractalgenerator_generate_chaotic_map_batch_to_density: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number];
+  readonly fractalgenerator_generate_chaotic_map_batch_with_state: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => [number, number];
+  readonly generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly fractalpresets_vicsek_square_transforms: () => any;
   readonly fractalpresets_t_square_transforms: () => any;
   readonly fractalpresets_techs_pattern_transforms: () => any;

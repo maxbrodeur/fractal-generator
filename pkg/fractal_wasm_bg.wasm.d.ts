@@ -50,6 +50,8 @@ export const fractalgenerator_find_random_chaos_extended: (a: number, b: number,
 export const fractalgenerator_find_random_chaos: (a: number, b: number, c: number, d: number) => [number, number];
 export const fractalgenerator_generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
 export const fractalgenerator_generate_chaotic_map_batch_to_density: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number];
+export const fractalgenerator_generate_chaotic_map_batch_with_state: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => [number, number];
+export const generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const fractalpresets_vicsek_square_transforms: () => any;
 export const fractalpresets_t_square_transforms: () => any;
 export const fractalpresets_techs_pattern_transforms: () => any;

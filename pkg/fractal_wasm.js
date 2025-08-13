@@ -155,6 +155,26 @@ function passArrayF64ToWasm0(arg, malloc) {
     return ptr;
 }
 /**
+ * Standalone function to generate chaotic map points
+ * This is called from JavaScript as generator.generate_chaotic_map_points()
+ * @param {string} chaos_type
+ * @param {Float64Array} params
+ * @param {number} n_points
+ * @param {number} discard_points
+ * @returns {Float64Array}
+ */
+export function generate_chaotic_map_points(chaos_type, params, n_points, discard_points) {
+    const ptr0 = passStringToWasm0(chaos_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(params, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.generate_chaotic_map_points(ptr0, len0, ptr1, len1, n_points, discard_points);
+    var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+    return v3;
+}
+
+/**
  * Color mapping functions
  * @enum {0 | 1 | 2 | 3 | 4 | 5 | 6}
  */
@@ -548,6 +568,33 @@ export class FractalGenerator {
         const ret = wasm.fractalgenerator_generate_chaotic_map_batch_to_density(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_points, is_cubic, width, height, min_x, max_x, min_y, max_y, start_iteration);
         var v3 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v3;
+    }
+    /**
+     * Generate points from given chaotic map parameters in batches with state continuity
+     * Returns density grid and final state for efficient batch processing
+     * @param {Float64Array} x_params
+     * @param {Float64Array} y_params
+     * @param {number} n_points
+     * @param {boolean} is_cubic
+     * @param {number} width
+     * @param {number} height
+     * @param {number} min_x
+     * @param {number} max_x
+     * @param {number} min_y
+     * @param {number} max_y
+     * @param {number} start_x
+     * @param {number} start_y
+     * @returns {Float64Array}
+     */
+    generate_chaotic_map_batch_with_state(x_params, y_params, n_points, is_cubic, width, height, min_x, max_x, min_y, max_y, start_x, start_y) {
+        const ptr0 = passArrayF64ToWasm0(x_params, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayF64ToWasm0(y_params, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_generate_chaotic_map_batch_with_state(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_points, is_cubic, width, height, min_x, max_x, min_y, max_y, start_x, start_y);
+        var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
         return v3;
     }
 }
