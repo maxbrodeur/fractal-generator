@@ -382,7 +382,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.7);
             z-index: 10;
         }
         
@@ -496,6 +496,63 @@
             background: #4299e1;
         }
         
+        /* Progress Bar Styles */
+        .progress-bar-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 1rem 0;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background-image: linear-gradient(
+                -45deg,
+                rgba(255, 255, 255, 0.2) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.2) 50%,
+                rgba(255, 255, 255, 0.2) 75%,
+                transparent 75%,
+                transparent
+            );
+            background-size: 30px 30px;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        
+        @keyframes progress-bar-stripes {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 30px 0;
+            }
+        }
+        
+        .progress-text {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #4a5568;
+            text-align: center;
+        }
+        
         /* Enhanced Mobile Support */
         @media (max-width: 768px) {
             .app-container {
@@ -508,7 +565,7 @@
             }
             
             .sidebar {
-                max-height: var(--sidebar-max-height-mobile); /* Limit sidebar height to 40% of viewport */
+                max-height: 40vh; /* Limit sidebar height to 40% of viewport */
                 padding: 1rem;
                 order: 1;
                 background: rgba(255, 255, 255, 0.95);
@@ -520,7 +577,7 @@
             }
             
             .sidebar.mobile-collapsed {
-                max-height: var(--collapsed-header-height); /* Show just the header when collapsed */
+                max-height: 60px; /* Show just the header when collapsed */
                 overflow: hidden;
             }
             
@@ -531,7 +588,7 @@
             .main-content {
                 padding: 0.5rem;
                 order: 2;
-                min-height: var(--main-content-min-height); /* Ensure main content takes at least 60% of viewport */
+                min-height: 60vh; /* Ensure main content takes at least 60% of viewport */
                 flex: 1;
             }
             
@@ -652,10 +709,10 @@
                     <!-- Chaos Map specific buttons (shown only for Random Chaos Finder) -->
                     <div class="header-actions" id="chaosMapButtons" style="display: none;">
                         <button class="btn" id="generateAndPlotBtn" style="flex: 1;">
-                            Generate and Plot
+                            Find & Plot Chaotic Map
                         </button>
                         <button class="btn btn-secondary" id="generateMapBtn">
-                            Generate
+                            Find New Chaotic Map
                         </button>
                         <button class="btn btn-secondary" id="plotMapBtn" disabled>
                             Plot
@@ -914,7 +971,6 @@
                             </div>
                         </div>
                         <div class="parameter-controls">
-                            <button id="applyParametersBtn" class="btn btn-secondary" style="display: none;">Apply Changes</button>
                             <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
                             <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
                         </div>
@@ -953,7 +1009,11 @@
                 <div class="canvas-overlay" id="canvasOverlay">
                     <div>
                         <div class="loading-spinner"></div>
-                        <p style="margin-top: 1rem;">Initializing WebAssembly...</p>
+                        <p id="overlayText" style="margin-top: 1rem;">Initializing WebAssembly...</p>
+                        <div class="progress-bar-container" id="progressBarContainer" style="display: none;">
+                            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-text" id="progressText" style="display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -1068,9 +1128,14 @@
             maxLyapunov: document.getElementById('maxLyapunov'),
             minLyapunov: document.getElementById('minLyapunov'),
             fractalDim: document.getElementById('fractalDim'),
-            applyParametersBtn: document.getElementById('applyParametersBtn'),
             copyParametersBtn: document.getElementById('copyParametersBtn'),
-            pasteParametersBtn: document.getElementById('pasteParametersBtn')
+            pasteParametersBtn: document.getElementById('pasteParametersBtn'),
+            
+            // Progress bar elements
+            progressBarContainer: document.getElementById('progressBarContainer'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText'),
+            overlayText: document.getElementById('overlayText')
         };
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
@@ -1078,7 +1143,7 @@
             console.log('🔧 Initializing WebAssembly module...');
             
             try {
-                const wasmModule = await import('./pkg/fractal_wasm.js');
+                const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
                 await wasmModule.default();
                 const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
                 
@@ -1156,6 +1221,44 @@
                 </div>
             `;
             elements.overlay.style.display = 'flex';
+            
+            // Hide progress bar for simple overlay
+            elements.progressBarContainer.style.display = 'none';
+            elements.progressText.style.display = 'none';
+        }
+        
+        function showOverlayWithProgress(message = 'Processing...', progress = 0, progressText = '') {
+            // Input validation
+            if (typeof message !== 'string') {
+                message = String(message ?? '');
+            }
+            if (typeof progress !== 'number' || isNaN(progress)) {
+                progress = 0;
+            }
+            progress = Math.max(0, Math.min(100, progress));
+            if (typeof progressText !== 'string') {
+                progressText = String(progressText ?? '');
+            }
+            const isMobile = window.innerWidth <= 768;
+            elements.overlayText.textContent = message;
+            elements.overlayText.style.fontSize = isMobile ? '1.1rem' : '1rem';
+            elements.overlayText.style.maxWidth = isMobile ? '280px' : 'none';
+            
+            // Show and update progress bar
+            elements.progressBarContainer.style.display = 'block';
+            elements.progressBar.style.width = `${clampProgress(progress)}%`;
+            
+            if (progressText) {
+                elements.progressText.textContent = progressText;
+                elements.progressText.style.display = 'block';
+            } else {
+                elements.progressText.style.display = 'none';
+            }
+            
+            elements.overlay.style.display = 'flex';
+            
+            // Force repaint by accessing offsetHeight
+            elements.progressBar.offsetHeight;
         }
 
         function hideOverlay() {
@@ -1194,7 +1297,7 @@
             if (loading) {
                 elements.generateBtn.textContent = '⏳ Generating...';
                 if (elements.generateAndPlotBtn) {
-                    elements.generateAndPlotBtn.textContent = '⏳ Generating...';
+                    elements.generateAndPlotBtn.textContent = '⏳ Finding & Plotting...';
                 }
                 if (elements.generateMapBtn) {
                     elements.generateMapBtn.textContent = '⏳ Searching...';
@@ -1205,10 +1308,10 @@
             } else {
                 elements.generateBtn.textContent = 'Generate Fractal';
                 if (elements.generateAndPlotBtn) {
-                    elements.generateAndPlotBtn.textContent = 'Generate and Plot';
+                    elements.generateAndPlotBtn.textContent = 'Find & Plot Chaotic Map';
                 }
                 if (elements.generateMapBtn) {
-                    elements.generateMapBtn.textContent = 'Generate';
+                    elements.generateMapBtn.textContent = 'Find New Chaotic Map';
                 }
                 if (elements.plotMapBtn) {
                     elements.plotMapBtn.textContent = 'Plot';
@@ -1232,11 +1335,11 @@
                 discardPoints: discardPoints,
                 useAlphabet: useAlphabet,
                 isCubic: isCubic,
-                // Store the actual point data that was found
-                pointData: pointData,
+                // Only store point data if we don't have coefficients (for fallback)
+                pointData: coefficients ? null : pointData,
                 coefficients: coefficients,
-                // Store original plot points for iterative plotting if higher than generation limit
-                originalPlotPoints: originalPlotPoints || (pointData.length / 2)
+                // Store original plot points for reference only
+                originalPlotPoints: originalPlotPoints || (pointData ? pointData.length / 2 : 0)
             };
         }
 
@@ -1294,14 +1397,15 @@
                 });
 
                 // Check if we should use iterative mode for all chaotic maps
-                const plotPoints = parseInt(elements.chaosPlotPoints.value);
+                // For finding chaotic maps, we only need enough points to verify chaos, not full plot points
+                const searchPoints = testPoints; // Use test points for parameter discovery
                 
-                console.log(`🔄 Using iterative batch generation for ${plotPoints.toLocaleString()} points`);
+                console.log(`🔄 Searching for chaotic map with ${searchPoints.toLocaleString()} test points`);
 
                 try {
                     const result_data = generator.find_random_chaos_extended 
-                        ? generator.find_random_chaos_extended(plotPoints, testPoints, discardPoints, useAlphabet, isCubic)
-                        : generator.find_random_chaos(plotPoints, testPoints, isCubic);
+                        ? generator.find_random_chaos_extended(searchPoints, testPoints, discardPoints, useAlphabet, isCubic)
+                        : generator.find_random_chaos(searchPoints, testPoints, isCubic);
                     
                     // Store the chaotic map data for later plotting
                     storeChaoticMap(
@@ -1312,7 +1416,7 @@
                         discardPoints,
                         useAlphabet,
                         isCubic,
-                        plotPoints // Store original plot points
+                        null // Don't store original plot points - plotting will use current UI value
                     );
 
                     // Display the chaotic map information if extended data is available
@@ -1324,7 +1428,7 @@
 
                 } catch (error) {
                     console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
-                    const pointData = generator.find_random_chaos(plotPoints, testPoints, isCubic);
+                    const pointData = generator.find_random_chaos(searchPoints, testPoints, isCubic);
                     
                     storeChaoticMap(
                         pointData,
@@ -1334,7 +1438,7 @@
                         discardPoints,
                         useAlphabet,
                         isCubic,
-                        plotPoints // Store original plot points
+                        null // Don't store original plot points - plotting will use current UI value
                     );
 
                     // For basic version, show limited information
@@ -1366,6 +1470,20 @@
             showOverlay('Plotting chaotic map...');
 
             try {
+                // Check if parameters have been edited and apply them automatically
+                const editedParams = getEditedParameters();
+                if (editedParams && editedParams.xParams && editedParams.xParams.length > 0 && 
+                    editedParams.yParams && editedParams.yParams.length > 0 &&
+                    editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
+                    editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    console.log('🔄 Applying edited parameters automatically...');
+                    // Update stored map with edited parameters
+                    storedChaoticMap.xParams = editedParams.xParams;
+                    storedChaoticMap.yParams = editedParams.yParams;
+                } else {
+                    console.log('🔄 No valid edited parameters found, using stored parameters');
+                }
+
                 const canvasSize = parseInt(elements.canvasSize.value);
                 const aspectRatio = elements.aspectRatio.value;
                 const colorScheme = parseInt(elements.colorScheme.value);
@@ -1385,16 +1503,17 @@
                 elements.canvas.width = canvasWidth;
                 elements.canvas.height = canvasHeight;
 
+                // Get current plot points from UI (not stored original value)
+                const requestedPoints = parseInt(elements.chaosPlotPoints.value);
+                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
+
                 console.log('🎨 Plotting stored chaotic map with:', {
                     originalType: storedChaoticMap.type,
                     canvasSize: `${canvasWidth}x${canvasHeight}`,
                     colorScheme,
-                    requestedPoints: storedChaoticMap.originalPlotPoints,
+                    requestedPoints: requestedPoints,
                     hasParameters: !!(storedChaoticMap.coefficients && storedChaoticMap.coefficients.x_params)
                 });
-
-                const requestedPoints = storedChaoticMap.originalPlotPoints;
-                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
                 
                 let result;
                 
@@ -1403,50 +1522,16 @@
                                     (storedChaoticMap.coefficients.x_params ||
                                      storedChaoticMap.coefficients.x_params);
                 
-                if (hasParameters && requestedPoints > batchSize) {
-                    // Use iterative batch generation directly from parameters
-                    console.log(`🔄 Using iterative batch generation for ${requestedPoints.toLocaleString()} points`);
-                    showOverlay(`Generating ${requestedPoints.toLocaleString()} points in batches...`);
+                if (hasParameters && requestedPoints > 100000) {
+                    // Use iterative batch generation with progress bars for any significant point count
+                    console.log(`🔄 Using iterative batch generation with progress for ${requestedPoints.toLocaleString()} points`);
                     
-                    const xParams = storedChaoticMap.coefficients.x_params;
-                    const yParams = storedChaoticMap.coefficients.y_params;
-                    const isCubic = storedChaoticMap.isCubic;
-                    
-                    // Calculate bounds from a sample of points first
-                    const samplePoints = Math.min(batchSize, requestedPoints);
-                    const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, isCubic);
-                    const bounds = generator.calculate_point_bounds(sampleData);
-                    const [minX, maxX, minY, maxY] = bounds;
-                    
-                    // Initialize density grid
-                    let density = new Uint32Array(canvasWidth * canvasHeight);
-                    
-                    // Generate in batches
-                    const totalBatches = Math.ceil(requestedPoints / batchSize);
-                    let currentIteration = 0;
-                    
-                    for (let batch = 0; batch < totalBatches; batch++) {
-                        const remainingPoints = requestedPoints - currentIteration;
-                        const currentBatchSize = Math.min(batchSize, remainingPoints);
-                        
-                        showOverlay(`Generating batch ${batch + 1}/${totalBatches} (${currentBatchSize.toLocaleString()} points)...`);
-                        
-                        const batchDensity = generator.generate_chaotic_map_batch_to_density(
-                            xParams, yParams, currentBatchSize, isCubic,
-                            canvasWidth, canvasHeight, minX, maxX, minY, maxY, currentIteration
-                        );
-                        
-                        // Merge batch density into total density
-                        const mergedDensity = generator.merge_density_grids(density, batchDensity);
-                        density = new Uint32Array(mergedDensity);
-                        
-                        currentIteration += currentBatchSize;
-                    }
-                    
-                    showOverlay('Converting density to image...');
-                    result = generator.density_grid_to_rgba(density, canvasWidth, canvasHeight, colorScheme);
-                    
-                } else {
+                    // Call the iterative function that has proper progress bars
+                    setLoading(false); // Reset loading state since iterative function handles it
+                    await plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme);
+                    return;
+                
+                } else if (storedChaoticMap.pointData) {
                     // Fallback to existing point data for smaller sets or when parameters not available
                     const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
                     const totalPointCount = normalizedPointData.length / 2;
@@ -1470,6 +1555,8 @@
                         // Use standard approach for smaller point sets
                         result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
                     }
+                } else {
+                    throw new Error('No chaotic map data available for plotting. Please generate a chaotic map first.');
                 }
 
                 if (!result || result.length === 0) {
@@ -2867,8 +2954,7 @@
             const paramInputs = document.querySelectorAll('.inline-param');
             paramInputs.forEach(input => {
                 input.addEventListener('input', () => {
-                    // Show parameter buttons when parameters change
-                    elements.applyParametersBtn.style.display = 'inline-block';
+                    // Show parameter buttons when parameters change (removed Apply Changes button)
                     elements.copyParametersBtn.style.display = 'inline-block';
                     elements.pasteParametersBtn.style.display = 'inline-block';
                 });
@@ -2887,8 +2973,7 @@
             elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
             elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
             
-            // Show parameter buttons
-            elements.applyParametersBtn.style.display = 'inline-block';
+            // Show parameter buttons (removed Apply Changes button)
             elements.copyParametersBtn.style.display = 'inline-block';
             elements.pasteParametersBtn.style.display = 'inline-block';
             
@@ -2928,10 +3013,164 @@
             }
         }
         
+        // Iterative plotting function with progress bars
+        async function plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme) {
+            if (!storedChaoticMap || !generator) return;
+
+            setLoading(true);
+            
+            try {
+                // Get parameters - use edited ones if available, otherwise stored coefficients
+                let xParams, yParams;
+                const editedParams = getEditedParameters();
+                
+                // Validate edited parameters - use stored coefficients as fallback
+                if (editedParams.xParams && editedParams.xParams.length > 0 && 
+                    editedParams.yParams && editedParams.yParams.length > 0 &&
+                    editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
+                    editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    xParams = editedParams.xParams;
+                    yParams = editedParams.yParams;
+                    console.log('🔄 Using edited parameters for plotting');
+                } else if (storedChaoticMap.coefficients && 
+                          storedChaoticMap.coefficients.x_params && 
+                          storedChaoticMap.coefficients.y_params) {
+                    xParams = storedChaoticMap.coefficients.x_params;
+                    yParams = storedChaoticMap.coefficients.y_params;
+                    console.log('🔄 Using stored coefficients for plotting');
+                } else {
+                    throw new Error('No valid parameters available for plotting');
+                }
+                
+                const batchSize = parseInt(elements.chaosBatchSize.value);
+                const isCubic = storedChaoticMap.isCubic;
+                
+                console.log(`🔄 Iterative plotting: ${requestedPoints.toLocaleString()} points in batches of ${batchSize.toLocaleString()}`);
+                console.log(`🔄 Parameters: x[${xParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...], y[${yParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...]`);
+                
+                // Calculate bounds from a sample of points first
+                const samplePoints = Math.min(batchSize, requestedPoints);
+                const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, isCubic);
+                const bounds = generator.calculate_point_bounds(sampleData);
+                const [minX, maxX, minY, maxY] = bounds;
+                
+                console.log(`📏 Bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
+                
+                // Initialize accumulated density grid
+                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
+                let processedPoints = 0;
+                let batchCount = 0;
+                
+                // Process in batches
+                const processBatch = () => {
+                    const remainingPoints = requestedPoints - processedPoints;
+                    const currentBatchSize = Math.min(batchSize, remainingPoints);
+                    
+                    if (currentBatchSize <= 0) {
+                        // All batches complete - generate final image
+                        const result = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                        
+                        // Display result on canvas
+                        elements.canvas.width = canvasWidth;
+                        elements.canvas.height = canvasHeight;
+                        const ctx = elements.canvas.getContext('2d');
+                        const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                        ctx.putImageData(imageData, 0, 0);
+                        
+                        // Update current fractal data
+                        currentFractal = {
+                            type: 'chaotic_map',
+                            method: 'random_chaos_iterative',
+                            imageData: result,
+                            width: canvasWidth,
+                            height: canvasHeight
+                        };
+                        
+                        // Update equation display with new parameters if edited
+                        if (xParams && yParams) {
+                            elements.xEquation.textContent = formatChaoticMapEquation(xParams, isCubic);
+                            elements.yEquation.textContent = formatChaoticMapEquation(yParams, isCubic);
+                        }
+                        
+                        hideOverlay();
+                        setLoading(false);
+                        updateChaosMapButtonStates();
+                        showNotification(`Fractal plotted successfully! (${requestedPoints.toLocaleString()} points in ${batchCount} batches)`, 'success');
+                        return;
+                    }
+                    
+                    batchCount++;
+                    const progress = Math.round((processedPoints / requestedPoints) * 100);
+                    
+                    // Update progress with batch info for better user feedback
+                    const totalBatches = Math.ceil(requestedPoints / batchSize);
+                    const progressMessage = `Processing batch ${batchCount}/${totalBatches}...`;
+                    const progressDetail = `${progress}% complete (${processedPoints.toLocaleString()}/${requestedPoints.toLocaleString()} points)`;
+                    
+                    showOverlayWithProgress(progressMessage, progress, progressDetail);
+                    
+                    // Generate batch density grid
+                    setTimeout(async () => {
+                        try {
+                            const batchDensity = generator.generate_chaotic_map_batch_to_density(
+                                xParams, yParams, currentBatchSize, isCubic,
+                                canvasWidth, canvasHeight, minX, maxX, minY, maxY, processedPoints
+                            );
+                            
+                            // Merge with accumulated density
+                            accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
+                            
+                            processedPoints += currentBatchSize;
+                            
+                            // Show intermediate result periodically for visual feedback
+                            if (batchCount > 1 && batchCount % 2 === 0) {
+                                const intermediateResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                                const ctx = elements.canvas.getContext('2d');
+                                const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
+                                ctx.putImageData(imageData, 0, 0);
+                            }
+                            
+                            // Small delay to allow UI update before next batch
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                            
+                            // Process next batch
+                            processBatch();
+                            
+                        } catch (error) {
+                            console.error('❌ Error in batch processing:', error);
+                            hideOverlay();
+                            setLoading(false);
+                            showNotification('Error during batch processing. Check console for details.', 'error');
+                        }
+                    }, 10); // Small delay to allow UI updates
+                };
+                
+                // Start batch processing
+                processBatch();
+                
+            } catch (error) {
+                console.error('❌ Error in iterative plotting:', error);
+                hideOverlay();
+                setLoading(false);
+                showNotification('Error during plotting. Check console for details.', 'error');
+            }
+        }
+
         function regenerateWithCustomParametersIterative() {
             if (!currentChaoticMapData || !generator) return;
             
-            const { xParams, yParams } = getEditedParameters();
+            const editedParams = getEditedParameters();
+            
+            // Validate parameters
+            if (!editedParams.xParams || !editedParams.yParams || 
+                editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                showNotification('Invalid parameters. Please check that all parameter fields contain valid numbers.', 'error');
+                return;
+            }
+            
+            const { xParams, yParams } = editedParams;
             const totalPoints = parseInt(elements.chaosPlotPoints.value);
             const batchSize = parseInt(elements.chaosBatchSize.value);
             const iterativeMode = elements.chaosIterativeMode.checked;
@@ -3004,7 +3243,13 @@
                     
                     batchCount++;
                     const progress = Math.round((processedPoints / totalPoints) * 100);
-                    showOverlay(`Processing batch ${batchCount}... (${progress}% complete, ${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`);
+                    
+                    // Update progress with batch info for better user feedback
+                    const totalBatches = Math.ceil(totalPoints / batchSize);
+                    const progressMessage = `Processing batch ${batchCount}/${totalBatches}...`;
+                    const progressDetail = `${progress}% complete (${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`;
+                    
+                    showOverlayWithProgress(progressMessage, progress, progressDetail);
                     
                     // Generate batch density grid
                     setTimeout(() => {
@@ -3054,7 +3299,18 @@
         function regenerateWithCustomParameters() {
             if (!currentChaoticMapData || !generator) return;
             
-            const { xParams, yParams } = getEditedParameters();
+            const editedParams = getEditedParameters();
+            
+            // Validate parameters
+            if (!editedParams.xParams || !editedParams.yParams || 
+                editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                showNotification('Invalid parameters. Please check that all parameter fields contain valid numbers.', 'error');
+                return;
+            }
+            
+            const { xParams, yParams } = editedParams;
             const plotPoints = parseInt(elements.chaosPlotPoints.value);
             const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
             const canvasHeight = Math.round(canvasWidth / getAspectRatio());
@@ -3119,7 +3375,18 @@
         // Copy all parameters to clipboard
         async function copyParametersToClipboard() {
             try {
-                const { xParams, yParams } = getEditedParameters();
+                const editedParams = getEditedParameters();
+                
+                // Validate parameters
+                if (!editedParams.xParams || !editedParams.yParams || 
+                    editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                    !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                    !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    showNotification('Invalid parameters. Cannot copy invalid parameter values.', 'error');
+                    return;
+                }
+                
+                const { xParams, yParams } = editedParams;
                 const parametersData = {
                     xParams: xParams,
                     yParams: yParams,
@@ -3168,8 +3435,7 @@
                     }
                 });
                 
-                // Show parameter buttons
-                elements.applyParametersBtn.style.display = 'inline-block';
+                // Show parameter buttons (removed Apply Changes button)
                 elements.copyParametersBtn.style.display = 'inline-block';
                 elements.pasteParametersBtn.style.display = 'inline-block';
                 
@@ -3183,7 +3449,6 @@
         
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
-            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParametersIterative);
             elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
             elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
             

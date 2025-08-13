@@ -14,22 +14,25 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
             color: #333;
+            overflow: hidden; /* lock page scroll; sidebar will scroll */
         }
         
         .app-container {
             display: grid;
             grid-template-columns: 300px 1fr;
-            grid-template-areas: 
-                "sidebar main";
+            grid-template-rows: 100vh; /* full viewport */
+            width: 100%;
             height: 100vh;
-            gap: 0;
-            transition: grid-template-columns 0.3s ease;
+            overflow: hidden;
         }
         
-        .app-container.sidebar-collapsed {
-            grid-template-columns: 40px 1fr;
+        .app-container.sidebar-collapsed .sidebar {
+            width: 40px;
         }
         
         .btn {
@@ -67,15 +70,37 @@
         }
         
         .sidebar {
-            grid-area: sidebar;
             background: white;
-            padding: 1rem;
-            overflow-y: auto;
+            padding: 0 1rem 1rem 1rem;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            transition: all 0.3s ease;
-            position: relative;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden; /* internal scroll container handles scrolling */
+        }
+
+        .sidebar-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding-top: 1rem;
+            z-index: 5;
+        }
+
+        .sidebar-content { /* new flex container to enable sidebar-scroll growth */
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .sidebar-scroll {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-top: 0.5rem;
+            flex: 1 1 auto;
+            min-height: 0; /* allow flex scroll */
         }
         
         .sidebar.collapsed {
@@ -350,55 +375,57 @@
         }
         
         .main-content {
-            grid-area: main;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            justify-content: center; /* keep canvas centered */
             align-items: center;
             padding: 1rem;
-            overflow: hidden;
-        }
-        
-        .canvas-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
             position: relative;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            overflow: hidden;
-            cursor: crosshair;
+            overflow: hidden; /* fixed; no scroll */
         }
         
-        #fractalCanvas {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
-        }
-        
-        .canvas-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+        /* Canvas outer container controls available space and recenters */
+        .canvas-container {
+            --canvas-max-width: 100%;
+            --canvas-max-height: calc(100vh - 120px);
+            background: transparent;
             display: flex;
             justify-content: center;
             align-items: center;
-            background: rgba(255,255,255,0.9);
-            z-index: 10;
+            position: relative;
+            width: 100%;
+            max-width: 1400px;
+            flex: 0 0 auto;
+            padding: 0;
+            margin: 0;
         }
-        
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e2e8f0;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+
+        /* Wrapper that will be scaled down if internal resolution is larger than viewport */
+        .canvas-display-wrapper {
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            max-width: var(--canvas-max-width);
+            max-height: var(--canvas-max-height);
+            overflow: hidden; /* hide overflow when scaled */
         }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        /* The actual drawing canvas (high internal resolution) */
+        #fractalCanvas {
+            display: block;
+            border-radius: 4px;
+            image-rendering: pixelated;
+            /* We'll control CSS size separately from pixel buffer */
         }
+
+        /* Scaled class gets applied when we need to fit canvas */
+        #fractalCanvas.scaled {
+            box-shadow: 0 0 0 1px #444;
+        }
+    /* Removed old full-canvas overlay style */
         
         .dynamic-controls {
             display: none;
@@ -496,6 +523,63 @@
             background: #4299e1;
         }
         
+        /* Subtle batch progress indicator */
+        .batch-progress {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(2px);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            z-index: 15;
+        }
+        
+        .batch-progress.visible {
+            opacity: 1;
+        }
+        
+        .batch-progress .batch-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .batch-progress .batch-spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Abort button styling */
+        .abort-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 15;
+            background: #e53e3e;
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 0.4rem 0.6rem;
+            opacity: 0.9;
+        }
+        .abort-btn:hover { background:#c53030; }
+        
         /* Enhanced Mobile Support */
         @media (max-width: 768px) {
             .app-container {
@@ -508,7 +592,7 @@
             }
             
             .sidebar {
-                max-height: var(--sidebar-max-height-mobile); /* Limit sidebar height to 40% of viewport */
+                max-height: 40vh; /* Limit sidebar height to 40% of viewport */
                 padding: 1rem;
                 order: 1;
                 background: rgba(255, 255, 255, 0.95);
@@ -520,7 +604,7 @@
             }
             
             .sidebar.mobile-collapsed {
-                max-height: var(--collapsed-header-height); /* Show just the header when collapsed */
+                max-height: 60px; /* Show just the header when collapsed */
                 overflow: hidden;
             }
             
@@ -531,7 +615,7 @@
             .main-content {
                 padding: 0.5rem;
                 order: 2;
-                min-height: var(--main-content-min-height); /* Ensure main content takes at least 60% of viewport */
+                min-height: 60vh; /* Ensure main content takes at least 60% of viewport */
                 flex: 1;
             }
             
@@ -652,10 +736,10 @@
                     <!-- Chaos Map specific buttons (shown only for Random Chaos Finder) -->
                     <div class="header-actions" id="chaosMapButtons" style="display: none;">
                         <button class="btn" id="generateAndPlotBtn" style="flex: 1;">
-                            Generate and Plot
+                            Find & Plot Chaotic Map
                         </button>
                         <button class="btn btn-secondary" id="generateMapBtn">
-                            Generate
+                            Find New Chaotic Map
                         </button>
                         <button class="btn btn-secondary" id="plotMapBtn" disabled>
                             Plot
@@ -669,6 +753,7 @@
                         </button>
                     </div>
                 </div>
+                <div class="sidebar-scroll">
             <div class="control-section">
                 <h3>Generation Method</h3>
                 <div class="control-group">
@@ -728,14 +813,7 @@
             </div>
             
             <div class="control-section">
-                <h3>Parameters</h3>
-                
-                <!-- Universal Parameters -->
-                <div class="control-group">
-                    <label>Iterations</label>
-                    <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
-                    <small id="iterationsHelp">Number of iterations or points to generate</small>
-                </div>
+                <h3>Visual Parameters</h3>
                 
                 <div class="control-group">
                     <label>Canvas Size</label>
@@ -747,6 +825,8 @@
                         <option value="2048" selected>2048x2048 (2K)</option>
                         <option value="4096">4096x4096 (4K)</option>
                         <option value="8192">8192x8192 (8K)</option>
+                        <option value="16384">16384x16384 (16K)</option>
+                        <option value="32768">32768x32768 (32K)</option>
                     </select>
                 </div>
                 
@@ -757,6 +837,162 @@
                         <option value="portrait">Portrait (3:4)</option>
                         <option value="landscape" selected>Landscape (4:3)</option>
                     </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Color Scheme</label>
+                    <select id="colorScheme">
+                        <option value="0">Fire</option>
+                        <option value="1">Jet</option>
+                        <option value="2">Prism</option>
+                        <option value="3" selected>Turbo</option>
+                        <option value="4">Color Wheel</option>
+                        <option value="5">GNU Plot</option>
+                        <option value="6">BMY</option>
+                        <option value="7">Plasma</option>
+                        <option value="8">Inferno</option>
+                        <option value="9">Viridis</option>
+                        <option value="10">Neon</option>
+                        <option value="11">Pastel</option>
+                        <option value="12">Magma</option>
+                        <option value="13">Cividis</option>
+                        <option value="14">Gray</option>
+                        <option value="15">Cubehelix</option>
+                        <option value="16">Blue-Orange</option>
+                        <option value="17">Heat</option>
+                        <option value="18">Ice</option>
+                        <option value="19">White Fire</option>
+                        <option value="20">White Heat</option>
+                        <option value="21">White Blue</option>
+                        <option value="22">White Viridis</option>
+                        <option value="23">White Magma</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Density Scale</label>
+                    <select id="densityScaleMode">
+                        <option value="0" selected>Soft Log (Default)</option>
+                        <option value="1">Pure Log</option>
+                        <option value="2">Linear</option>
+                        <option value="3">Sqrt</option>
+                        <option value="5">4th Root</option>
+                    </select>
+                    <small>Adjust mapping of density to color intensity</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>Background Color</label>
+                    <div style="display:flex; gap:4px; align-items:center;">
+                        <input type="color" id="backgroundColor" value="#000000" style="flex:1;">
+                        <label style="display:flex; gap:4px; align-items:center; font-size:0.7rem;">
+                            <input type="checkbox" id="noBackgroundColor"> None
+                        </label>
+                    </div>
+                    <small>Choose a color or check None to use raw colormap background</small>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Chaotic Map</h3>
+                
+                <!-- Random Chaos Finder specific controls -->
+                <div id="chaosFinderControls" class="method-controls">
+                    <div class="control-group">
+                        <label>Plot Points</label>
+                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000" max="100000000">
+                        <small>Total number of points to plot for discovered map</small>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="chaosConvergenceMode" checked>
+                            Auto-Convergence Mode
+                        </label>
+                        <small>Plot until attractor coverage stabilizes (ignores Plot Points)</small>
+                    </div>
+                </div>
+                
+                <!-- Chaotic Map Display and Editor -->
+                <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
+                    <div class="control-group">
+                        <label>Current Chaotic Map</label>
+                        <div id="mapEquationDisplay" class="equation-display">
+                            <div class="equation-section">
+                                <span class="equation-label">x<sub>n+1</sub> = </span>
+                                <span id="xEquation" class="equation-formula editable-equation">No map generated</span>
+                            </div>
+                            <div class="equation-section">
+                                <span class="equation-label">y<sub>n+1</sub> = </span>
+                                <span id="yEquation" class="equation-formula editable-equation">No map generated</span>
+                            </div>
+                        </div>
+                        <div class="parameter-controls">
+                            <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
+                            <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
+                        </div>
+                        <div id="mapStatistics" class="map-stats">
+                            <span id="maxLyapunov">Max Lyapunov: -</span>
+                            <span id="minLyapunov">Min Lyapunov: -</span>
+                            <span id="fractalDim">Fractal Dim: -</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Advanced Parameters</h3>
+                
+                <!-- Universal Parameters -->
+                <div class="control-group">
+                    <label>Iterations</label>
+                    <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
+                    <small id="iterationsHelp">Number of iterations or points to generate</small>
+                </div>
+                
+                <div class="control-group">
+                    <label>Batch Size</label>
+                    <input type="number" id="chaosBatchSize" value="1000000" min="1000000" step="1000000" max="10000000">
+                    <small>Points per batch (larger = more memory, smaller = slower)</small>
+                </div>
+                <div class="control-group">
+                    <label>Test Points</label>
+                    <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
+                    <small>Number of points for Lyapunov exponent calculation</small>
+                </div>
+                <div class="control-group">
+                    <label>Discard Points</label>
+                    <input type="number" id="chaosDiscardPoints" value="10000" min="1000" max="50000" step="1000">
+                    <small>Transient iterations to discard before analysis</small>
+                </div>
+                <div class="control-group">
+                    <label>Search Attempts</label>
+                    <input type="number" id="searchAttempts" value="1000" min="100" max="10000" step="100">
+                    <small>Maximum attempts to find chaotic map</small>
+                </div>
+                <div class="control-group">
+                    <label>Randomization Type</label>
+                    <select id="chaosRandomizationType">
+                        <option value="continuous">Continuous</option>
+                        <option value="discrete">Discrete (Alphabet mode)</option>
+                    </select>
+                    <small>Parameter generation method</small>
+                </div>
+
+                <!-- Auto-Convergence Threshold Controls (visible only when auto-convergence enabled) -->
+        <div id="convergenceAdvancedControls" style="display:none; border:1px solid #e2e8f0; padding:0.75rem; border-radius:6px; background:#f8fafc; margin-top:0.5rem;">
+                    <div class="control-group" style="margin-bottom:0.5rem;">
+            <label style="margin-bottom:0.25rem;">Auto-Convergence Thresholds Δ</label>
+            <small>Stop when BOTH relative growth (%) and absolute new pixels fall below thresholds for consecutive batches</small>
+                    </div>
+                    <div class="parameter-inputs" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:0.5rem;">
+                        <div class="parameter-input-group">
+                            <label for="chaosRelGrowthThreshold">Rel Growth %</label>
+                            <input type="number" id="chaosRelGrowthThreshold" value="0.05" step="0.01" min="0.001" title="Relative growth percent threshold between batches (default 0.05%)">
+                        </div>
+                        <div class="parameter-input-group">
+                            <label for="chaosAbsGrowthPixels">Abs Pixels</label>
+                            <input type="number" id="chaosAbsGrowthPixels" value="50" step="10" min="1" title="Minimum new pixels threshold (default 50)">
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Escape-Time Fractal Controls -->
@@ -782,6 +1018,11 @@
                         <label>Compression Ratio</label>
                         <input type="number" id="compressionRatio" value="0.5" min="0.1" max="1.0" step="0.05">
                         <small>Fraction of distance to jump toward vertex (0.1-1.0)</small>
+                    </div>
+                    <div class="control-group">
+                        <label>Number of Vertices</label>
+                        <input type="number" id="numberOfVertices" value="3" min="3" max="10" step="1">
+                        <small>Number of vertices for chaos game (3=triangle, 4=square, etc.)</small>
                     </div>
                     <div class="control-group">
                         <label>Rotation Angle</label>
@@ -854,106 +1095,24 @@
                         <small>Comma-separated probability weights (must sum to ~1.0)</small>
                     </div>
                 </div>
+            </div>
+
                 
-                <!-- Random Chaos Finder Controls -->
-                <div id="chaosFinderControls" class="method-controls">
-                    <div class="control-group">
-                        <label>Plot Points</label>
-                        <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000" max="100000000">
-                        <small>Total number of points to plot for discovered map</small>
-                    </div>
-                    <div class="control-group">
-                        <label>Batch Size</label>
-                        <input type="number" id="chaosBatchSize" value="10000000" min="1000000" step="1000000" max="10000000">
-                        <small>Points per batch (larger = more memory, smaller = slower)</small>
-                    </div>
-                    <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="chaosIterativeMode" unchecked>
-                            Enable Iterative Mode
-                        </label>
-                        <small>Process in batches for higher resolution (>10M points)</small>
-                    </div>
-                    <div class="control-group">
-                        <label>Test Points</label>
-                        <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
-                        <small>Number of points for Lyapunov exponent calculation</small>
-                    </div>
-                    <div class="control-group">
-                        <label>Discard Points</label>
-                        <input type="number" id="chaosDiscardPoints" value="10000" min="1000" max="50000" step="1000">
-                        <small>Transient iterations to discard before analysis</small>
-                    </div>
-                    <div class="control-group">
-                        <label>Randomization Type</label>
-                        <select id="chaosRandomizationType">
-                            <option value="continuous">Continuous</option>
-                            <option value="discrete">Discrete (Alphabet mode)</option>
-                        </select>
-                        <small>Parameter generation method</small>
-                    </div>
-                    <div class="control-group">
-                        <label>Search Attempts</label>
-                        <input type="number" id="searchAttempts" value="1000" min="100" max="10000" step="100">
-                        <small>Maximum attempts to find chaotic map</small>
-                    </div>
-                </div>
-                
-                <!-- Chaotic Map Display and Editor -->
-                <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
-                    <div class="control-group">
-                        <label>Current Chaotic Map</label>
-                        <div id="mapEquationDisplay" class="equation-display">
-                            <div class="equation-section">
-                                <span class="equation-label">x<sub>n+1</sub> = </span>
-                                <span id="xEquation" class="equation-formula editable-equation">No map generated</span>
-                            </div>
-                            <div class="equation-section">
-                                <span class="equation-label">y<sub>n+1</sub> = </span>
-                                <span id="yEquation" class="equation-formula editable-equation">No map generated</span>
-                            </div>
-                        </div>
-                        <div class="parameter-controls">
-                            <button id="applyParametersBtn" class="btn btn-secondary" style="display: none;">Apply Changes</button>
-                            <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
-                            <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
-                        </div>
-                        <div id="mapStatistics" class="map-stats">
-                            <span id="maxLyapunov">Max Lyapunov: -</span>
-                            <span id="minLyapunov">Min Lyapunov: -</span>
-                            <span id="fractalDim">Fractal Dim: -</span>
-                        </div>
-                    </div>
-                </div>
             </div>
             
-            <div class="control-section">
-                <h3>Visual</h3>
-                <div class="control-group">
-                    <label>Color Scheme</label>
-                    <select id="colorScheme">
-                        <option value="0">Fire</option>
-                        <option value="1">Jet</option>
-                        <option value="2">Prism</option>
-                        <option value="3" selected>Turbo</option>
-                        <option value="4">Color Wheel</option>
-                        <option value="5">GNU Plot</option>
-                        <option value="6">BMY</option>
-                    </select>
-                </div>
-            </div>
-            
-            <!-- Map Equation Display (for Random Chaos Finder) - REMOVED -->
             </div>
         </aside>
         
         <main class="main-content">
             <div class="canvas-container" id="canvasContainer">
-                <canvas id="fractalCanvas" width="2048" height="2048"></canvas>
-                <div class="canvas-overlay" id="canvasOverlay">
-                    <div>
-                        <div class="loading-spinner"></div>
-                        <p style="margin-top: 1rem;">Initializing WebAssembly...</p>
+                <div class="canvas-display-wrapper" id="canvasDisplayWrapper">
+                    <canvas id="fractalCanvas" width="2048" height="2048"></canvas>
+                    <button id="abortBatchesBtn" class="btn abort-btn" style="display:none;" title="Abort iterative plotting and keep current image">Abort</button>
+                    <div class="batch-progress" id="batchProgress">
+                        <div class="batch-info">
+                            <div class="batch-spinner"></div>
+                            <span id="batchText">Preparing...</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -967,7 +1126,10 @@
         // Application State
         let generator = null;
         let isLoading = false;
-        let currentFractal = null;
+    let currentFractal = null;
+    let lastAccumulatedDensity = null; // cached density for dynamic recolor
+    let abortRequested = false; // Abort flag for iterative batch processing
+    let activeGenerationToken = 0; // Monotonically increasing token to cancel previous runs
         
         // Chaotic map state for separate generation and plotting
         let storedChaoticMap = null;
@@ -987,8 +1149,12 @@
         // DOM Elements
         const elements = {
             canvas: document.getElementById('fractalCanvas'),
-            overlay: document.getElementById('canvasOverlay'),
             container: document.getElementById('canvasContainer'),
+            canvasDisplayWrapper: document.getElementById('canvasDisplayWrapper'),
+            
+            // Batch progress indicator
+            batchProgress: document.getElementById('batchProgress'),
+            batchText: document.getElementById('batchText'),
             
             // Button containers
             standardButtons: document.getElementById('standardButtons'),
@@ -1053,11 +1219,19 @@
             // Chaos finder controls
             chaosPlotPoints: document.getElementById('chaosPlotPoints'),
             chaosBatchSize: document.getElementById('chaosBatchSize'),
-            chaosIterativeMode: document.getElementById('chaosIterativeMode'),
             chaosTestPoints: document.getElementById('chaosTestPoints'),
             chaosDiscardPoints: document.getElementById('chaosDiscardPoints'),
             chaosRandomizationType: document.getElementById('chaosRandomizationType'),
             searchAttempts: document.getElementById('searchAttempts'),
+            convergenceAdvancedControls: document.getElementById('convergenceAdvancedControls'),
+            relGrowthThreshold: document.getElementById('chaosRelGrowthThreshold'),
+            absGrowthPixels: document.getElementById('chaosAbsGrowthPixels'),
+            
+            // Visual controls
+            backgroundColor: document.getElementById('backgroundColor'),
+            
+            // Convergence detection controls
+            chaosConvergenceMode: document.getElementById('chaosConvergenceMode'),
             
             // Chaotic map display elements
             chaoticMapDisplay: document.getElementById('chaoticMapDisplay'),
@@ -1068,10 +1242,22 @@
             maxLyapunov: document.getElementById('maxLyapunov'),
             minLyapunov: document.getElementById('minLyapunov'),
             fractalDim: document.getElementById('fractalDim'),
-            applyParametersBtn: document.getElementById('applyParametersBtn'),
             copyParametersBtn: document.getElementById('copyParametersBtn'),
             pasteParametersBtn: document.getElementById('pasteParametersBtn')
         };
+
+        // Abort button handler
+        const abortBtnEl = document.getElementById('abortBatchesBtn');
+        if (abortBtnEl) {
+            abortBtnEl.addEventListener('click', () => {
+                if (!abortRequested) {
+                    abortRequested = true;
+                    abortBtnEl.textContent = 'Aborting...';
+                    abortBtnEl.disabled = true;
+                    console.log('⛔ User requested abort of iterative batches');
+                }
+            });
+        }
 
         // Initialize WebAssembly (attempt to load, handle gracefully if not available)
         async function initWasm() {
@@ -1089,9 +1275,11 @@
                 window.FractalPresets = FractalPresets;
                 
                 generator = new FractalGenerator();
-                hideOverlay();
                 showNotification('WebAssembly loaded successfully!', 'success');
                 updateStatus();
+                
+                // Initialize canvas with default background on page load
+                initializeCanvas(elements.canvas, elements.backgroundColor.value);
                 
                 console.log('✅ WASM initialized successfully');
                 console.log('🔧 Debug tools available at window.debugFractal');
@@ -1106,7 +1294,6 @@
                 
             } catch (error) {
                 console.error('❌ WebAssembly initialization failed:', error);
-                hideOverlay();
                 
                 // Enhanced error reporting
                 const errorDetails = {
@@ -1146,20 +1333,41 @@
         }
 
         // UI Helper Functions
-        function showOverlay(message = 'Generating fractal...') {
-            const isMobile = window.innerWidth <= 768;
-            elements.overlay.innerHTML = `
-                <div style="text-align: center; padding: ${isMobile ? '2rem' : '1rem'};">
-                    <div class="loading-spinner"></div>
-                    <p style="margin-top: 1rem; font-size: ${isMobile ? '1.1rem' : '1rem'}; max-width: ${isMobile ? '280px' : 'none'};">${message}</p>
-                    ${isMobile ? '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Please wait while your fractal generates...</p>' : ''}
-                </div>
-            `;
-            elements.overlay.style.display = 'flex';
+        // Simplified progress functions using only batch progress indicator
+    function showBatchProgress(batchNumber, coveragePct = null, growthInfo = null) {
+            if (elements.batchProgress && elements.batchText) {
+                let txt = `Batch ${batchNumber}`;
+                if (coveragePct !== null) {
+                    txt += ` · coverage ${(coveragePct).toFixed(2)}%`;
+                }
+                if (growthInfo !== null) {
+                    txt += ` · Δ ${growthInfo}`;
+                }
+                elements.batchText.textContent = txt;
+                elements.batchProgress.classList.add('visible');
+        const abortEl = document.getElementById('abortBatchesBtn');
+        if (abortEl && !abortRequested) abortEl.style.display = 'inline-block';
+            }
         }
 
-        function hideOverlay() {
-            elements.overlay.style.display = 'none';
+        function hideBatchProgress() {
+            if (elements.batchProgress) {
+                elements.batchProgress.classList.remove('visible');
+            }
+        }
+
+        function updateMainContentBackground() {
+            const backgroundColor = elements.backgroundColor.value;
+            const mainContent = document.querySelector('.main-content');
+            const canvasContainer = document.querySelector('.canvas-container');
+            
+            if (mainContent) {
+                mainContent.style.backgroundColor = backgroundColor;
+            }
+            
+            if (canvasContainer) {
+                canvasContainer.style.backgroundColor = backgroundColor;
+            }
         }
 
         function showNotification(message, type = 'info') {
@@ -1194,7 +1402,7 @@
             if (loading) {
                 elements.generateBtn.textContent = '⏳ Generating...';
                 if (elements.generateAndPlotBtn) {
-                    elements.generateAndPlotBtn.textContent = '⏳ Generating...';
+                    elements.generateAndPlotBtn.textContent = '⏳ Finding & Plotting...';
                 }
                 if (elements.generateMapBtn) {
                     elements.generateMapBtn.textContent = '⏳ Searching...';
@@ -1205,10 +1413,10 @@
             } else {
                 elements.generateBtn.textContent = 'Generate Fractal';
                 if (elements.generateAndPlotBtn) {
-                    elements.generateAndPlotBtn.textContent = 'Generate and Plot';
+                    elements.generateAndPlotBtn.textContent = 'Find & Plot Chaotic Map';
                 }
                 if (elements.generateMapBtn) {
-                    elements.generateMapBtn.textContent = 'Generate';
+                    elements.generateMapBtn.textContent = 'Find New Chaotic Map';
                 }
                 if (elements.plotMapBtn) {
                     elements.plotMapBtn.textContent = 'Plot';
@@ -1232,12 +1440,20 @@
                 discardPoints: discardPoints,
                 useAlphabet: useAlphabet,
                 isCubic: isCubic,
-                // Store the actual point data that was found
-                pointData: pointData,
+                // Only store point data if we don't have coefficients (for fallback)
+                pointData: coefficients ? null : pointData,
                 coefficients: coefficients,
-                // Store original plot points for iterative plotting if higher than generation limit
-                originalPlotPoints: originalPlotPoints || (pointData.length / 2)
+                // Store original plot points for reference only
+                originalPlotPoints: originalPlotPoints || (pointData ? pointData.length / 2 : 0)
             };
+            
+            console.log('✅ Chaotic map stored:', {
+                hasCoefficients: !!coefficients,
+                hasXParams: !!(coefficients && coefficients.x_params),
+                hasYParams: !!(coefficients && coefficients.y_params),
+                xParamsLength: coefficients?.x_params?.length,
+                yParamsLength: coefficients?.y_params?.length
+            });
         }
 
         // Validate and normalize point data before plotting
@@ -1276,7 +1492,6 @@
             if (isLoading || !generator) return;
 
             setLoading(true);
-            showOverlay('Searching for chaotic map...');
 
             try {
                 const chaosType = elements.chaosFinderType.value;
@@ -1294,14 +1509,15 @@
                 });
 
                 // Check if we should use iterative mode for all chaotic maps
-                const plotPoints = parseInt(elements.chaosPlotPoints.value);
+                // For finding chaotic maps, we only need enough points to verify chaos, not full plot points
+                const searchPoints = testPoints; // Use test points for parameter discovery
                 
-                console.log(`🔄 Using iterative batch generation for ${plotPoints.toLocaleString()} points`);
+                console.log(`🔄 Searching for chaotic map with ${searchPoints.toLocaleString()} test points`);
 
                 try {
                     const result_data = generator.find_random_chaos_extended 
-                        ? generator.find_random_chaos_extended(plotPoints, testPoints, discardPoints, useAlphabet, isCubic)
-                        : generator.find_random_chaos(plotPoints, testPoints, isCubic);
+                        ? generator.find_random_chaos_extended(searchPoints, testPoints, discardPoints, useAlphabet, isCubic)
+                        : generator.find_random_chaos(searchPoints, testPoints, isCubic);
                     
                     // Store the chaotic map data for later plotting
                     storeChaoticMap(
@@ -1312,7 +1528,7 @@
                         discardPoints,
                         useAlphabet,
                         isCubic,
-                        plotPoints // Store original plot points
+                        null // Don't store original plot points - plotting will use current UI value
                     );
 
                     // Display the chaotic map information if extended data is available
@@ -1324,7 +1540,7 @@
 
                 } catch (error) {
                     console.warn('⚠️ Extended chaos finder not available, using basic version:', error);
-                    const pointData = generator.find_random_chaos(plotPoints, testPoints, isCubic);
+                    const pointData = generator.find_random_chaos(searchPoints, testPoints, isCubic);
                     
                     storeChaoticMap(
                         pointData,
@@ -1334,7 +1550,7 @@
                         discardPoints,
                         useAlphabet,
                         isCubic,
-                        plotPoints // Store original plot points
+                        null // Don't store original plot points - plotting will use current UI value
                     );
 
                     // For basic version, show limited information
@@ -1353,7 +1569,6 @@
                 storedChaoticMap = null;
             } finally {
                 setLoading(false);
-                hideOverlay();
                 updateChaosMapButtonStates();
             }
         }
@@ -1363,9 +1578,22 @@
             if (isLoading || !generator || !storedChaoticMap) return;
 
             setLoading(true);
-            showOverlay('Plotting chaotic map...');
 
             try {
+                // Check if parameters have been edited and apply them automatically
+                const editedParams = getEditedParameters();
+                if (editedParams && editedParams.xParams && editedParams.xParams.length > 0 && 
+                    editedParams.yParams && editedParams.yParams.length > 0 &&
+                    editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
+                    editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    console.log('🔄 Applying edited parameters automatically...');
+                    // Update stored map with edited parameters
+                    storedChaoticMap.xParams = editedParams.xParams;
+                    storedChaoticMap.yParams = editedParams.yParams;
+                } else {
+                    console.log('🔄 No valid edited parameters found, using stored parameters');
+                }
+
                 const canvasSize = parseInt(elements.canvasSize.value);
                 const aspectRatio = elements.aspectRatio.value;
                 const colorScheme = parseInt(elements.colorScheme.value);
@@ -1381,79 +1609,45 @@
                     canvasWidth = canvasSize;
                     canvasHeight = Math.round(canvasSize * 3 / 4);
                 }
-
                 elements.canvas.width = canvasWidth;
                 elements.canvas.height = canvasHeight;
+                initializeCanvas(elements.canvas, elements.backgroundColor.value);
+
+                // Get current plot points from UI (not stored original value)
+                const requestedPoints = parseInt(elements.chaosPlotPoints.value);
+                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
 
                 console.log('🎨 Plotting stored chaotic map with:', {
                     originalType: storedChaoticMap.type,
                     canvasSize: `${canvasWidth}x${canvasHeight}`,
                     colorScheme,
-                    requestedPoints: storedChaoticMap.originalPlotPoints,
+                    requestedPoints: requestedPoints,
                     hasParameters: !!(storedChaoticMap.coefficients && storedChaoticMap.coefficients.x_params)
                 });
-
-                const requestedPoints = storedChaoticMap.originalPlotPoints;
-                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
                 
                 let result;
                 
                 // Check if we have parameters for iterative generation
                 const hasParameters = storedChaoticMap.coefficients && 
-                                    (storedChaoticMap.coefficients.x_params ||
-                                     storedChaoticMap.coefficients.x_params);
+                                    (storedChaoticMap.coefficients.x_params &&
+                                     storedChaoticMap.coefficients.y_params);
                 
-                if (hasParameters && requestedPoints > batchSize) {
-                    // Use iterative batch generation directly from parameters
-                    console.log(`🔄 Using iterative batch generation for ${requestedPoints.toLocaleString()} points`);
-                    showOverlay(`Generating ${requestedPoints.toLocaleString()} points in batches...`);
+                if (hasParameters) {
+                    // Always use iterative batch generation for any point count
+                    console.log(`🔄 Using iterative batch generation with progress for ${requestedPoints.toLocaleString()} points`);
                     
-                    const xParams = storedChaoticMap.coefficients.x_params;
-                    const yParams = storedChaoticMap.coefficients.y_params;
-                    const isCubic = storedChaoticMap.isCubic;
-                    
-                    // Calculate bounds from a sample of points first
-                    const samplePoints = Math.min(batchSize, requestedPoints);
-                    const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, isCubic);
-                    const bounds = generator.calculate_point_bounds(sampleData);
-                    const [minX, maxX, minY, maxY] = bounds;
-                    
-                    // Initialize density grid
-                    let density = new Uint32Array(canvasWidth * canvasHeight);
-                    
-                    // Generate in batches
-                    const totalBatches = Math.ceil(requestedPoints / batchSize);
-                    let currentIteration = 0;
-                    
-                    for (let batch = 0; batch < totalBatches; batch++) {
-                        const remainingPoints = requestedPoints - currentIteration;
-                        const currentBatchSize = Math.min(batchSize, remainingPoints);
-                        
-                        showOverlay(`Generating batch ${batch + 1}/${totalBatches} (${currentBatchSize.toLocaleString()} points)...`);
-                        
-                        const batchDensity = generator.generate_chaotic_map_batch_to_density(
-                            xParams, yParams, currentBatchSize, isCubic,
-                            canvasWidth, canvasHeight, minX, maxX, minY, maxY, currentIteration
-                        );
-                        
-                        // Merge batch density into total density
-                        const mergedDensity = generator.merge_density_grids(density, batchDensity);
-                        density = new Uint32Array(mergedDensity);
-                        
-                        currentIteration += currentBatchSize;
-                    }
-                    
-                    showOverlay('Converting density to image...');
-                    result = generator.density_grid_to_rgba(density, canvasWidth, canvasHeight, colorScheme);
-                    
-                } else {
+                    // Call the iterative function that has proper progress bars
+                    setLoading(false); // Reset loading state since iterative function handles it
+                    await plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme);
+                    return;
+                
+                } else if (storedChaoticMap.pointData) {
                     // Fallback to existing point data for smaller sets or when parameters not available
                     const normalizedPointData = validateAndNormalizePointData(storedChaoticMap.pointData);
                     const totalPointCount = normalizedPointData.length / 2;
                     
                     if (totalPointCount > batchSize) {
                         console.log(`🔄 Using density grid for ${totalPointCount.toLocaleString()} existing points`);
-                        showOverlay(`Processing ${totalPointCount.toLocaleString()} points...`);
                         
                         // Calculate bounds
                         const bounds = generator.calculate_point_bounds(normalizedPointData);
@@ -1470,6 +1664,8 @@
                         // Use standard approach for smaller point sets
                         result = generator.points_to_rgba(normalizedPointData, canvasWidth, canvasHeight, colorScheme);
                     }
+                } else {
+                    throw new Error('No chaotic map data available for plotting. Please generate a chaotic map first.');
                 }
 
                 if (!result || result.length === 0) {
@@ -1496,13 +1692,15 @@
                 showNotification('Error plotting chaotic map. Check console for details.', 'error');
             } finally {
                 setLoading(false);
-                hideOverlay();
                 updateChaosMapButtonStates();
             }
         }
 
         // Generate and plot chaotic map (original behavior)
         async function generateAndPlotChaoticMap() {
+            // Abort any in-progress iterative plotting
+            abortRequested = true;
+            activeGenerationToken++;
             await generateChaoticMapOnly();
             if (storedChaoticMap) {
                 await plotStoredChaoticMap();
@@ -1512,6 +1710,9 @@
         // Fractal Generation with enhanced error handling and logging
         async function generateFractal() {
             if (isLoading) return;
+            // Signal abort to any running iterative process
+            abortRequested = true;
+            activeGenerationToken++;
             
             // Enhanced pre-flight checks
             if (!generator) {
@@ -1536,7 +1737,7 @@
             const paramValidation = {
                 iterations: iterations > 0 && iterations <= 10000000,
                 canvasSize: canvasSize > 0 && canvasSize <= 8192,
-                colorScheme: colorScheme >= 0 && colorScheme <= 6
+                colorScheme: colorScheme >= 0 && colorScheme <= 23
             };
             
             const invalidParams = Object.entries(paramValidation)
@@ -1567,9 +1768,11 @@
             // Update canvas size
             elements.canvas.width = canvasWidth;
             elements.canvas.height = canvasHeight;
+            
+            // Initialize canvas with proper background to prevent transparency
+            initializeCanvas(elements.canvas, elements.backgroundColor.value);
 
             setLoading(true);
-            showOverlay();
             
             // Enhanced logging for generation start
             console.log('🚀 Starting fractal generation:', {
@@ -1758,8 +1961,6 @@
                         isCubic
                     });
                     
-                    showOverlay(`Searching for chaotic ${chaosType} map...`);
-                    
                     // Try to call extended WebAssembly function with new parameters, fallback if not available
                     try {
                         const result_data = generator.find_random_chaos_extended(scaledPlotPoints, testPoints, discardPoints, useAlphabet, isCubic);
@@ -1880,7 +2081,6 @@
                 
             } finally {
                 setLoading(false);
-                hideOverlay();
             }
         }
 
@@ -2342,9 +2542,9 @@
                 transformDiv.innerHTML = `
                     <h4>Transformation ${i + 1}</h4>
                     <div class="ifs-params">
-                        <div>
-                            <label>a</label>
-                            <input type="number" id="ifs_a_${i}" value="0" step="0.01">
+                        </div>
+                    </div><!-- end sidebar-scroll -->
+                </div>
                         </div>
                         <div>
                             <label>b</label>
@@ -2516,6 +2716,28 @@
         elements.generateMapBtn.addEventListener('click', generateChaoticMapOnly);
         elements.plotMapBtn.addEventListener('click', plotStoredChaoticMap);
         
+    // Convergence mode toggle - show/hide advanced convergence thresholds
+        function updateConvergenceMode() {
+            const isConvergenceMode = elements.chaosConvergenceMode.checked;
+            const plotPointsGroup = elements.chaosPlotPoints.closest('.control-group');
+            
+            if (isConvergenceMode) {
+                // Hide plot points control when using auto-convergence
+                plotPointsGroup.style.display = 'none';
+        if (elements.convergenceAdvancedControls) elements.convergenceAdvancedControls.style.display = 'block';
+            } else {
+                // Show plot points control when not using auto-convergence
+                plotPointsGroup.style.display = 'block';
+        if (elements.convergenceAdvancedControls) elements.convergenceAdvancedControls.style.display = 'none';
+            }
+        }
+        
+        // Initialize convergence mode display
+        updateConvergenceMode();
+        
+        // Add event listener for convergence mode checkbox
+        elements.chaosConvergenceMode.addEventListener('change', updateConvergenceMode);
+        
         // Enter key to generate fractal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !isLoading) {
@@ -2668,6 +2890,9 @@
                 generateFractal();
             }
         });
+
+        // Background color change - update main content background
+        elements.backgroundColor.addEventListener('change', updateMainContentBackground);
 
         // Initialize application
         function initializeApp() {
@@ -2867,8 +3092,7 @@
             const paramInputs = document.querySelectorAll('.inline-param');
             paramInputs.forEach(input => {
                 input.addEventListener('input', () => {
-                    // Show parameter buttons when parameters change
-                    elements.applyParametersBtn.style.display = 'inline-block';
+                    // Show parameter buttons when parameters change (removed Apply Changes button)
                     elements.copyParametersBtn.style.display = 'inline-block';
                     elements.pasteParametersBtn.style.display = 'inline-block';
                 });
@@ -2887,8 +3111,7 @@
             elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
             elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
             
-            // Show parameter buttons
-            elements.applyParametersBtn.style.display = 'inline-block';
+            // Show parameter buttons (removed Apply Changes button)
             elements.copyParametersBtn.style.display = 'inline-block';
             elements.pasteParametersBtn.style.display = 'inline-block';
             
@@ -2927,43 +3150,588 @@
                 return 1; // square
             }
         }
+
+        /* ================= Responsive Canvas Fitting ================= */
+        function fitCanvasToViewport() {
+            if (!elements.canvas || !elements.canvasDisplayWrapper) return;
+            const canvas = elements.canvas;
+            const wrapper = elements.canvasDisplayWrapper;
+
+            // Reset any prior sizing so we calculate from intrinsic buffer size
+            canvas.classList.remove('scaled');
+            canvas.style.width = '';
+            canvas.style.height = '';
+            wrapper.style.width = '';
+            wrapper.style.height = '';
+
+            const internalW = canvas.width;
+            const internalH = canvas.height;
+
+            const viewportW = window.innerWidth;
+            const viewportH = window.innerHeight;
+
+            // Estimate sidebar width (if visible) by measuring .sidebar
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarWidth = sidebar ? sidebar.getBoundingClientRect().width : 0;
+
+            const availableW = Math.max(320, viewportW - sidebarWidth - 48); // leave some gap
+            const availableH = Math.max(200, viewportH - 160); // leave room for controls/title
+
+            const scaleW = availableW / internalW;
+            const scaleH = availableH / internalH;
+            const scale = Math.min(1, scaleW, scaleH);
+
+            if (scale < 1) {
+                const cssW = Math.floor(internalW * scale);
+                const cssH = Math.floor(internalH * scale);
+                canvas.style.width = cssW + 'px';
+                canvas.style.height = cssH + 'px';
+                canvas.classList.add('scaled');
+                wrapper.style.width = cssW + 'px';
+                wrapper.style.height = cssH + 'px';
+            } else {
+                // Use native size
+                canvas.style.width = internalW + 'px';
+                canvas.style.height = internalH + 'px';
+                wrapper.style.width = internalW + 'px';
+                wrapper.style.height = internalH + 'px';
+            }
+        }
+
+        function observeCanvasResizing() {
+            window.addEventListener('resize', () => requestAnimationFrame(fitCanvasToViewport));
+        }
+
+        // Wrap original function that sets canvas size so we can refit after changes
+        const __originalSetCanvasAndAspectRatio = typeof setCanvasAndAspectRatio === 'function' ? setCanvasAndAspectRatio : null;
+        if (__originalSetCanvasAndAspectRatio) {
+            window.setCanvasAndAspectRatio = function() {
+                __originalSetCanvasAndAspectRatio();
+                requestAnimationFrame(fitCanvasToViewport);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            observeCanvasResizing();
+            requestAnimationFrame(fitCanvasToViewport);
+        });
+        /* ============================================================= */
         
+        // Initialize canvas with proper background to prevent transparency issues
+        function initializeCanvas(canvas, backgroundColor = '#000000') {
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Apply background color to image data (for zero-value pixels)
+        function applyBackgroundColor(imageData, backgroundColor, colorScheme) {
+            const data = imageData.data;
+            
+            // Parse the hex color
+            const hex = backgroundColor.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            
+            // Map numeric colorScheme to scheme name
+            const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
+            const schemeName = schemeNames[colorScheme] || 'Fire';
+            
+            console.log(`🎨 Applying background color: ${backgroundColor} -> RGB(${r}, ${g}, ${b}) for ${schemeName} scheme`);
+            
+            // Define the background colors for each colormap scheme (t=0.0 values)
+            const backgroundColors = {
+                'Fire': [0, 0, 0],           // Pure black
+                'Jet': [0, 0, 127],          // Dark blue  
+                'Turbo': [34, 23, 27],       // Dark purple-brown
+                'Prism': [255, 0, 0],        // Red (sector 0, fraction 0)
+                'ColorWheel': [255, 127, 127], // cos(0)=1, sin(0)=0, cos(π/2)=0 -> 255,127,127
+                'Gnuplot': [0, 0, 255],      // Blue
+                'BMY': [0, 0, 255],          // Blue (t < 0.33 with scaled=0)
+                'Plasma': [13, 8, 135],
+                'Inferno': [0, 0, 4],
+                'Viridis': [68, 1, 84],
+                'Neon': [255, 0, 255],
+                'Pastel': [248, 232, 244],
+                'Magma': [0,0,4],
+                'Cividis': [0,32,76],
+                'Gray': [0,0,0],
+                'Cubehelix': [0,0,0],
+                'BlueOrange': [0,32,96],
+                'Heat': [0,0,0],
+                'Ice': [0,32,48]
+                ,'WhiteFire': [255,255,255]
+                ,'WhiteHeat': [255,255,255]
+                ,'WhiteBlue': [255,255,255]
+                ,'WhiteViridis': [255,255,255]
+                ,'WhiteMagma': [255,255,255]
+            };
+            
+            const targetColor = backgroundColors[schemeName] || [0, 0, 0]; // Default to black
+            console.log(`🎯 Targeting background color for ${schemeName}: RGB(${targetColor})`);
+            
+            // If "no background" option is enabled, skip recoloring
+            if (document.getElementById('noBackgroundColor')?.checked) {
+                return imageData; // leave original colormap background
+            }
+
+            let pixelsChanged = 0;
+            
+            // Apply background color to pixels matching the colormap's zero-density color
+            for (let i = 0; i < data.length; i += 4) {
+                // Check if pixel matches the background color for this colormap
+                if (data[i] === targetColor[0] && 
+                    data[i + 1] === targetColor[1] && 
+                    data[i + 2] === targetColor[2]) {
+                    data[i] = r;       // Red
+                    data[i + 1] = g;   // Green  
+                    data[i + 2] = b;   // Blue
+                    // Alpha (data[i + 3]) stays the same
+                    pixelsChanged++;
+                }
+            }
+            
+            console.log(`🎨 Background color applied to ${pixelsChanged} pixels`);
+            
+            return imageData;
+        }
+        
+        // Iterative plotting function with progress bars
+        async function plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme) {
+            console.log('🔄 plotChaoticMapIterative called with:', { requestedPoints, canvasWidth, canvasHeight, colorScheme });
+            // Capture a new token for this run
+            const runToken = ++activeGenerationToken;
+            // Ensure any previous loop sees abortRequested
+            abortRequested = false; // reset after increment to allow this run
+            console.log('🔄 Global state check:', { 
+                storedChaoticMap: !!storedChaoticMap, 
+                generator: !!generator,
+                storedChaoticMapType: storedChaoticMap ? typeof storedChaoticMap : 'null'
+            });
+            
+            if (!storedChaoticMap || !generator) {
+                console.error('❌ Missing required objects for iterative plotting:', { storedChaoticMap: !!storedChaoticMap, generator: !!generator });
+                return;
+            }
+
+            setLoading(true);
+            
+            // Hide batch progress indicator at start
+            if (elements.batchProgress) {
+                elements.batchProgress.classList.remove('visible');
+            }
+            
+            try {
+                // Get parameters - use edited ones if available, otherwise stored coefficients
+                let xParams, yParams;
+                const editedParams = getEditedParameters();
+                
+                // Validate edited parameters - use stored coefficients as fallback
+                if (editedParams.xParams && editedParams.xParams.length > 0 && 
+                    editedParams.yParams && editedParams.yParams.length > 0 &&
+                    editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
+                    editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    xParams = editedParams.xParams;
+                    yParams = editedParams.yParams;
+                    console.log('🔄 Using edited parameters for plotting');
+                } else if (storedChaoticMap.coefficients && 
+                          storedChaoticMap.coefficients.x_params && 
+                          storedChaoticMap.coefficients.y_params) {
+                    xParams = storedChaoticMap.coefficients.x_params;
+                    yParams = storedChaoticMap.coefficients.y_params;
+                    console.log('🔄 Using stored coefficients for plotting');
+                } else {
+                    throw new Error('No valid parameters available for plotting');
+                }
+                
+                const batchSize = parseInt(elements.chaosBatchSize.value);
+                const originalBatchSize = batchSize; // Keep track of original batch size for notification
+                const isCubic = storedChaoticMap.isCubic;
+                
+                console.log(`🔄 Iterative plotting: ${requestedPoints.toLocaleString()} points in batches of ${batchSize.toLocaleString()}`);
+                console.log(`🔄 Parameters: x[${xParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...], y[${yParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...]`);
+                
+                // For iterative mode, calculate bounds from a longer trajectory to capture full range
+                const boundsCalculationPoints = Math.min(requestedPoints, batchSize * 3); // Use up to 3 batches worth for bounds
+                console.log(`📏 Calculating bounds from ${boundsCalculationPoints} points for full trajectory coverage`);
+                
+                const boundsData = generator.generate_chaotic_map_points(xParams, yParams, boundsCalculationPoints, isCubic);
+                const bounds = generator.calculate_point_bounds(boundsData);
+                const [minX, maxX, minY, maxY] = bounds;
+                
+                console.log(`📏 Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
+                
+                // Initialize accumulated density grid and state tracking
+                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
+                let processedPoints = 0;
+                let batchCount = 0;
+                let currentX = 0.05; // Initial state
+                let currentY = 0.05;
+                
+                // Convergence detection variables (early adaptive algorithm) using user thresholds
+                const convergenceMode = document.getElementById('chaosConvergenceMode').checked;
+                const totalPixels = canvasWidth * canvasHeight;
+                const userRelPct = parseFloat(elements.relGrowthThreshold?.value || '0.05');
+                const relativeGrowthThreshold = Math.max(0.0000005, userRelPct / 100.0); // convert percent to fraction
+                const userAbsPixels = parseInt(elements.absGrowthPixels?.value || '50');
+                const absoluteGrowthThreshold = userAbsPixels; // Only pixels threshold
+                const minBatchesBeforeConvergence = 3; // Keep simple sensible defaults
+                const requiredConsecutiveStagnant = 3;
+                const minCoverageForConvergencePct = 0.0; // No minimum coverage requirement now
+                let lastNonZero = 0;
+                let stagnantCount = 0;
+                let converged = false;
+                let batchGrowths = []; // For logging
+                console.log(`🎯 Convergence mode: ${convergenceMode ? 'ON' : 'OFF'}${convergenceMode ? ` (rel<th ${(relativeGrowthThreshold*100).toFixed(3)}%, abs<th ${absoluteGrowthThreshold} px, min batches ${minBatchesBeforeConvergence}, stagnant ${requiredConsecutiveStagnant})` : ''}`);
+                
+                // Reset abort state and show abort button
+                // If a newer generation started, stop immediately
+                if (runToken !== activeGenerationToken) {
+                    console.log('⛔ Stale run detected before start; aborting.');
+                    return;
+                }
+                abortRequested = false;
+                const abortEl = document.getElementById('abortBatchesBtn');
+                if (abortEl) {
+                    abortEl.style.display = 'inline-block';
+                    abortEl.disabled = false;
+                    abortEl.textContent = 'Abort';
+                }
+
+                // Process in batches with efficient state continuity
+                const processBatch = () => {
+                    // Determine batch size; in convergence mode ignore requestedPoints cap
+                    let currentBatchSize;
+                    if (convergenceMode) {
+                        currentBatchSize = batchSize; // steady batches until convergence
+                    } else {
+                        const remainingPoints = requestedPoints - processedPoints;
+                        currentBatchSize = Math.min(batchSize, remainingPoints);
+                    }
+
+                    console.log(`🔄 processBatch called: processed=${processedPoints}, batchSize=${currentBatchSize}, mode=${convergenceMode ? 'convergence' : 'fixed'}`);
+                    
+                    // Cancel early if superseded by a new generation
+                    if (runToken !== activeGenerationToken) {
+                        console.log(`⛔ Stale batch loop (token ${runToken} != active ${activeGenerationToken}); stopping.`);
+                        abortRequested = true;
+                    }
+                    if (abortRequested || (!convergenceMode && currentBatchSize <= 0) || (convergenceMode && converged)) {
+                        const reason = converged ? 'convergence detected' : 'all points processed';
+                        if (abortRequested) console.log('⛔ Abort requested; finalizing image');
+                        console.log(`🎯 Stopping due to ${reason} - generating final image`);
+                        
+                        // Debug density grid statistics
+                        const maxDensity = Math.max(...accumulatedDensity);
+                        const minDensity = Math.min(...accumulatedDensity);
+                        const nonZeroCount = accumulatedDensity.filter(d => d > 0).length;
+                        const totalPoints = accumulatedDensity.reduce((sum, d) => sum + d, 0);
+                        
+                        console.log(`📊 Final density stats: max=${maxDensity}, min=${minDensity}, nonZero=${nonZeroCount}/${accumulatedDensity.length}, total=${totalPoints}`);
+                        
+                        // All batches complete - generate final image
+                        const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                        const result = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
+                        
+                        console.log(`🎨 Generated final result: length=${result.length}, expected=${canvasWidth * canvasHeight * 4}`);
+                        
+                        // Display result on canvas
+                        elements.canvas.width = canvasWidth;
+                        elements.canvas.height = canvasHeight;
+                        initializeCanvas(elements.canvas, elements.backgroundColor.value);
+                        const ctx = elements.canvas.getContext('2d');
+                        const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                        const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                        ctx.putImageData(finalImageData, 0, 0);
+                        
+                        console.log('✅ Canvas updated with final image');
+                        
+                        // Update current fractal data
+                        currentFractal = {
+                            type: 'chaotic_map',
+                            method: 'random_chaos_iterative',
+                            imageData: result,
+                            width: canvasWidth,
+                            height: canvasHeight,
+                            colorScheme,
+                            backgroundColor: elements.backgroundColor.value,
+                            density: accumulatedDensity.slice()
+                        };
+                        lastAccumulatedDensity = accumulatedDensity.slice();
+                        
+                        // Update equation display with new parameters if edited
+                        if (xParams && yParams) {
+                            elements.xEquation.textContent = formatChaoticMapEquation(xParams, isCubic);
+                            elements.yEquation.textContent = formatChaoticMapEquation(yParams, isCubic);
+                        }
+                        
+                        hideBatchProgress();
+                        if (abortEl) abortEl.style.display = 'none';
+                        setLoading(false);
+                        updateChaosMapButtonStates();
+                        
+                        // Final processing complete
+                        if (abortRequested) {
+                            console.log(`⛔ Plot aborted after ${batchCount} batches (~${processedPoints.toLocaleString()} points)`);
+                        } else {
+                            console.log(`🎯 Fractal plotted successfully! (${requestedPoints.toLocaleString()} points in ${batchCount} batches)`);
+                        }
+                        return;
+                    }
+                    
+                    batchCount++;
+                    // In convergence mode, no meaningful percentage target; we'll show coverage instead after processing
+                    
+                    // Generate batch density grid with state continuity
+                    setTimeout(async () => {
+                        try {
+                            console.log(`🔄 Processing batch ${batchCount}: ${currentBatchSize} points`);
+                            
+                            // Use the new efficient batch function with state continuity
+                            const batchResult = generator.generate_chaotic_map_batch_with_state(
+                                xParams, yParams, currentBatchSize, isCubic,
+                                canvasWidth, canvasHeight, minX, maxX, minY, maxY, currentX, currentY
+                            );
+                            
+                            console.log(`✅ Batch ${batchCount} WASM call completed, result length: ${batchResult.length}`);
+                            
+                            // Extract final state for next batch
+                            const prevX = currentX;
+                            const prevY = currentY;
+                            currentX = batchResult[0];
+                            currentY = batchResult[1];
+                            
+                            console.log(`🔗 State transition: (${prevX.toFixed(6)}, ${prevY.toFixed(6)}) → (${currentX.toFixed(6)}, ${currentY.toFixed(6)})`);
+                            
+                            // Extract bounds info (indices 2-5)
+                            const actualMinX = batchResult[2];
+                            const actualMaxX = batchResult[3];
+                            const actualMinY = batchResult[4];
+                            const actualMaxY = batchResult[5];
+                            
+                            // Extract density grid starting at index 6 (convert from f64 back to u32)
+                            const batchDensity = new Array(canvasWidth * canvasHeight);
+                            for (let i = 0; i < batchDensity.length; i++) {
+                                batchDensity[i] = Math.round(batchResult[i + 6]);
+                            }
+                            
+                            console.log(`🔄 Batch ${batchCount} density processed, max density: ${batchDensity.reduce((max, val) => Math.max(max, val), 0)}`);
+                            console.log(`📊 Density info: total points in grid: ${batchDensity.reduce((sum, d) => sum + d, 0)}, nonZero: ${batchDensity.filter(d => d > 0).length}`);
+                            console.log(`📊 Actual bounds encountered: x[${actualMinX.toFixed(3)}, ${actualMaxX.toFixed(3)}], y[${actualMinY.toFixed(3)}, ${actualMaxY.toFixed(3)}]`);
+                            
+                            // Merge with accumulated density
+                            for (let i = 0; i < accumulatedDensity.length; i++) {
+                                accumulatedDensity[i] += batchDensity[i];
+                            }
+                            
+                            // Update canvas after each batch completion with background for clarity
+                            const ctx = elements.canvas.getContext('2d');
+                            const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                            const currentResult = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
+                            const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
+                            const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                            ctx.putImageData(bgImageData, 0, 0);
+                            
+                            processedPoints += currentBatchSize;
+                            
+                            // Coverage / convergence metrics for BOTH modes
+                            const currentNonZeroForDisplay = accumulatedDensity.filter(d => d > 0).length;
+                            const coveragePctForDisplay = (currentNonZeroForDisplay / totalPixels) * 100;
+
+                            // Improved convergence detection (early adaptive) - per-batch incremental check (only if enabled)
+                            if (runToken !== activeGenerationToken) {
+                                console.log('⛔ Stale run detected post-batch; forcing abort.');
+                                abortRequested = true;
+                            }
+                            if (abortRequested) {
+                                console.log('⛔ Abort flag detected post-batch');
+                            }
+                            if (convergenceMode && !converged && !abortRequested) {
+                                const currentNonZero = accumulatedDensity.filter(d => d > 0).length;
+                                const coveragePct = (currentNonZero / totalPixels) * 100;
+                                const delta = currentNonZero - lastNonZero;
+                                const relGrowth = lastNonZero > 0 ? delta / lastNonZero : 1.0;
+                                batchGrowths.push({ batch: batchCount, delta, rel: relGrowth });
+
+                                const stagnant = (delta <= absoluteGrowthThreshold) || (relGrowth <= relativeGrowthThreshold);
+                                if (batchCount >= 2) { // Ignore first batch variability
+                                    if (stagnant) stagnantCount++; else stagnantCount = 0;
+                                }
+
+                                console.log(`🎯 Convergence tracking: batch ${batchCount}, nonZero=${currentNonZero}, Δ=${delta}, relΔ=${(relGrowth*100).toFixed(3)}%, stagnant=${stagnant}, stagnantRun=${stagnantCount}, coverage=${coveragePct.toFixed(3)}%`);
+
+                                // Require minimum batches & coverage & consecutive stagnant batches
+                                if (batchCount >= minBatchesBeforeConvergence && coveragePct >= minCoverageForConvergencePct && stagnantCount >= requiredConsecutiveStagnant) {
+                                    converged = true;
+                                    console.log(`🎯 ✅ CONVERGENCE DETECTED after ${batchCount} batches: coverage ${coveragePct.toFixed(3)}%, last Δ=${delta} (${(relGrowth*100).toFixed(4)}%), stagnant run=${stagnantCount}`);
+                                }
+
+                                lastNonZero = currentNonZero;
+                                showBatchProgress(batchCount, coveragePct, delta.toLocaleString());
+                            } else if (convergenceMode) {
+                                // First batch (or already converged) in convergence mode
+                                lastNonZero = currentNonZeroForDisplay;
+                                showBatchProgress(batchCount, coveragePctForDisplay, currentNonZeroForDisplay.toLocaleString());
+                            } else {
+                                // Non-convergence mode still show coverage and new pixels gained
+                                const delta = currentNonZeroForDisplay - lastNonZero;
+                                lastNonZero = currentNonZeroForDisplay;
+                                showBatchProgress(batchCount, coveragePctForDisplay, delta.toLocaleString());
+                            }
+                            
+                            console.log(`📊 Progress: ${processedPoints}/${requestedPoints} points processed`);
+                            
+                            // Show intermediate result periodically for visual feedback (without background color changes)
+                            if (batchCount > 1 && batchCount % 2 === 0) {
+                                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                                const intermediateResult = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
+                                const ctx = elements.canvas.getContext('2d');
+                                const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
+                                const bgIntermediate = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                                ctx.putImageData(bgIntermediate, 0, 0);
+                            }
+                            
+                            // Small delay to allow UI update before next batch
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                            
+                            // Process next batch if there are remaining points AND not converged
+                            const shouldContinue = !abortRequested && runToken === activeGenerationToken && (convergenceMode ? !converged : processedPoints < requestedPoints);
+                            if (shouldContinue) {
+                                processBatch();
+                            } else {
+                                // All batches complete or converged - generate final image
+                                const reason = abortRequested ? 'abort requested' : (converged ? 'convergence detected' : 'all points processed');
+                                console.log(`🎯 Stopping due to ${reason} - generating final image`);
+                                
+                                // Debug density grid statistics
+                                const maxDensity = accumulatedDensity.reduce((max, val) => Math.max(max, val), 0);
+                                const minDensity = accumulatedDensity.reduce((min, val) => Math.min(min, val), Number.MAX_VALUE);
+                                const nonZeroCount = accumulatedDensity.filter(d => d > 0).length;
+                                const totalPoints = accumulatedDensity.reduce((sum, d) => sum + d, 0);
+                                
+                                console.log(`📊 Final density stats: max=${maxDensity}, min=${minDensity}, nonZero=${nonZeroCount}/${accumulatedDensity.length}, total=${totalPoints}`);
+                                
+                                // Generate final image
+                                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                                const result = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
+                                
+                                console.log(`🎨 Generated final result: length=${result.length}, expected=${canvasWidth * canvasHeight * 4}`);
+                                
+                                // Display result on canvas
+                                elements.canvas.width = canvasWidth;
+                                elements.canvas.height = canvasHeight;
+                                const ctx = elements.canvas.getContext('2d');
+                                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                                const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                                ctx.putImageData(finalImageData, 0, 0);
+                                
+                                console.log('✅ Canvas updated with final image');
+                                
+                                // Update current fractal data
+                                currentFractal = {
+                                    type: 'chaotic_map',
+                                    method: 'random_chaos_iterative',
+                                    imageData: result,
+                                    width: canvasWidth,
+                                    height: canvasHeight,
+                                    parameters: { xParams, yParams, points: requestedPoints },
+                                    colorScheme,
+                                    backgroundColor: elements.backgroundColor.value,
+                                    density: accumulatedDensity.slice()
+                                };
+                                lastAccumulatedDensity = accumulatedDensity.slice();
+                                
+                                // Hide overlay and show completion
+                                hideBatchProgress();
+                                if (abortEl) abortEl.style.display = 'none';
+                                setLoading(false);
+                                elements.downloadBtn.disabled = false;
+                                
+                                // Final processing complete (no artificial batch cap)
+                                if (abortRequested) {
+                                    console.log(`⛔ Fractal plotting aborted by user after ${batchCount} batches (~${processedPoints.toLocaleString()} points).`);
+                                } else if (convergenceMode) {
+                                    console.log(`🎯 Fractal plotted successfully! (converged after ${batchCount} batches, ~${processedPoints.toLocaleString()} points)`);
+                                } else {
+                                    console.log(`🎯 Fractal plotted successfully! (${requestedPoints.toLocaleString()} points; batches processed: ${batchCount})`);
+                                }
+                            }
+                            
+                        } catch (error) {
+                            console.error('❌ Error in batch processing:', error);
+                            hideBatchProgress();
+                            setLoading(false);
+                            showNotification('Error during batch processing. Check console for details.', 'error');
+                        }
+                    }, 10); // Small delay to allow UI updates
+                };
+                
+                // Start batch processing
+                processBatch();
+                
+            } catch (error) {
+                console.error('❌ Error in iterative plotting:', error);
+                hideBatchProgress();
+                setLoading(false);
+                showNotification('Error during plotting. Check console for details.', 'error');
+            }
+        }
+
         function regenerateWithCustomParametersIterative() {
             if (!currentChaoticMapData || !generator) return;
             
-            const { xParams, yParams } = getEditedParameters();
+            const editedParams = getEditedParameters();
+            
+            // Validate parameters
+            if (!editedParams.xParams || !editedParams.yParams || 
+                editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                showNotification('Invalid parameters. Please check that all parameter fields contain valid numbers.', 'error');
+                return;
+            }
+            
+            const { xParams, yParams } = editedParams;
             const totalPoints = parseInt(elements.chaosPlotPoints.value);
             const batchSize = parseInt(elements.chaosBatchSize.value);
-            const iterativeMode = elements.chaosIterativeMode.checked;
+            const iterativeMode = true; // Always use iterative mode
             const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
             const canvasHeight = Math.round(canvasWidth / getAspectRatio());
             const colorScheme = parseInt(elements.colorScheme.value);
             
-            // If not iterative mode or total points <= batch size, use regular generation
-            if (!iterativeMode || totalPoints <= batchSize) {
-                regenerateWithCustomParameters();
-                return;
-            }
-            
+            // Always use iterative mode regardless of batch size
             try {
                 setLoading(true);
-                showOverlay('Generating high-resolution fractal in batches...');
-                
-                // Calculate bounds using a small sample first
-                const samplePoints = Math.min(BOUNDS_SAMPLE_SIZE, batchSize);
-                const sampleData = generator.generate_chaotic_map_points(xParams, yParams, samplePoints, currentChaoticMapData.is_cubic);
-                const bounds = generator.calculate_point_bounds(sampleData);
-                const [minX, maxX, minY, maxY] = bounds;
                 
                 console.log(`🔄 Iterative generation: ${totalPoints} points in batches of ${batchSize}`);
-                console.log(`📏 Bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
                 
-                // Initialize accumulated density grid
+                // For iterative mode, we need to calculate bounds from a longer trajectory
+                // to ensure we capture the full range of the extended orbit
+                const boundsCalculationPoints = Math.min(totalPoints, batchSize * 3); // Use up to 3 batches worth for bounds
+                console.log(`📏 Calculating bounds from ${boundsCalculationPoints} points for full trajectory coverage`);
+                
+                const boundsData = generator.generate_chaotic_map_points(xParams, yParams, boundsCalculationPoints, currentChaoticMapData.is_cubic);
+                const bounds = generator.calculate_point_bounds(boundsData);
+                const [minX, maxX, minY, maxY] = bounds;
+                
+                console.log(`� Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
+                
+                // Initialize accumulated density grid and state tracking
                 let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
                 let processedPoints = 0;
                 let batchCount = 0;
+                let currentX = 0.05; // Initial state
+                let currentY = 0.05;
                 
-                // Process in batches
+                // Dynamic bounds tracking - start with calculated bounds and expand as needed
+                let dynamicMinX = minX;
+                let dynamicMaxX = maxX;
+                let dynamicMinY = minY;
+                let dynamicMaxY = maxY;
+                let boundsExpanded = false;
+                
+                // Process in batches with efficient state continuity
                 const processBatch = () => {
                     const remainingPoints = totalPoints - processedPoints;
                     const currentBatchSize = Math.min(batchSize, remainingPoints);
@@ -2996,26 +3764,103 @@
                         currentChaoticMapData.x_params = xParams;
                         currentChaoticMapData.y_params = yParams;
                         
-                        hideOverlay();
+                        hideBatchProgress();
                         setLoading(false);
-                        showNotification(`High-resolution fractal generated! (${totalPoints.toLocaleString()} points in ${batchCount} batches)`, 'success');
+                        
+                        let finalMessage = `High-resolution fractal generated! (${totalPoints.toLocaleString()} points in ${batchCount} batches)`;
+                        if (boundsExpanded) {
+                            finalMessage += ' Extended trajectory explored larger region.';
+                        }
+                        // Final processing complete
+                        console.log(finalMessage);
                         return;
                     }
                     
                     batchCount++;
                     const progress = Math.round((processedPoints / totalPoints) * 100);
-                    showOverlay(`Processing batch ${batchCount}... (${progress}% complete, ${processedPoints.toLocaleString()}/${totalPoints.toLocaleString()} points)`);
                     
-                    // Generate batch density grid
+                    showBatchProgress(batchCount);
+                    
+                    // Generate batch density grid with state continuity
                     setTimeout(() => {
                         try {
-                            const batchDensity = generator.generate_chaotic_map_batch_to_density(
-                                xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
-                                canvasWidth, canvasHeight, minX, maxX, minY, maxY, processedPoints
-                            );
+                            let batchDensity, currentBatchX, currentBatchY;
+                            
+                            // Try new efficient function first, fallback to old method
+                            if (generator.generate_chaotic_map_batch_with_state) {
+                                // Use the new efficient batch function with state continuity
+                                const batchResult = generator.generate_chaotic_map_batch_with_state(
+                                    xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
+                                    canvasWidth, canvasHeight, dynamicMinX, dynamicMaxX, dynamicMinY, dynamicMaxY, currentX, currentY
+                                );
+                                
+                                // Extract final state for next batch
+                                currentBatchX = batchResult[0];
+                                currentBatchY = batchResult[1];
+                                
+                                // Extract actual bounds encountered in this batch
+                                const batchMinX = batchResult[2];
+                                const batchMaxX = batchResult[3];
+                                const batchMinY = batchResult[4];
+                                const batchMaxY = batchResult[5];
+                                
+                                // Check if bounds need expansion
+                                if (batchMinX < dynamicMinX || batchMaxX > dynamicMaxX || batchMinY < dynamicMinY || batchMaxY > dynamicMaxY) {
+                                    console.log(`🔍 Trajectory exploring new regions - expanding bounds from batch ${batchCount}`);
+                                    console.log(`📏 Old bounds: x[${dynamicMinX.toFixed(3)}, ${dynamicMaxX.toFixed(3)}], y[${dynamicMinY.toFixed(3)}, ${dynamicMaxY.toFixed(3)}]`);
+                                    console.log(`📏 New bounds: x[${batchMinX.toFixed(3)}, ${batchMaxX.toFixed(3)}], y[${batchMinY.toFixed(3)}, ${batchMaxY.toFixed(3)}]`);
+                                    
+                                    // Expand bounds with some padding for future batches
+                                    const paddingX = (batchMaxX - batchMinX) * 0.1;
+                                    const paddingY = (batchMaxY - batchMinY) * 0.1;
+                                    
+                                    dynamicMinX = Math.min(dynamicMinX, batchMinX - paddingX);
+                                    dynamicMaxX = Math.max(dynamicMaxX, batchMaxX + paddingX);
+                                    dynamicMinY = Math.min(dynamicMinY, batchMinY - paddingY);
+                                    dynamicMaxY = Math.max(dynamicMaxY, batchMaxY + paddingY);
+                                    
+                                    boundsExpanded = true;
+                                    console.log(`📏 Expanded bounds: x[${dynamicMinX.toFixed(3)}, ${dynamicMaxX.toFixed(3)}], y[${dynamicMinY.toFixed(3)}, ${dynamicMaxY.toFixed(3)}]`);
+                                }
+                                
+                                // Extract density grid (convert from f64 back to u32)
+                                batchDensity = new Array(canvasWidth * canvasHeight);
+                                for (let i = 0; i < batchDensity.length; i++) {
+                                    batchDensity[i] = Math.round(batchResult[i + 6]);
+                                }
+                            } else {
+                                // Fallback to old method
+                                console.log(`⚠️ Using fallback batch method for batch ${batchCount}`);
+                                batchDensity = generator.generate_chaotic_map_batch_to_density(
+                                    xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
+                                    canvasWidth, canvasHeight, minX, maxX, minY, maxY, processedPoints
+                                );
+                                
+                                // For old method, we don't have state continuity, so use a simple approximation
+                                currentBatchX = currentX;
+                                currentBatchY = currentY;
+                            }
+                            
+                            // Update state for next batch
+                            currentX = currentBatchX;
+                            currentY = currentBatchY;
                             
                             // Merge with accumulated density
-                            accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
+                            if (batchDensity.length) {
+                                accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
+                            } else {
+                                // Manual merge for new method
+                                for (let i = 0; i < accumulatedDensity.length; i++) {
+                                    accumulatedDensity[i] += batchDensity[i];
+                                }
+                            }
+                            
+                            // Update canvas after each batch completion
+                            const ctx = elements.canvas.getContext('2d');
+                            const currentResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                            const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
+                            const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                            ctx.putImageData(finalImageData, 0, 0);
                             
                             processedPoints += currentBatchSize;
                             
@@ -3032,7 +3877,7 @@
                             
                         } catch (error) {
                             console.error('❌ Error in batch processing:', error);
-                            hideOverlay();
+                            hideBatchProgress();
                             setLoading(false);
                             showNotification('Error during batch processing. Try reducing batch size.', 'error');
                         }
@@ -3044,17 +3889,72 @@
                 
             } catch (error) {
                 console.error('❌ Error in iterative generation:', error);
-                hideOverlay();
+                hideBatchProgress();
                 setLoading(false);
-                showNotification('Error in iterative generation. Falling back to standard mode.', 'error');
-                regenerateWithCustomParameters();
+                showNotification('Error in iterative generation.', 'error');
+                // Don't fall back to non-iterative mode - iterative is the only mode
             }
+        }
+
+        // --- Dynamic recoloring without recomputation ---
+        function recolorCurrentFractal() {
+            if (!generator || !currentFractal || !lastAccumulatedDensity) return;
+            try {
+                const newScheme = parseInt(elements.colorScheme.value);
+                const bgColor = elements.backgroundColor.value;
+                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                const w = currentFractal.width;
+                const h = currentFractal.height;
+                const rgba = generator.density_grid_to_rgba_scaled(lastAccumulatedDensity, w, h, newScheme, scaleMode);
+                const ctx = elements.canvas.getContext('2d');
+                const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
+                const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
+                ctx.putImageData(finalImageData, 0, 0);
+                currentFractal.colorScheme = newScheme;
+                currentFractal.backgroundColor = bgColor;
+                currentFractal.imageData = rgba; // update stored image
+            } catch (e) {
+                console.error('Dynamic recolor failed', e);
+            }
+        }
+
+        // Listen for color scheme / background changes to live update
+        elements.colorScheme.addEventListener('change', () => {
+            recolorCurrentFractal();
+        });
+        elements.backgroundColor.addEventListener('input', () => {
+            recolorCurrentFractal();
+        });
+        const densityScaleSelect = document.getElementById('densityScaleMode');
+        if (densityScaleSelect) {
+            densityScaleSelect.addEventListener('change', () => {
+                recolorCurrentFractal();
+            });
+        }
+        const noBg = document.getElementById('noBackgroundColor');
+        if (noBg) {
+            noBg.addEventListener('change', () => {
+                // Disable/enable color picker UI feedback
+                elements.backgroundColor.disabled = noBg.checked;
+                recolorCurrentFractal();
+            });
         }
         
         function regenerateWithCustomParameters() {
             if (!currentChaoticMapData || !generator) return;
             
-            const { xParams, yParams } = getEditedParameters();
+            const editedParams = getEditedParameters();
+            
+            // Validate parameters
+            if (!editedParams.xParams || !editedParams.yParams || 
+                editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                showNotification('Invalid parameters. Please check that all parameter fields contain valid numbers.', 'error');
+                return;
+            }
+            
+            const { xParams, yParams } = editedParams;
             const plotPoints = parseInt(elements.chaosPlotPoints.value);
             const canvasWidth = parseInt(elements.canvasSize.value.split('x')[0]);
             const canvasHeight = Math.round(canvasWidth / getAspectRatio());
@@ -3066,16 +3966,12 @@
                 
                 // Check if points exceed safe memory limit
                 if (plotPoints > batchSize) {
-                    showOverlay(`Cannot generate ${plotPoints.toLocaleString()} points in standard mode. Please reduce points or enable iterative mode.`);
                     setTimeout(() => {
-                        hideOverlay();
                         setLoading(false);
                         showNotification(`Error: ${plotPoints.toLocaleString()} points exceeds memory limit. Reduce points to ${batchSize.toLocaleString()} or enable iterative mode.`, 'error');
                     }, 2000);
                     return;
                 }
-                
-                showOverlay('Generating fractal with custom parameters...');
                 
                 const points = generator.generate_chaotic_map_points(xParams, yParams, plotPoints, currentChaoticMapData.is_cubic);
                 const result = generator.points_to_rgba(points, canvasWidth, canvasHeight, colorScheme);
@@ -3104,13 +4000,11 @@
                 currentChaoticMapData.x_params = xParams;
                 currentChaoticMapData.y_params = yParams;
                 
-                hideOverlay();
                 setLoading(false);
                 showNotification('Fractal regenerated with custom parameters!', 'success');
                 
             } catch (error) {
                 console.error('❌ Error regenerating with custom parameters:', error);
-                hideOverlay();
                 setLoading(false);
                 showNotification('Error regenerating fractal. Check parameter values.', 'error');
             }
@@ -3119,7 +4013,18 @@
         // Copy all parameters to clipboard
         async function copyParametersToClipboard() {
             try {
-                const { xParams, yParams } = getEditedParameters();
+                const editedParams = getEditedParameters();
+                
+                // Validate parameters
+                if (!editedParams.xParams || !editedParams.yParams || 
+                    editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
+                    !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
+                    !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
+                    showNotification('Invalid parameters. Cannot copy invalid parameter values.', 'error');
+                    return;
+                }
+                
+                const { xParams, yParams } = editedParams;
                 const parametersData = {
                     xParams: xParams,
                     yParams: yParams,
@@ -3168,8 +4073,7 @@
                     }
                 });
                 
-                // Show parameter buttons
-                elements.applyParametersBtn.style.display = 'inline-block';
+                // Show parameter buttons (removed Apply Changes button)
                 elements.copyParametersBtn.style.display = 'inline-block';
                 elements.pasteParametersBtn.style.display = 'inline-block';
                 
@@ -3183,43 +4087,28 @@
         
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
-            elements.applyParametersBtn.addEventListener('click', regenerateWithCustomParametersIterative);
             elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
             elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
             
-            // Auto-enable iterative mode for high point counts
-            elements.chaosPlotPoints.addEventListener('input', () => {
-                const points = parseInt(elements.chaosPlotPoints.value) || 0;
-                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
-                
-                if (points > batchSize) {
-                    elements.chaosIterativeMode.checked = true;
-                    const batches = Math.ceil(points / batchSize);
-                    const helpText = elements.chaosIterativeMode.closest('.control-group').querySelector('small');
-                    if (helpText) {
-                        helpText.textContent = `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
-                    }
-                } else {
-                    const helpText = elements.chaosIterativeMode.closest('.control-group').querySelector('small');
-                    if (helpText) {
-                        helpText.textContent = 'Process in batches for higher resolution (>10M points)';
-                    }
-                }
-            });
+            // Update batch count display when point count changes
+            elements.chaosPlotPoints.addEventListener('input', updateBatchCountDisplay);
             
-            // Update batch count when batch size changes
-            elements.chaosBatchSize.addEventListener('input', () => {
-                const points = parseInt(elements.chaosPlotPoints.value) || 0;
-                const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
-                
-                if (points > batchSize) {
-                    const batches = Math.ceil(points / batchSize);
-                    const helpText = elements.chaosIterativeMode.closest('.control-group').querySelector('small');
-                    if (helpText) {
-                        helpText.textContent = `Auto-enabled for ${points.toLocaleString()} points (${batches} batches)`;
-                    }
-                }
-            });
+            // Update batch count display when batch size changes
+            elements.chaosBatchSize.addEventListener('input', updateBatchCountDisplay);
+        }
+        
+        function updateBatchCountDisplay() {
+            const points = parseInt(elements.chaosPlotPoints.value) || 0;
+            const batchSize = parseInt(elements.chaosBatchSize.value) || DEFAULT_BATCH_SIZE;
+            const batches = Math.ceil(points / batchSize);
+            
+            // Update batch size help text to show calculated batches
+            const helpText = elements.chaosBatchSize.closest('.control-group').querySelector('small');
+            if (helpText) {
+                helpText.textContent = `Points per batch (${points.toLocaleString()} ÷ ${batchSize.toLocaleString()} = ${batches} batches total)`;
+            }
+            
+            console.log(`📊 Batch calculation: ${points} points ÷ ${batchSize} batch size = ${batches} batches`);
         }
         
         initializeApp();
@@ -3228,6 +4117,8 @@
         updateStatus();
         updateCanvasDisplaySize();
         setupChaoticMapEventListeners();
+        updateBatchCountDisplay(); // Initialize batch count display
+        updateMainContentBackground(); // Initialize main content background color
     </script>
 </body>
 </html>
