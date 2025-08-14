@@ -29,46 +29,16 @@
             width: 100%;
             height: 100vh;
             overflow: hidden;
+            overflow: hidden;
         }
         
         .app-container.sidebar-collapsed .sidebar {
             width: 40px;
+        .app-container.sidebar-collapsed .sidebar {
+            width: 40px;
         }
         
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
-        }
-        
-        .btn:disabled {
-            background: #a0aec0;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .btn-secondary {
-            background: #e2e8f0;
-            color: #4a5568;
-        }
-        
-        .btn-secondary:hover {
-            background: #cbd5e0;
-        }
-        
+        /* Base sidebar styling (desktop and larger) */
         .sidebar {
             background: white;
             padding: 0 1rem 1rem 1rem;
@@ -113,121 +83,28 @@
             display: none;
         }
         
-        .sidebar-toggle {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
+        .btn {
             background: #667eea;
             color: white;
             border: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
+            font-size: 0.9rem;
+            flex-wrap: wrap;
         }
-        
-        .sidebar-toggle:hover {
-            background: #5a67d8;
-        }
-        
-        .sidebar-header {
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .sidebar-header h1 {
-            color: #2d3748;
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-        
+
+        /* Restore layout for grouped header action buttons */
         .header-actions {
             display: flex;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        
-        .control-section {
-            margin-bottom: 1.5rem;
-        }
-        
-        .control-section h3 {
-            color: #2d3748;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-        
-        .control-group {
-            margin-bottom: 1rem;
-        }
-        
-        /* Chaotic Map Display Styles */
-        .equation-display {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-        }
-        
-        .equation-section {
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
+            align-items: stretch;
+            gap: 0.5rem;
             flex-wrap: wrap;
-        }
-        
-        .equation-section:last-child {
-            margin-bottom: 0;
-        }
-        
-        .equation-label {
-            font-weight: bold;
-            color: #2d3748;
-            min-width: 50px;
-        }
-        
-        .equation-formula {
-            color: #1a365d;
-            font-weight: 500;
-            word-break: break-all;
-        }
-        
-        .inline-param {
-            background: #f7fafc;
-            border: 1px solid #cbd5e0;
-            border-radius: 3px;
-            padding: 2px 4px;
-            width: 60px;
-            font-size: 0.85em;
-            text-align: center;
-            margin: 0 2px;
-        }
-        
-        .inline-param:focus {
-            background: #fff;
-            border-color: #3182ce;
-            outline: none;
-        }
-        
-        .map-stats {
-            display: flex;
-            gap: 1rem;
             margin-top: 0.5rem;
-            font-size: 0.8rem;
-            color: #4a5568;
-            flex-wrap: wrap;
         }
+        /* Stack chaos map buttons vertically */
+        #chaosMapButtons.header-actions { flex-direction: column; }
+        .header-actions .btn { flex: 1 1 auto; }
         
         .map-stats span {
             background: #e2e8f0;
@@ -869,26 +746,26 @@
                     </select>
                 </div>
                 <div class="control-group">
-                    <label>Density Scale</label>
-                    <select id="densityScaleMode">
-                        <option value="0" selected>Soft Log (Default)</option>
-                        <option value="1">Pure Log</option>
-                        <option value="2">Linear</option>
-                        <option value="3">Sqrt</option>
-                        <option value="5">4th Root</option>
-                    </select>
-                    <small>Adjust mapping of density to color intensity</small>
+                    <label>Density Softness (log)</label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="range" id="densitySoftness" min="0.1" max="50" step="0.1" value="1" style="flex:1;">
+                        <input type="number" id="densitySoftnessInput" min="0.1" max="50" step="0.1" value="1" style="width:80px;">
+                    </div>
+                    <small>Pure log by default. Increase softness for brighter lows; decrease for higher contrast.</small>
                 </div>
                 
                 <div class="control-group">
                     <label>Background Color</label>
-                    <div style="display:flex; gap:4px; align-items:center;">
-                        <input type="color" id="backgroundColor" value="#000000" style="flex:1;">
-                        <label style="display:flex; gap:4px; align-items:center; font-size:0.7rem;">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <input type="color" id="backgroundColor" value="#000000" style="width:40px; height:32px; padding:0; border:1px solid #cbd5e1; border-radius:4px;">
+                        <label style="display:flex; gap:6px; align-items:center; font-size:0.8rem;">
+                            <input type="checkbox" id="bgUseMinDensityColor"> Use min-density color
+                        </label>
+                        <label style="display:flex; gap:6px; align-items:center; font-size:0.8rem;">
                             <input type="checkbox" id="noBackgroundColor"> None
                         </label>
                     </div>
-                    <small>Choose a color or check None to use raw colormap background</small>
+                    <small>Choose a color, or use min-density color, or check None to use raw colormap background</small>
                 </div>
             </div>
             
@@ -915,24 +792,45 @@
                 <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
                     <div class="control-group">
                         <label>Current Chaotic Map</label>
-                        <div id="mapEquationDisplay" class="equation-display">
-                            <div class="equation-section">
-                                <span class="equation-label">x<sub>n+1</sub> = </span>
-                                <span id="xEquation" class="equation-formula editable-equation">No map generated</span>
+                        <div id="mapEquationDisplay" class="equation-display" style="font-size:0.85rem;">
+                            <div class="equation-section" style="display:flex; gap:4px; align-items:flex-start;">
+                                <span class="equation-label">x<sub>n+1</sub>=</span>
+                                <span id="xEquation" class="equation-formula editable-equation" style="flex:1; white-space:normal;">No map generated</span>
                             </div>
-                            <div class="equation-section">
-                                <span class="equation-label">y<sub>n+1</sub> = </span>
-                                <span id="yEquation" class="equation-formula editable-equation">No map generated</span>
+                            <div class="equation-section" style="display:flex; gap:4px; align-items:flex-start;">
+                                <span class="equation-label">y<sub>n+1</sub>=</span>
+                                <span id="yEquation" class="equation-formula editable-equation" style="flex:1; white-space:normal;">No map generated</span>
                             </div>
                         </div>
                         <div class="parameter-controls">
                             <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
                             <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
                         </div>
-                        <div id="mapStatistics" class="map-stats">
-                            <span id="maxLyapunov">Max Lyapunov: -</span>
-                            <span id="minLyapunov">Min Lyapunov: -</span>
-                            <span id="fractalDim">Fractal Dim: -</span>
+                        <div class="compact-params" style="margin-top:6px;">
+                            <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+                                <input type="checkbox" id="compactParamsToggle"> Compact view
+                            </label>
+                            <div id="compactParamsPanel" style="display:none; margin-top:6px; border:1px dashed #cbd5e1; padding:8px; border-radius:6px; background:#f8fafc;">
+                                <div style="display:flex; flex-direction:column; gap:6px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;">
+                                    <label style="display:flex; gap:6px; align-items:center;">
+                                        <span style="width:72px; color:#334155;">x params</span>
+                                        <input id="xParamsCompact" type="text" placeholder="a,b,c,d,e,f,..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </label>
+                                    <label style="display:flex; gap:6px; align-items:center;">
+                                        <span style="width:72px; color:#334155;">y params</span>
+                                        <input id="yParamsCompact" type="text" placeholder="a,b,c,d,e,f,..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </label>
+                                    <div style="display:flex; gap:8px;">
+                                        <button id="applyCompactParamsBtn" class="btn btn-primary">Apply</button>
+                                        <small style="color:#64748b; align-self:center;">Tip: comma-separated list; Enter to apply.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="mapStatistics" class="map-stats" style="display:block; line-height:1.4;">
+                            <div><span id="maxLyapunov">Max Lyapunov: -</span></div>
+                            <div><span id="minLyapunov">Min Lyapunov: -</span></div>
+                            <div><span id="fractalDim">Fractal Dim: -</span></div>
                         </div>
                     </div>
                 </div>
@@ -1266,13 +1164,14 @@
             try {
                 const wasmModule = await import('./fractal-wasm/pkg/fractal_wasm.js');
                 await wasmModule.default();
-                const { FractalGenerator, Rule, ColorScheme, FractalPresets } = wasmModule;
+                const { FractalGenerator, Rule, ColorScheme, FractalPresets, ChaoticAccumulator } = wasmModule;
                 
                 // Store globally for use in other functions and debug helpers
                 window.FractalGenerator = FractalGenerator;
                 window.Rule = Rule;
                 window.ColorScheme = ColorScheme;
                 window.FractalPresets = FractalPresets;
+                window.ChaoticAccumulator = ChaoticAccumulator; // expose accumulator
                 
                 generator = new FractalGenerator();
                 showNotification('WebAssembly loaded successfully!', 'success');
@@ -1334,7 +1233,7 @@
 
         // UI Helper Functions
         // Simplified progress functions using only batch progress indicator
-    function showBatchProgress(batchNumber, coveragePct = null, growthInfo = null) {
+    function showBatchProgress(batchNumber, coveragePct = null, growthInfo = null, nonZero = null, elapsedMs = null) {
             if (elements.batchProgress && elements.batchText) {
                 let txt = `Batch ${batchNumber}`;
                 if (coveragePct !== null) {
@@ -1343,6 +1242,8 @@
                 if (growthInfo !== null) {
                     txt += ` · Δ ${growthInfo}`;
                 }
+                if (nonZero !== null) { txt += ` · lit ${nonZero.toLocaleString()}`; }
+                if (elapsedMs !== null) { txt += ` · ${Math.round(elapsedMs)}ms`; }
                 elements.batchText.textContent = txt;
                 elements.batchProgress.classList.add('visible');
         const abortEl = document.getElementById('abortBatchesBtn');
@@ -3216,6 +3117,68 @@
             requestAnimationFrame(fitCanvasToViewport);
         });
         /* ============================================================= */
+        // Compact parameter editing wiring
+        (function wireCompactParams() {
+            const toggle = document.getElementById('compactParamsToggle');
+            const panel = document.getElementById('compactParamsPanel');
+            const xInput = document.getElementById('xParamsCompact');
+            const yInput = document.getElementById('yParamsCompact');
+            const applyBtn = document.getElementById('applyCompactParamsBtn');
+            const fillFromCurrent = () => {
+                if (!currentChaoticMapData) return;
+                const termsLen = currentChaoticMapData.is_cubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic.length : CHAOTIC_MAP_EQUATION_TERMS.quadratic.length;
+                const fill = (arr) => Array.from({length: termsLen}, (_, i) => (arr && arr[i] !== undefined) ? arr[i] : 0);
+                const xArr = fill(getEditedParameters().xParams || currentChaoticMapData.x_params);
+                const yArr = fill(getEditedParameters().yParams || currentChaoticMapData.y_params);
+                xInput.value = xArr.join(',');
+                yInput.value = yArr.join(',');
+            };
+            const parseList = (text) => text.split(/[,\s]+/).map(s => s.trim()).filter(s => s.length>0).map(Number);
+            const syncToInlineInputs = (xArr, yArr) => {
+                // Update the inline equation editors to reflect new values
+                const xInputs = document.querySelectorAll('input[data-param-axis="x"]');
+                const yInputs = document.querySelectorAll('input[data-param-axis="y"]');
+                xInputs.forEach(inp => { const idx = parseInt(inp.dataset.paramIndex); if (!isNaN(xArr[idx])) inp.value = xArr[idx]; });
+                yInputs.forEach(inp => { const idx = parseInt(inp.dataset.paramIndex); if (!isNaN(yArr[idx])) inp.value = yArr[idx]; });
+            };
+            if (toggle && panel) {
+                toggle.addEventListener('change', () => {
+                    panel.style.display = toggle.checked ? 'block' : 'none';
+                    if (toggle.checked) fillFromCurrent();
+                });
+            }
+            if (applyBtn) {
+                const apply = () => {
+                    try {
+                        const xArr = parseList(xInput.value);
+                        const yArr = parseList(yInput.value);
+                        if (xArr.length === 0 || yArr.length === 0 || xArr.some(isNaN) || yArr.some(isNaN)) {
+                            showNotification('Invalid compact parameters. Provide comma-separated numbers for both X and Y.', 'error');
+                            return;
+                        }
+                        // Ensure length matches current equation term count by padding/truncating
+                        const termsLen = currentChaoticMapData && currentChaoticMapData.is_cubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic.length : CHAOTIC_MAP_EQUATION_TERMS.quadratic.length;
+                        const norm = (arr) => {
+                            const a = arr.slice(0, termsLen);
+                            while (a.length < termsLen) a.push(0);
+                            return a;
+                        };
+                        const xNorm = norm(xArr);
+                        const yNorm = norm(yArr);
+                        // Reflect into inline inputs and regenerate
+                        syncToInlineInputs(xNorm, yNorm);
+                        regenerateWithCustomParameters();
+                    } catch (e) {
+                        console.error('Compact params apply failed', e);
+                        showNotification('Failed to apply compact parameters.', 'error');
+                    }
+                };
+                applyBtn.addEventListener('click', apply);
+                [xInput, yInput].forEach(inp => inp && inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') apply(); }));
+            }
+            // Pre-fill if toggled on by default
+            if (toggle && toggle.checked) fillFromCurrent();
+        })();
         
         // Initialize canvas with proper background to prevent transparency issues
         function initializeCanvas(canvas, backgroundColor = '#000000') {
@@ -3228,11 +3191,11 @@
         function applyBackgroundColor(imageData, backgroundColor, colorScheme) {
             const data = imageData.data;
             
-            // Parse the hex color
+            // Parse the hex color (may be overridden by min-density option)
             const hex = backgroundColor.replace('#', '');
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
+            let r = parseInt(hex.substring(0, 2), 16);
+            let g = parseInt(hex.substring(2, 4), 16);
+            let b = parseInt(hex.substring(4, 6), 16);
             
             // Map numeric colorScheme to scheme name
             const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
@@ -3276,6 +3239,32 @@
                 return imageData; // leave original colormap background
             }
 
+            // If "use min-density color" is enabled, scan the image for the faintest non-background pixel color
+            const useMinDensity = document.getElementById('bgUseMinDensityColor')?.checked;
+            if (useMinDensity) {
+                let found = false;
+                let minBrightness = Number.POSITIVE_INFINITY;
+                let minR = r, minG = g, minB = b;
+                const isBg = (ri, gi, bi) => (ri === targetColor[0] && gi === targetColor[1] && bi === targetColor[2]);
+                for (let i = 0; i < data.length; i += 4) {
+                    const ri = data[i], gi = data[i + 1], bi = data[i + 2];
+                    if (isBg(ri, gi, bi)) continue; // skip background pixels
+                    // perceived luminance (ITU-R BT.601)
+                    const luminance = 0.299 * ri + 0.587 * gi + 0.114 * bi;
+                    if (luminance < minBrightness) {
+                        minBrightness = luminance;
+                        minR = ri; minG = gi; minB = bi;
+                        found = true;
+                    }
+                }
+                if (found) {
+                    r = minR; g = minG; b = minB;
+                    console.log(`🎯 Using min-density color as background: RGB(${r}, ${g}, ${b})`);
+                } else {
+                    console.log('ℹ️ No non-background pixels found; falling back to chosen background color.');
+                }
+            }
+
             let pixelsChanged = 0;
             
             // Apply background color to pixels matching the colormap's zero-density color
@@ -3304,6 +3293,11 @@
             const runToken = ++activeGenerationToken;
             // Ensure any previous loop sees abortRequested
             abortRequested = false; // reset after increment to allow this run
+            // Reset any previous accumulator to avoid cross-run contamination
+            if (window.__chaosAccumulator) {
+                console.log('♻️ Resetting previous ChaoticAccumulator instance');
+                window.__chaosAccumulator = null;
+            }
             console.log('🔄 Global state check:', { 
                 storedChaoticMap: !!storedChaoticMap, 
                 generator: !!generator,
@@ -3348,6 +3342,9 @@
                 const batchSize = parseInt(elements.chaosBatchSize.value);
                 const originalBatchSize = batchSize; // Keep track of original batch size for notification
                 const isCubic = storedChaoticMap.isCubic;
+                const softnessCtl = document.getElementById('densitySoftness');
+                const softnessInput = document.getElementById('densitySoftnessInput');
+                const getSoftness = () => parseFloat((softnessInput?.value || softnessCtl?.value || '10'));
                 
                 console.log(`🔄 Iterative plotting: ${requestedPoints.toLocaleString()} points in batches of ${batchSize.toLocaleString()}`);
                 console.log(`🔄 Parameters: x[${xParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...], y[${yParams.slice(0,3).map(p => p.toFixed(3)).join(', ')}...]`);
@@ -3368,6 +3365,8 @@
                 let batchCount = 0;
                 let currentX = 0.05; // Initial state
                 let currentY = 0.05;
+                // Prevent duplicate finalization from overlapping timers
+                let finished = false;
                 
                 // Convergence detection variables (early adaptive algorithm) using user thresholds
                 const convergenceMode = document.getElementById('chaosConvergenceMode').checked;
@@ -3401,6 +3400,8 @@
 
                 // Process in batches with efficient state continuity
                 const processBatch = () => {
+                    if (finished) return; // guard against re-entry after finish
+                const startTime = performance.now();
                     // Determine batch size; in convergence mode ignore requestedPoints cap
                     let currentBatchSize;
                     if (convergenceMode) {
@@ -3418,253 +3419,148 @@
                         abortRequested = true;
                     }
                     if (abortRequested || (!convergenceMode && currentBatchSize <= 0) || (convergenceMode && converged)) {
+                        if (finished) return;
+                        finished = true;
                         const reason = converged ? 'convergence detected' : 'all points processed';
                         if (abortRequested) console.log('⛔ Abort requested; finalizing image');
                         console.log(`🎯 Stopping due to ${reason} - generating final image`);
-                        
-                        // Debug density grid statistics
-                        const maxDensity = Math.max(...accumulatedDensity);
-                        const minDensity = Math.min(...accumulatedDensity);
-                        const nonZeroCount = accumulatedDensity.filter(d => d > 0).length;
-                        const totalPoints = accumulatedDensity.reduce((sum, d) => sum + d, 0);
-                        
-                        console.log(`📊 Final density stats: max=${maxDensity}, min=${minDensity}, nonZero=${nonZeroCount}/${accumulatedDensity.length}, total=${totalPoints}`);
-                        
-                        // All batches complete - generate final image
-                        const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
-                        const result = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
-                        
-                        console.log(`🎨 Generated final result: length=${result.length}, expected=${canvasWidth * canvasHeight * 4}`);
-                        
+
+                        let resultRgba;
+                        let accRef = null;
+                        if (window.__chaosAccumulator) {
+                            accRef = window.__chaosAccumulator;
+                            try {
+                                const sCtl = document.getElementById('densitySoftness');
+                                const sInp = document.getElementById('densitySoftnessInput');
+                                const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
+                                resultRgba = accRef.to_rgba_log_soft(colorScheme, sVal);
+                            } catch (e) {
+                                console.warn('⚠️ Accumulator finalization failed, falling back to JS density grid:', e);
+                            }
+                        }
+                        if (!resultRgba) {
+                            const sCtl = document.getElementById('densitySoftness');
+                            const sInp = document.getElementById('densitySoftnessInput');
+                            const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
+                            resultRgba = generator.density_grid_to_rgba_log_soft(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, sVal);
+                        }
+
                         // Display result on canvas
                         elements.canvas.width = canvasWidth;
                         elements.canvas.height = canvasHeight;
                         initializeCanvas(elements.canvas, elements.backgroundColor.value);
                         const ctx = elements.canvas.getContext('2d');
-                        const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
+                        const imageData = new ImageData(new Uint8ClampedArray(resultRgba), canvasWidth, canvasHeight);
                         const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
                         ctx.putImageData(finalImageData, 0, 0);
-                        
-                        console.log('✅ Canvas updated with final image');
-                        
+
                         // Update current fractal data
                         currentFractal = {
                             type: 'chaotic_map',
                             method: 'random_chaos_iterative',
-                            imageData: result,
+                            imageData: resultRgba,
                             width: canvasWidth,
                             height: canvasHeight,
+                            parameters: { xParams, yParams, points: processedPoints },
                             colorScheme,
                             backgroundColor: elements.backgroundColor.value,
-                            density: accumulatedDensity.slice()
+                            ...(accRef ? { accumulator: accRef } : { density: accumulatedDensity })
                         };
-                        lastAccumulatedDensity = accumulatedDensity.slice();
-                        
-                        // Update equation display with new parameters if edited
-                        if (xParams && yParams) {
-                            elements.xEquation.textContent = formatChaoticMapEquation(xParams, isCubic);
-                            elements.yEquation.textContent = formatChaoticMapEquation(yParams, isCubic);
+                        if (!accRef) {
+                            lastAccumulatedDensity = accumulatedDensity.slice();
+                        } else {
+                            try { lastAccumulatedDensity = accRef.density(); } catch {}
                         }
-                        
+
                         hideBatchProgress();
                         if (abortEl) abortEl.style.display = 'none';
                         setLoading(false);
+                        elements.downloadBtn.disabled = false;
                         updateChaosMapButtonStates();
-                        
-                        // Final processing complete
-                        if (abortRequested) {
-                            console.log(`⛔ Plot aborted after ${batchCount} batches (~${processedPoints.toLocaleString()} points)`);
-                        } else {
-                            console.log(`🎯 Fractal plotted successfully! (${requestedPoints.toLocaleString()} points in ${batchCount} batches)`);
-                        }
+
+                        const reasonText = abortRequested ? 'abort' : (converged ? 'convergence' : 'completion');
+                        console.log(`🎯 Fractal plotted (${reasonText}) after ${batchCount} batches; points=${processedPoints.toLocaleString()}`);
                         return;
                     }
                     
                     batchCount++;
                     // In convergence mode, no meaningful percentage target; we'll show coverage instead after processing
                     
-                    // Generate batch density grid with state continuity
+                    // Accumulator-based batch processing (in-WASM density)
                     setTimeout(async () => {
                         try {
-                            console.log(`🔄 Processing batch ${batchCount}: ${currentBatchSize} points`);
-                            
-                            // Use the new efficient batch function with state continuity
-                            const batchResult = generator.generate_chaotic_map_batch_with_state(
-                                xParams, yParams, currentBatchSize, isCubic,
-                                canvasWidth, canvasHeight, minX, maxX, minY, maxY, currentX, currentY
-                            );
-                            
-                            console.log(`✅ Batch ${batchCount} WASM call completed, result length: ${batchResult.length}`);
-                            
-                            // Extract final state for next batch
-                            const prevX = currentX;
-                            const prevY = currentY;
-                            currentX = batchResult[0];
-                            currentY = batchResult[1];
-                            
-                            console.log(`🔗 State transition: (${prevX.toFixed(6)}, ${prevY.toFixed(6)}) → (${currentX.toFixed(6)}, ${currentY.toFixed(6)})`);
-                            
-                            // Extract bounds info (indices 2-5)
-                            const actualMinX = batchResult[2];
-                            const actualMaxX = batchResult[3];
-                            const actualMinY = batchResult[4];
-                            const actualMaxY = batchResult[5];
-                            
-                            // Extract density grid starting at index 6 (convert from f64 back to u32)
-                            const batchDensity = new Array(canvasWidth * canvasHeight);
-                            for (let i = 0; i < batchDensity.length; i++) {
-                                batchDensity[i] = Math.round(batchResult[i + 6]);
+                            if (!window.__chaosAccumulator) {
+                                window.__chaosAccumulator = new ChaoticAccumulator(
+                                    xParams.slice(), yParams.slice(), isCubic,
+                                    canvasWidth, canvasHeight,
+                                    minX, maxX, minY, maxY,
+                                    currentX, currentY
+                                );
                             }
-                            
-                            console.log(`🔄 Batch ${batchCount} density processed, max density: ${batchDensity.reduce((max, val) => Math.max(max, val), 0)}`);
-                            console.log(`📊 Density info: total points in grid: ${batchDensity.reduce((sum, d) => sum + d, 0)}, nonZero: ${batchDensity.filter(d => d > 0).length}`);
-                            console.log(`📊 Actual bounds encountered: x[${actualMinX.toFixed(3)}, ${actualMaxX.toFixed(3)}], y[${actualMinY.toFixed(3)}, ${actualMaxY.toFixed(3)}]`);
-                            
-                            // Merge with accumulated density
-                            for (let i = 0; i < accumulatedDensity.length; i++) {
-                                accumulatedDensity[i] += batchDensity[i];
-                            }
-                            
-                            // Update canvas after each batch completion with background for clarity
-                            const ctx = elements.canvas.getContext('2d');
-                            const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
-                            const currentResult = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
-                            const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
-                            const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                            ctx.putImageData(bgImageData, 0, 0);
-                            
+                            const acc = window.__chaosAccumulator;
+                            const stats = acc.step_batch_with_new(currentBatchSize); // [x,y,newPixels,totalNonZero]
+                            currentX = stats[0];
+                            currentY = stats[1];
+                            const newPixels = stats[2];
+                            const totalNonZero = stats[3];
                             processedPoints += currentBatchSize;
-                            
-                            // Coverage / convergence metrics for BOTH modes
-                            const currentNonZeroForDisplay = accumulatedDensity.filter(d => d > 0).length;
-                            const coveragePctForDisplay = (currentNonZeroForDisplay / totalPixels) * 100;
 
-                            // Improved convergence detection (early adaptive) - per-batch incremental check (only if enabled)
-                            if (runToken !== activeGenerationToken) {
-                                console.log('⛔ Stale run detected post-batch; forcing abort.');
-                                abortRequested = true;
-                            }
-                            if (abortRequested) {
-                                console.log('⛔ Abort flag detected post-batch');
-                            }
-                            if (convergenceMode && !converged && !abortRequested) {
-                                const currentNonZero = accumulatedDensity.filter(d => d > 0).length;
-                                const coveragePct = (currentNonZero / totalPixels) * 100;
-                                const delta = currentNonZero - lastNonZero;
-                                const relGrowth = lastNonZero > 0 ? delta / lastNonZero : 1.0;
-                                batchGrowths.push({ batch: batchCount, delta, rel: relGrowth });
-
+                            const coveragePct = (totalNonZero / totalPixels) * 100;
+                            const delta = newPixels;
+                            const relGrowth = lastNonZero > 0 ? delta / lastNonZero : 1.0;
+                            if (convergenceMode && !converged) {
                                 const stagnant = (delta <= absoluteGrowthThreshold) || (relGrowth <= relativeGrowthThreshold);
-                                if (batchCount >= 2) { // Ignore first batch variability
-                                    if (stagnant) stagnantCount++; else stagnantCount = 0;
-                                }
-
-                                console.log(`🎯 Convergence tracking: batch ${batchCount}, nonZero=${currentNonZero}, Δ=${delta}, relΔ=${(relGrowth*100).toFixed(3)}%, stagnant=${stagnant}, stagnantRun=${stagnantCount}, coverage=${coveragePct.toFixed(3)}%`);
-
-                                // Require minimum batches & coverage & consecutive stagnant batches
+                                if (batchCount >= 2) { if (stagnant) stagnantCount++; else stagnantCount = 0; }
                                 if (batchCount >= minBatchesBeforeConvergence && coveragePct >= minCoverageForConvergencePct && stagnantCount >= requiredConsecutiveStagnant) {
                                     converged = true;
-                                    console.log(`🎯 ✅ CONVERGENCE DETECTED after ${batchCount} batches: coverage ${coveragePct.toFixed(3)}%, last Δ=${delta} (${(relGrowth*100).toFixed(4)}%), stagnant run=${stagnantCount}`);
+                                    console.log(`🎯 ✅ CONVERGENCE DETECTED after ${batchCount} batches: coverage ${coveragePct.toFixed(3)}%, Δ=${delta}, relΔ=${(relGrowth*100).toFixed(3)}%`);
                                 }
+                            }
+                            lastNonZero = totalNonZero;
+                            showBatchProgress(batchCount, coveragePct, delta.toLocaleString(), totalNonZero, performance.now() - startTime);
 
-                                lastNonZero = currentNonZero;
-                                showBatchProgress(batchCount, coveragePct, delta.toLocaleString());
-                            } else if (convergenceMode) {
-                                // First batch (or already converged) in convergence mode
-                                lastNonZero = currentNonZeroForDisplay;
-                                showBatchProgress(batchCount, coveragePctForDisplay, currentNonZeroForDisplay.toLocaleString());
-                            } else {
-                                // Non-convergence mode still show coverage and new pixels gained
-                                const delta = currentNonZeroForDisplay - lastNonZero;
-                                lastNonZero = currentNonZeroForDisplay;
-                                showBatchProgress(batchCount, coveragePctForDisplay, delta.toLocaleString());
-                            }
-                            
-                            console.log(`📊 Progress: ${processedPoints}/${requestedPoints} points processed`);
-                            
-                            // Show intermediate result periodically for visual feedback (without background color changes)
-                            if (batchCount > 1 && batchCount % 2 === 0) {
-                                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
-                                const intermediateResult = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
-                                const ctx = elements.canvas.getContext('2d');
-                                const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
-                                const bgIntermediate = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                                ctx.putImageData(bgIntermediate, 0, 0);
-                            }
-                            
-                            // Small delay to allow UI update before next batch
-                            await new Promise(resolve => setTimeout(resolve, 10));
-                            
-                            // Process next batch if there are remaining points AND not converged
+                            const sCtl2 = document.getElementById('densitySoftness');
+                            const sInp2 = document.getElementById('densitySoftnessInput');
+                            const sVal2 = parseFloat((sInp2?.value || sCtl2?.value || '1'));
+                            const rgba = acc.to_rgba_log_soft(colorScheme, sVal2);
+                            const ctx = elements.canvas.getContext('2d');
+                            const imageData = new ImageData(new Uint8ClampedArray(rgba), canvasWidth, canvasHeight);
+                            const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                            ctx.putImageData(bgImageData, 0, 0);
+
                             const shouldContinue = !abortRequested && runToken === activeGenerationToken && (convergenceMode ? !converged : processedPoints < requestedPoints);
                             if (shouldContinue) {
+                                await new Promise(r => setTimeout(r, 5));
                                 processBatch();
                             } else {
-                                // All batches complete or converged - generate final image
-                                const reason = abortRequested ? 'abort requested' : (converged ? 'convergence detected' : 'all points processed');
-                                console.log(`🎯 Stopping due to ${reason} - generating final image`);
-                                
-                                // Debug density grid statistics
-                                const maxDensity = accumulatedDensity.reduce((max, val) => Math.max(max, val), 0);
-                                const minDensity = accumulatedDensity.reduce((min, val) => Math.min(min, val), Number.MAX_VALUE);
-                                const nonZeroCount = accumulatedDensity.filter(d => d > 0).length;
-                                const totalPoints = accumulatedDensity.reduce((sum, d) => sum + d, 0);
-                                
-                                console.log(`📊 Final density stats: max=${maxDensity}, min=${minDensity}, nonZero=${nonZeroCount}/${accumulatedDensity.length}, total=${totalPoints}`);
-                                
-                                // Generate final image
-                                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
-                                const result = generator.density_grid_to_rgba_scaled(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, scaleMode);
-                                
-                                console.log(`🎨 Generated final result: length=${result.length}, expected=${canvasWidth * canvasHeight * 4}`);
-                                
-                                // Display result on canvas
-                                elements.canvas.width = canvasWidth;
-                                elements.canvas.height = canvasHeight;
-                                const ctx = elements.canvas.getContext('2d');
-                                const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
-                                const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                                ctx.putImageData(finalImageData, 0, 0);
-                                
-                                console.log('✅ Canvas updated with final image');
-                                
-                                // Update current fractal data
+                                if (finished) return;
+                                finished = true;
                                 currentFractal = {
                                     type: 'chaotic_map',
                                     method: 'random_chaos_iterative',
-                                    imageData: result,
+                                    imageData: rgba,
                                     width: canvasWidth,
                                     height: canvasHeight,
-                                    parameters: { xParams, yParams, points: requestedPoints },
+                                    parameters: { xParams, yParams, points: processedPoints },
                                     colorScheme,
                                     backgroundColor: elements.backgroundColor.value,
-                                    density: accumulatedDensity.slice()
+                                    accumulator: acc
                                 };
-                                lastAccumulatedDensity = accumulatedDensity.slice();
-                                
-                                // Hide overlay and show completion
+                                lastAccumulatedDensity = acc.density();
                                 hideBatchProgress();
                                 if (abortEl) abortEl.style.display = 'none';
                                 setLoading(false);
                                 elements.downloadBtn.disabled = false;
-                                
-                                // Final processing complete (no artificial batch cap)
-                                if (abortRequested) {
-                                    console.log(`⛔ Fractal plotting aborted by user after ${batchCount} batches (~${processedPoints.toLocaleString()} points).`);
-                                } else if (convergenceMode) {
-                                    console.log(`🎯 Fractal plotted successfully! (converged after ${batchCount} batches, ~${processedPoints.toLocaleString()} points)`);
-                                } else {
-                                    console.log(`🎯 Fractal plotted successfully! (${requestedPoints.toLocaleString()} points; batches processed: ${batchCount})`);
-                                }
+                                const reason = abortRequested ? 'abort' : (converged ? 'convergence' : 'completion');
+                                console.log(`🎯 Fractal plotting finished via accumulator (${reason}) after ${batchCount} batches; points=${processedPoints.toLocaleString()}`);
                             }
-                            
                         } catch (error) {
-                            console.error('❌ Error in batch processing:', error);
+                            console.error('❌ Accumulator batch error:', error);
                             hideBatchProgress();
                             setLoading(false);
-                            showNotification('Error during batch processing. Check console for details.', 'error');
+                            showNotification('Error during accumulator batch processing.', 'error');
                         }
-                    }, 10); // Small delay to allow UI updates
+                    }, 5);
                 };
                 
                 // Start batch processing
@@ -3898,21 +3794,32 @@
 
         // --- Dynamic recoloring without recomputation ---
         function recolorCurrentFractal() {
-            if (!generator || !currentFractal || !lastAccumulatedDensity) return;
+            if (!generator || !currentFractal) return;
             try {
                 const newScheme = parseInt(elements.colorScheme.value);
                 const bgColor = elements.backgroundColor.value;
-                const scaleMode = parseInt(document.getElementById('densityScaleMode')?.value || '0');
+                const sCtl = document.getElementById('densitySoftness');
+                const sInp = document.getElementById('densitySoftnessInput');
+                const sVal = parseFloat((sInp?.value || sCtl?.value || '1'));
                 const w = currentFractal.width;
                 const h = currentFractal.height;
-                const rgba = generator.density_grid_to_rgba_scaled(lastAccumulatedDensity, w, h, newScheme, scaleMode);
+                let rgba;
+                if (currentFractal.accumulator && typeof currentFractal.accumulator.to_rgba_log_soft === 'function') {
+                    // Use in-WASM recoloring with log-soft
+                    rgba = currentFractal.accumulator.to_rgba_log_soft(newScheme, sVal);
+                    lastAccumulatedDensity = currentFractal.accumulator.density();
+                } else if (lastAccumulatedDensity) {
+                    rgba = generator.density_grid_to_rgba_log_soft(lastAccumulatedDensity, w, h, newScheme, sVal);
+                } else {
+                    return; // nothing to recolor
+                }
                 const ctx = elements.canvas.getContext('2d');
                 const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
                 const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
                 ctx.putImageData(finalImageData, 0, 0);
                 currentFractal.colorScheme = newScheme;
                 currentFractal.backgroundColor = bgColor;
-                currentFractal.imageData = rgba; // update stored image
+                currentFractal.imageData = rgba;
             } catch (e) {
                 console.error('Dynamic recolor failed', e);
             }
@@ -3925,20 +3832,37 @@
         elements.backgroundColor.addEventListener('input', () => {
             recolorCurrentFractal();
         });
-        const densityScaleSelect = document.getElementById('densityScaleMode');
-        if (densityScaleSelect) {
-            densityScaleSelect.addEventListener('change', () => {
+        const minBg = document.getElementById('bgUseMinDensityColor');
+        if (minBg) {
+            minBg.addEventListener('change', () => {
+                const noBg = document.getElementById('noBackgroundColor');
+                elements.backgroundColor.disabled = (noBg?.checked ?? false) || minBg.checked;
                 recolorCurrentFractal();
             });
+        }
+        const densityScaleSelect = document.getElementById('densityScaleMode');
+        const densitySoftness = document.getElementById('densitySoftness');
+        const densitySoftnessInput = document.getElementById('densitySoftnessInput');
+        if (densitySoftness && densitySoftnessInput) {
+            const syncSoftness = (val) => { densitySoftness.value = val; densitySoftnessInput.value = val; };
+            densitySoftness.addEventListener('input', () => { densitySoftnessInput.value = densitySoftness.value; recolorCurrentFractal(); });
+            densitySoftnessInput.addEventListener('change', () => { syncSoftness(densitySoftnessInput.value); recolorCurrentFractal(); });
         }
         const noBg = document.getElementById('noBackgroundColor');
         if (noBg) {
             noBg.addEventListener('change', () => {
                 // Disable/enable color picker UI feedback
-                elements.backgroundColor.disabled = noBg.checked;
+                const minBg = document.getElementById('bgUseMinDensityColor');
+                elements.backgroundColor.disabled = noBg.checked || (minBg?.checked ?? false);
                 recolorCurrentFractal();
             });
         }
+        // Initialize disabled state on load
+        (function initBgPickerDisabled(){
+            const noBg = document.getElementById('noBackgroundColor');
+            const minBg = document.getElementById('bgUseMinDensityColor');
+            elements.backgroundColor.disabled = (noBg?.checked ?? false) || (minBg?.checked ?? false);
+        })();
         
         function regenerateWithCustomParameters() {
             if (!currentChaoticMapData || !generator) return;

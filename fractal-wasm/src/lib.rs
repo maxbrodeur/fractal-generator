@@ -673,6 +673,46 @@ impl FractalGenerator {
         }
         rgba
     }
+
+    /// Log-soft density mapping with adjustable softness factor s (>0):
+    /// mapped = ln(1 + s * d) / ln(1 + s * max_d)
+    #[wasm_bindgen]
+    pub fn density_grid_to_rgba_log_soft(
+        &self,
+        density: &[u32],
+        width: usize,
+        height: usize,
+        color_scheme: ColorScheme,
+        softness: f64,
+    ) -> Vec<u8> {
+        if density.len() != width * height {
+            return vec![0; width * height * 4];
+        }
+
+        let max_density_u32 = *density.iter().max().unwrap_or(&0);
+        if max_density_u32 == 0 {
+            return vec![0u8; width * height * 4];
+        }
+        let max_density = max_density_u32 as f64;
+        let s = if softness.is_finite() && softness > 0.0 { softness } else { 1.0 };
+        let denom = (1.0 + s * max_density).ln();
+        if !denom.is_finite() || denom <= 0.0 {
+            return vec![0u8; width * height * 4];
+        }
+
+        let mut rgba = vec![0u8; width * height * 4];
+        for i in 0..density.len() {
+            let d = density[i] as f64;
+            let mapped = if d > 0.0 { ((1.0 + s * d).ln() / denom).clamp(0.0, 1.0) } else { 0.0 };
+            let color = self.apply_color_scheme(mapped, color_scheme);
+            let base = i * 4;
+            rgba[base] = color.0;
+            rgba[base + 1] = color.1;
+            rgba[base + 2] = color.2;
+            rgba[base + 3] = 255;
+        }
+        rgba
+    }
     
     /// Calculate bounds for a set of points
     #[wasm_bindgen]
@@ -777,6 +817,154 @@ impl FractalGenerator {
         
         rgba
     }
+}
+
+// -----------------------------------------------------------------------------
+// In-engine iterative accumulation (performance path)
+// -----------------------------------------------------------------------------
+/// Stateful accumulator that keeps a running density grid and incremental
+/// coverage metrics entirely inside WASM to avoid large per-batch memory copies
+/// and repeated JS-side scans for non-zero counts.
+#[wasm_bindgen]
+pub struct ChaoticAccumulator {
+    x_params: Vec<f64>,
+    y_params: Vec<f64>,
+    is_cubic: bool,
+    width: usize,
+    height: usize,
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
+    x: f64,
+    y: f64,
+    density: Vec<u32>,
+    non_zero: usize,
+}
+
+#[wasm_bindgen]
+impl ChaoticAccumulator {
+    /// Create a new accumulator with initial orbit state and fixed bounds.
+    /// Bounds are not dynamically expanded (mirrors current JS behavior prior
+    /// to dynamic expansion logic). A future enhancement could expose a method
+    /// to adjust bounds and remap existing density if required.
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        x_params: Vec<f64>,
+        y_params: Vec<f64>,
+        is_cubic: bool,
+        width: usize,
+        height: usize,
+        min_x: f64,
+        max_x: f64,
+        min_y: f64,
+        max_y: f64,
+        start_x: f64,
+        start_y: f64,
+    ) -> ChaoticAccumulator {
+        ChaoticAccumulator {
+            x_params,
+            y_params,
+            is_cubic,
+            width,
+            height,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            x: start_x,
+            y: start_y,
+            density: vec![0u32; width * height],
+            non_zero: 0,
+        }
+    }
+
+    /// Advance the chaotic map by n_points, updating the internal density.
+    /// Returns a small stats vector to minimize JS processing:
+    /// [ final_x, final_y, new_pixels_added, total_non_zero_pixels ]
+    pub fn step_batch(&mut self, n_points: usize) -> Vec<f64> {
+        for _ in 0..n_points {
+            let (xp, yp) = (self.x, self.y);
+            if self.is_cubic {
+                self.x = map_cubic(&self.x_params, xp, yp);
+                self.y = map_cubic(&self.y_params, xp, yp);
+            } else {
+                self.x = map_quadratic(&self.x_params, xp, yp);
+                self.y = map_quadratic(&self.y_params, xp, yp);
+            }
+
+            if self.x >= self.min_x && self.x <= self.max_x && self.y >= self.min_y && self.y <= self.max_y {
+                let px = ((self.x - self.min_x) / (self.max_x - self.min_x) * self.width as f64) as usize;
+                let py = ((self.y - self.min_y) / (self.max_y - self.min_y) * self.height as f64) as usize;
+                if px < self.width && py < self.height {
+                    let idx = py * self.width + px;
+                    if self.density[idx] == 0 { self.non_zero += 1; }
+                    self.density[idx] += 1;
+                }
+            }
+        }
+        vec![self.x, self.y, 0.0_f64, self.non_zero as f64] // new_pixels placeholder (deprecated by incremental UI logic)
+    }
+
+    /// Same as step_batch but also reports how many brand new pixels were lit this batch.
+    /// Returns: [final_x, final_y, newly_lit_pixels, total_non_zero]
+    pub fn step_batch_with_new(&mut self, n_points: usize) -> Vec<f64> {
+        let mut new_pixels = 0usize;
+        for _ in 0..n_points {
+            let (xp, yp) = (self.x, self.y);
+            if self.is_cubic {
+                self.x = map_cubic(&self.x_params, xp, yp);
+                self.y = map_cubic(&self.y_params, xp, yp);
+            } else {
+                self.x = map_quadratic(&self.x_params, xp, yp);
+                self.y = map_quadratic(&self.y_params, xp, yp);
+            }
+            if self.x >= self.min_x && self.x <= self.max_x && self.y >= self.min_y && self.y <= self.max_y {
+                let px = ((self.x - self.min_x) / (self.max_x - self.min_x) * self.width as f64) as usize;
+                let py = ((self.y - self.min_y) / (self.max_y - self.min_y) * self.height as f64) as usize;
+                if px < self.width && py < self.height {
+                    let idx = py * self.width + px;
+                    if self.density[idx] == 0 { self.non_zero += 1; new_pixels += 1; }
+                    self.density[idx] += 1;
+                }
+            }
+        }
+        vec![self.x, self.y, new_pixels as f64, self.non_zero as f64]
+    }
+
+    /// Export a clone of the density grid (used only at finalization / external caching).
+    pub fn density(&self) -> Vec<u32> { self.density.clone() }
+
+    /// Convenience: directly map current density to RGBA with scaling & color scheme.
+    pub fn to_rgba_scaled(&self, color_scheme: ColorScheme, scale_mode: u32) -> Vec<u8> {
+        // Re-use existing generator implementation for mapping
+        let gen = FractalGenerator::new();
+        gen.density_grid_to_rgba_scaled(&self.density, self.width, self.height, color_scheme, scale_mode)
+    }
+
+    /// Map current density to RGBA using log-soft mapping with adjustable softness
+    #[wasm_bindgen]
+    pub fn to_rgba_log_soft(&self, color_scheme: ColorScheme, softness: f64) -> Vec<u8> {
+        let gen = FractalGenerator::new();
+        gen.density_grid_to_rgba_log_soft(&self.density, self.width, self.height, color_scheme, softness)
+    }
+
+}
+
+// -----------------------------------------------------------------------------
+// Shared chaotic map functions (avoid duplication between generator & accumulator)
+// -----------------------------------------------------------------------------
+#[inline]
+fn map_quadratic(args: &[f64], x: f64, y: f64) -> f64 {
+    let (a, b, c, d, e, f) = (args[0], args[1], args[2], args[3], args[4], args[5]);
+    a + b * x + c * (x * x) + d * (x * y) + e * y + f * (y * y)
+}
+
+#[inline]
+fn map_cubic(args: &[f64], x: f64, y: f64) -> f64 {
+    args[0] + args[1]*x + args[2]*x*x + args[3]*x*x*x +
+    args[4]*x*x*y + args[5]*x*y + args[6]*x*y*y + args[7]*y +
+    args[8]*y*y + args[9]*y*y*y
 }
 
 // Internal implementations
@@ -1528,18 +1716,7 @@ impl FractalGenerator {
         (0..n).map(|_| 2.4 * rng.gen::<f64>() - 1.2).collect()
     }
 
-    /// Quadratic map function: f(x,y) = a + bx + cx² + dxy + ey + fy²
-    fn f_quadratic(&self, args: &[f64], x: f64, y: f64) -> f64 {
-        let (a, b, c, d, e, f) = (args[0], args[1], args[2], args[3], args[4], args[5]);
-        a + b*x + c*(x*x) + d*(x*y) + e*y + f*(y*y)
-    }
-
-    /// Cubic map function
-    fn f_cubic(&self, args: &[f64], x: f64, y: f64) -> f64 {
-        args[0] + args[1]*x + args[2]*x*x + args[3]*x*x*x +
-        args[4]*x*x*y + args[5]*x*y + args[6]*x*y*y + args[7]*y +
-        args[8]*y*y + args[9]*y*y*y
-    }
+    // (map functions now shared: map_quadratic / map_cubic)
 
     /// Jacobian matrix for quadratic map
     fn jacobian_quadratic(&self, args1: &[f64], args2: &[f64], x: f64, y: f64) -> [[f64; 2]; 2] {
@@ -1621,14 +1798,14 @@ impl FractalGenerator {
         for _ in 0..n_trans {
             let (xp, yp) = (x, y);
             if is_cubic {
-                x = self.f_cubic(args1, xp, yp);
-                y = self.f_cubic(args2, xp, yp);
+                x = map_cubic(args1, xp, yp);
+                y = map_cubic(args2, xp, yp);
                 let m = self.jacobian_cubic(args1, args2, x, y);
                 v1 = self.mat_vec_mult(m, v1);
                 v2 = self.mat_vec_mult(m, v2);
             } else {
-                x = self.f_quadratic(args1, xp, yp);
-                y = self.f_quadratic(args2, xp, yp);
+                x = map_quadratic(args1, xp, yp);
+                y = map_quadratic(args2, xp, yp);
                 let m = self.jacobian_quadratic(args1, args2, x, y);
                 v1 = self.mat_vec_mult(m, v1);
                 v2 = self.mat_vec_mult(m, v2);
@@ -1659,12 +1836,12 @@ impl FractalGenerator {
         for _ in 0..n_test {
             let (xp, yp) = (x, y);
             let m = if is_cubic {
-                x = self.f_cubic(args1, xp, yp);
-                y = self.f_cubic(args2, xp, yp);
+                x = map_cubic(args1, xp, yp);
+                y = map_cubic(args2, xp, yp);
                 self.jacobian_cubic(args1, args2, x, y)
             } else {
-                x = self.f_quadratic(args1, xp, yp);
-                y = self.f_quadratic(args2, xp, yp);
+                x = map_quadratic(args1, xp, yp);
+                y = map_quadratic(args2, xp, yp);
                 self.jacobian_quadratic(args1, args2, x, y)
             };
 
@@ -1725,13 +1902,8 @@ impl FractalGenerator {
 
         for _ in 0..n_points {
             let (xp, yp) = (x, y);
-            if is_cubic {
-                x = self.f_cubic(args1, xp, yp);
-                y = self.f_cubic(args2, xp, yp);
-            } else {
-                x = self.f_quadratic(args1, xp, yp);
-                y = self.f_quadratic(args2, xp, yp);
-            }
+            if is_cubic { x = map_cubic(args1, xp, yp); y = map_cubic(args2, xp, yp); }
+            else { x = map_quadratic(args1, xp, yp); y = map_quadratic(args2, xp, yp); }
             points.push([x, y]);
         }
 
@@ -1893,13 +2065,8 @@ impl FractalGenerator {
         // Advance to the starting iteration (skip iterations to maintain continuity)
         for _ in 0..start_iteration {
             let (xp, yp) = (x, y);
-            if is_cubic {
-                x = self.f_cubic(x_params, xp, yp);
-                y = self.f_cubic(y_params, xp, yp);
-            } else {
-                x = self.f_quadratic(x_params, xp, yp);
-                y = self.f_quadratic(y_params, xp, yp);
-            }
+            if is_cubic { x = map_cubic(x_params, xp, yp); y = map_cubic(y_params, xp, yp); }
+            else { x = map_quadratic(x_params, xp, yp); y = map_quadratic(y_params, xp, yp); }
         }
         
         // Create density grid
@@ -1908,13 +2075,8 @@ impl FractalGenerator {
         // Generate the batch of points and directly add to density grid
         for _ in 0..n_points {
             let (xp, yp) = (x, y);
-            if is_cubic {
-                x = self.f_cubic(x_params, xp, yp);
-                y = self.f_cubic(y_params, xp, yp);
-            } else {
-                x = self.f_quadratic(x_params, xp, yp);
-                y = self.f_quadratic(y_params, xp, yp);
-            }
+            if is_cubic { x = map_cubic(x_params, xp, yp); y = map_cubic(y_params, xp, yp); }
+            else { x = map_quadratic(x_params, xp, yp); y = map_quadratic(y_params, xp, yp); }
             
             // Add point to density grid
             let pixel_x = ((x - min_x) / (max_x - min_x) * width as f64) as usize;
@@ -1963,13 +2125,8 @@ impl FractalGenerator {
         // Generate the batch of points and directly add to density grid
         for _ in 0..n_points {
             let (xp, yp) = (x, y);
-            if is_cubic {
-                x = self.f_cubic(x_params, xp, yp);
-                y = self.f_cubic(y_params, xp, yp);
-            } else {
-                x = self.f_quadratic(x_params, xp, yp);
-                y = self.f_quadratic(y_params, xp, yp);
-            }
+            if is_cubic { x = map_cubic(x_params, xp, yp); y = map_cubic(y_params, xp, yp); }
+            else { x = map_quadratic(x_params, xp, yp); y = map_quadratic(y_params, xp, yp); }
             
             // Update actual bounds encountered
             actual_min_x = actual_min_x.min(x);
