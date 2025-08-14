@@ -3431,7 +3431,8 @@
                                 const sCtl = document.getElementById('densitySoftness');
                                 const sInp = document.getElementById('densitySoftnessInput');
                                 const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
-                                resultRgba = accRef.to_rgba_log_soft(colorScheme, sVal);
+                                accRef.fill_rgba_log_soft(colorScheme, sVal);
+                                resultRgba = accRef.rgba_view();
                             } catch (e) {
                                 console.warn('⚠️ Accumulator finalization failed, falling back to JS density grid:', e);
                             }
@@ -3448,7 +3449,8 @@
                         elements.canvas.height = canvasHeight;
                         initializeCanvas(elements.canvas, elements.backgroundColor.value);
                         const ctx = elements.canvas.getContext('2d');
-                        const imageData = new ImageData(new Uint8ClampedArray(resultRgba), canvasWidth, canvasHeight);
+                        const rgbaOut = resultRgba instanceof Uint8ClampedArray ? resultRgba : new Uint8ClampedArray(resultRgba);
+                        const imageData = new ImageData(rgbaOut, canvasWidth, canvasHeight);
                         const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
                         ctx.putImageData(finalImageData, 0, 0);
 
@@ -3520,9 +3522,10 @@
                             const sCtl2 = document.getElementById('densitySoftness');
                             const sInp2 = document.getElementById('densitySoftnessInput');
                             const sVal2 = parseFloat((sInp2?.value || sCtl2?.value || '1'));
-                            const rgba = acc.to_rgba_log_soft(colorScheme, sVal2);
+                            acc.fill_rgba_log_soft(colorScheme, sVal2);
                             const ctx = elements.canvas.getContext('2d');
-                            const imageData = new ImageData(new Uint8ClampedArray(rgba), canvasWidth, canvasHeight);
+                            const rgbaView = acc.rgba_view();
+                            const imageData = new ImageData(rgbaView, canvasWidth, canvasHeight);
                             const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
                             ctx.putImageData(bgImageData, 0, 0);
 
@@ -3536,7 +3539,7 @@
                                 currentFractal = {
                                     type: 'chaotic_map',
                                     method: 'random_chaos_iterative',
-                                    imageData: rgba,
+                                    imageData: rgbaView,
                                     width: canvasWidth,
                                     height: canvasHeight,
                                     parameters: { xParams, yParams, points: processedPoints },
@@ -3801,23 +3804,32 @@
                 const sVal = parseFloat((sInp?.value || sCtl?.value || '1'));
                 const w = currentFractal.width;
                 const h = currentFractal.height;
-                let rgba;
-                if (currentFractal.accumulator && typeof currentFractal.accumulator.to_rgba_log_soft === 'function') {
-                    // Use in-WASM recoloring with log-soft
-                    rgba = currentFractal.accumulator.to_rgba_log_soft(newScheme, sVal);
+                if (currentFractal.accumulator && typeof currentFractal.accumulator.fill_rgba_log_soft === 'function') {
+                    // Zero-copy recolor using accumulator internal buffer
+                    currentFractal.accumulator.fill_rgba_log_soft(newScheme, sVal);
+                    const view = currentFractal.accumulator.rgba_view();
                     lastAccumulatedDensity = currentFractal.accumulator.density();
+                    const ctx = elements.canvas.getContext('2d');
+                    const imageData = new ImageData(view, w, h);
+                    const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
+                    ctx.putImageData(finalImageData, 0, 0);
+                    currentFractal.colorScheme = newScheme;
+                    currentFractal.backgroundColor = bgColor;
+                    currentFractal.imageData = view;
+                    return;
                 } else if (lastAccumulatedDensity) {
                     rgba = generator.density_grid_to_rgba_log_soft(lastAccumulatedDensity, w, h, newScheme, sVal);
                 } else {
                     return; // nothing to recolor
                 }
                 const ctx = elements.canvas.getContext('2d');
-                const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
+                const rgbaOut = rgba instanceof Uint8ClampedArray ? rgba : new Uint8ClampedArray(rgba);
+                const imageData = new ImageData(rgbaOut, w, h);
                 const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
                 ctx.putImageData(finalImageData, 0, 0);
                 currentFractal.colorScheme = newScheme;
                 currentFractal.backgroundColor = bgColor;
-                currentFractal.imageData = rgba;
+                currentFractal.imageData = rgbaOut;
             } catch (e) {
                 console.error('Dynamic recolor failed', e);
             }
