@@ -4,6 +4,29 @@
 
 This project now includes a **Rust/WebAssembly implementation** that provides **10-100x faster** fractal generation for browser deployment!
 
+## 🖥️ LATEST: Desktop Application
+
+**NEW Desktop Version** - Generate extremely high-resolution fractals without browser limitations!
+
+### Desktop App Advantages
+- **No memory limits**: 100M+ iterations (vs 10M browser limit)
+- **Ultra-high resolution**: 16,384px canvas (vs 8,192px browser limit)  
+- **Multi-threaded processing**: Uses all CPU cores for maximum performance
+- **Enhanced exports**: Direct file system access and better image quality
+- **System resource monitoring**: Real-time display of capabilities
+
+### Quick Desktop Setup
+```bash
+# Install dependencies and build
+./build-desktop.sh
+
+# Or manually:
+cargo install tauri-cli
+cd src-tauri && cargo build && cargo run
+```
+
+📖 **[Complete Desktop Documentation](./DESKTOP.md)**
+
 ## 🚀 Installation & Quick Start
 
 ### Prerequisites

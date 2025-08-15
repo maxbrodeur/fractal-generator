@@ -1,0 +1,1 @@
+/home/runner/work/fractal-generator/fractal-generator/fractal-cli-demo/target/debug/fractal-cli: /home/runner/work/fractal-generator/fractal-generator/fractal-cli-demo/src/fractals.rs /home/runner/work/fractal-generator/fractal-generator/fractal-cli-demo/src/main.rs

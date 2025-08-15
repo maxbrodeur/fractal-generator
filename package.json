@@ -10,7 +10,10 @@
     "deploy": "npm run build && npx gh-pages -d deploy --dotfiles --dest . --branch gh-pages-clean",
     "dev": "npm run build && npm run serve",
     "test": "node wasm-integration-test.js",
-    "test:debug": "node wasm-integration-test.js --verbose"
+    "test:debug": "node wasm-integration-test.js --verbose",
+    "build:desktop": "cd src-tauri && cargo build",
+    "run:desktop": "cd src-tauri && cargo run",
+    "package:desktop": "cd src-tauri && cargo build --release"
   },
   "repository": {
     "type": "git",
