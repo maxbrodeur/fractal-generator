@@ -754,6 +754,171 @@
                 transform: none;
             }
         }
+        
+        /* Mobile Header (shown only on mobile) */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #e2e8f0;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+        }
+        
+        .mobile-header h1 {
+            font-size: 1.2rem;
+            margin: 0;
+            color: #1f2937;
+        }
+        
+        .mobile-header-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .mobile-quick-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .mobile-menu-btn {
+            background: #f8fafc;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        
+        /* Mobile styles - transform existing sidebar */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr; /* Single column on mobile */
+            }
+            
+            .mobile-header {
+                display: flex; /* Show mobile header */
+            }
+            
+            .sidebar {
+                position: fixed !important;
+                top: 60px !important; /* Below mobile header */
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: calc(100vh - 60px) !important;
+                max-height: calc(100vh - 60px) !important;
+                z-index: 999;
+                transform: translateX(-100%); /* Hidden by default */
+                transition: transform 0.3s ease;
+                border-radius: 0;
+                box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+                padding: 0 1rem 1rem 1rem;
+                overflow: visible !important; /* Allow content to be visible */
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0); /* Show when toggled */
+            }
+            
+            .sidebar-toggle {
+                display: none; /* Hide desktop toggle on mobile */
+            }
+            
+            .main-content {
+                margin-top: 60px; /* Space for mobile header */
+                grid-column: 1; /* Full width */
+            }
+            
+            /* Ensure canvas is visible below mobile controls */
+            .canvas-container {
+                padding-top: 0;
+            }
+            
+            /* Adjust sidebar content for mobile */
+            .sidebar-content {
+                padding-top: 1rem !important;
+                height: 100% !important; /* Fill the mobile sidebar height */
+                display: flex !important;
+                flex-direction: column !important;
+                min-height: 0 !important;
+            }
+            
+            .sidebar-header {
+                flex-shrink: 0 !important; /* Don't shrink the header */
+            }
+            
+            .sidebar-scroll {
+                flex: 1 !important; /* Take remaining space */
+                overflow-y: auto !important; /* Enable scrolling */
+                -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+                padding-bottom: 2rem; /* Extra padding at bottom */
+                min-height: 0 !important; /* Allow flex shrinking */
+                height: auto !important; /* Let it size properly */
+                display: block !important; /* Ensure it's a block element */
+            }
+            
+            .sidebar-header h1 {
+                display: none; /* Hide duplicate title */
+            }
+            
+            /* Force control elements to be visible on mobile */
+            .control-section {
+                margin-bottom: 1rem !important;
+                padding: 0.5rem 0 !important;
+            }
+            
+            .control-section h3 {
+                font-size: 1rem !important;
+                margin-bottom: 0.75rem !important;
+                color: #374151 !important;
+            }
+            
+            .control-group {
+                margin-bottom: 0.75rem !important;
+                min-height: auto !important;
+            }
+            
+            .control-group label {
+                display: block !important;
+                margin-bottom: 0.25rem !important;
+                font-weight: 500 !important;
+                font-size: 0.9rem !important;
+            }
+            
+            .control-group select,
+            .control-group input {
+                width: 100% !important;
+                padding: 0.5rem !important;
+                border: 1px solid #d1d5db !important;
+                border-radius: 0.375rem !important;
+                font-size: 1rem !important;
+                background: white !important;
+                min-height: 2.5rem !important;
+                box-sizing: border-box !important;
+            }
+            
+            .btn {
+                min-height: 2.5rem !important;
+                padding: 0.5rem 1rem !important;
+                font-size: 0.9rem !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -884,7 +1049,7 @@
                         <option value="0">Fire</option>
                         <option value="1">Jet</option>
                         <option value="2">Prism</option>
-                        <option value="3" selected>Turbo</option>
+                        <option value="3">Turbo</option>
                         <option value="4">Color Wheel</option>
                         <option value="5">GNU Plot</option>
                         <option value="6">BMY</option>
@@ -896,7 +1061,7 @@
                         <option value="12">Magma</option>
                         <option value="13">Cividis</option>
                         <option value="14">Gray</option>
-                        <option value="15">Cubehelix</option>
+                        <option value="15" selected>Cubehelix</option>
                         <option value="16">Blue-Orange</option>
                         <option value="17">Heat</option>
                         <option value="18">Ice</option>
@@ -910,8 +1075,8 @@
                 <div class="control-group">
                     <label>Density Softness (log) <span class="info-icon" data-tip="Adjusts the logarithmic mapping from density to brightness. Higher = softer (brighter low densities).">i</span></label>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="range" id="densitySoftness" min="0.1" max="50" step="0.1" value="1" style="flex:1;">
-                        <input type="number" id="densitySoftnessInput" min="0.1" max="50" step="0.1" value="1" style="width:80px;">
+                        <input type="range" id="densitySoftness" min="0.01" max="500" step="0.01" value="1" style="flex:1;">
+                        <input type="number" id="densitySoftnessInput" min="0.01" max="500" step="0.01" value="1" style="width:80px;">
                     </div>
                 </div>
                 
@@ -1113,10 +1278,23 @@
             </div>
         </aside>
         
+        <!-- Mobile Header (overlay for mobile only) -->
+        <div id="mobileHeader" class="mobile-header">
+            <h1>Fractal Generator</h1>
+            <div class="mobile-header-buttons">
+                <button id="mobileQuickGenerate" class="mobile-quick-btn">Generate</button>
+                <button id="mobileMenuToggle" class="mobile-menu-btn">≡</button>
+            </div>
+        </div>
+        
         <main class="main-content">
             <div class="canvas-container" id="canvasContainer">
                 <div class="canvas-display-wrapper" id="canvasDisplayWrapper">
                     <canvas id="fractalCanvas" width="2048" height="2048"></canvas>
+                    <!-- Floating toggle to restore controls when sidebar is collapsed -->
+                    <button id="sidebarFab" class="btn" title="Show controls" aria-label="Show controls" style="display:none; position:fixed; top:12px; left:12px; z-index:30; padding:6px 10px; border-radius:999px; backdrop-filter: blur(6px); background: rgba(17,24,39,0.8); color:#e5e7eb; border:1px solid rgba(229,231,235,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.25);">
+                        ☰
+                    </button>
                     <div id="chipEditor" class="equation-overlay" style="max-width: min(560px, calc(100% - 16px)); display:none;">
                         <div class="sheet-handle" aria-hidden="true"></div>
                         <div class="overlay-header">Edit Coefficients</div>
@@ -1161,6 +1339,47 @@
     const CHAOS_HISTORY_STORAGE_KEY = 'fg-chaos-history.v1';
     let chaosHistory = [];
     let activeHistoryIndex = -1;
+
+        // Mobile Interface Management - Reuses Desktop Sidebar
+        function initializeMobileInterface() {
+            console.log('Mobile interface initializing...');
+            
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const mobileQuickGenerate = document.getElementById('mobileQuickGenerate');
+            const sidebar = document.getElementById('sidebar');
+            
+            // Toggle mobile sidebar (shows/hides existing desktop sidebar)
+            if (mobileMenuToggle && sidebar) {
+                mobileMenuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('mobile-open');
+                    mobileMenuToggle.textContent = sidebar.classList.contains('mobile-open') ? '✕' : '≡';
+                });
+            }
+            
+            // Quick generate button (always visible)
+            if (mobileQuickGenerate) {
+                mobileQuickGenerate.addEventListener('click', async () => {
+                    console.log('Mobile: Quick generate');
+                    
+                    try {
+                        await generateAndPlotChaoticMap();
+                    } catch (error) {
+                        console.error('Failed to generate fractal:', error);
+                        alert('Failed to generate fractal. Please try again.');
+                    }
+                });
+            }
+            
+            // Close mobile sidebar when user taps outside (optional enhancement)
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('mobile-open')) {
+                    if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                        sidebar.classList.remove('mobile-open');
+                        mobileMenuToggle.textContent = '≡';
+                    }
+                }
+            });
+        }
 
     function saveChaosHistory() {
         try {
@@ -3004,32 +3223,42 @@
             const sidebarToggle = document.getElementById('sidebarToggle');
             const appContainer = document.querySelector('.app-container');
             const SIDEBAR_MOBILE_STATE_KEY = 'fg.sidebar.mobileCollapsed.v1';
+            const sidebarFab = document.getElementById('sidebarFab');
             
             // Enhanced mobile support
             function handleMobileLayout() {
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // Mobile layout handling - restore persisted state
+                    // Mobile layout handling - restore persisted state or default to collapsed
+                    let shouldCollapse = true; // Default to collapsed on mobile
                     try {
                         const persisted = localStorage.getItem(SIDEBAR_MOBILE_STATE_KEY);
                         if (persisted !== null) {
-                            const collapsed = persisted === '1';
-                            sidebar.classList.toggle('mobile-collapsed', collapsed);
-                            sidebarToggle.textContent = collapsed ? '↓' : '↑';
+                            shouldCollapse = persisted === '1';
                         }
                     } catch (_) { /* ignore */ }
+                    
+                    // Apply the collapse state
+                    sidebar.classList.toggle('mobile-collapsed', shouldCollapse);
+                    sidebarToggle.textContent = shouldCollapse ? '↓' : '↑';
+                    if (sidebarFab) sidebarFab.style.display = shouldCollapse ? 'inline-flex' : 'none';
                 } else {
                     // Desktop layout
                     sidebar.classList.remove('mobile-collapsed');
+                    if (sidebarFab) sidebarFab.style.display = sidebar.classList.contains('collapsed') ? 'inline-flex' : 'none';
                 }
-            }
-            
-            // Auto-collapse sidebar on mobile after generation
+            }            // Auto-collapse sidebar on mobile after generation
             function autoCollapseMobileAfterGeneration() {
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
                     sidebar.classList.add('mobile-collapsed');
+                    // Update toggle, persist state, and reveal FAB so users can restore controls
+                    sidebarToggle.textContent = '↓';
+                    try { localStorage.setItem(SIDEBAR_MOBILE_STATE_KEY, '1'); } catch (_) { /* ignore */ }
+                    if (sidebarFab) sidebarFab.style.display = 'inline-flex';
+                    // Recompute canvas size after layout change
+                    setTimeout(updateCanvasDisplaySize, 0);
                 }
             }
             
@@ -3042,10 +3271,12 @@
                     sidebar.classList.toggle('mobile-collapsed');
                     sidebarToggle.textContent = sidebar.classList.contains('mobile-collapsed') ? '↓' : '↑';
             try { localStorage.setItem(SIDEBAR_MOBILE_STATE_KEY, sidebar.classList.contains('mobile-collapsed') ? '1' : '0'); } catch (_) { /* ignore */ }
+                    if (sidebarFab) sidebarFab.style.display = sidebar.classList.contains('mobile-collapsed') ? 'inline-flex' : 'none';
                 } else {
                     sidebar.classList.toggle('collapsed');
                     appContainer.classList.toggle('sidebar-collapsed');
                     sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '→' : '←';
+                    if (sidebarFab) sidebarFab.style.display = sidebar.classList.contains('collapsed') ? 'inline-flex' : 'none';
                 }
                 setTimeout(updateCanvasDisplaySize, 300);
             });
@@ -3056,8 +3287,13 @@
                 updateCanvasDisplaySize();
             });
             
-            // Initial mobile layout setup
+            // Initial mobile layout setup (after sizing defaults)
             handleMobileLayout();
+            // Ensure FAB visibility matches current state on first paint
+            const isMobileView = window.innerWidth <= 768;
+            if (isMobileView && sidebarFab) {
+                sidebarFab.style.display = sidebar.classList.contains('mobile-collapsed') ? 'inline-flex' : 'none';
+            }
 
             // Backdrop click closes the editor sheet
             const sheetBackdrop = document.getElementById('sheetBackdrop');
@@ -3069,6 +3305,25 @@
                     sheetBackdrop.style.display = 'none';
                     delete elements.chipEditor.dataset.editIndex;
                     elements.chipEditor.style.transform = '';
+                });
+            }
+
+            // Sidebar FAB click expands the sidebar
+            if (sidebarFab) {
+                sidebarFab.addEventListener('click', () => {
+                    const isMobileView = window.innerWidth <= 768;
+                    if (isMobileView) {
+                        sidebar.classList.remove('mobile-collapsed');
+                        sidebarToggle.textContent = '↑';
+                        try { localStorage.setItem(SIDEBAR_MOBILE_STATE_KEY, '0'); } catch (_) { /* ignore */ }
+                        sidebarFab.style.display = 'none';
+                    } else {
+                        sidebar.classList.remove('collapsed');
+                        appContainer.classList.remove('sidebar-collapsed');
+                        sidebarToggle.textContent = '←';
+                        sidebarFab.style.display = 'none';
+                    }
+                    updateCanvasDisplaySize();
                 });
             }
 
@@ -3520,6 +3775,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize mobile interface first
+            initializeMobileInterface();
+            
             observeCanvasResizing();
             requestAnimationFrame(fitCanvasToViewport);
             // Overlay toggle wiring
