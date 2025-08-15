@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "productName": "Fractal Generator Desktop",
+  "version": "1.0.0",
+  "identifier": "com.maxbrodeur.fractal-generator",
+  "build": {
+    "frontendDist": ".",
+    "devUrl": "http://localhost:8000"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Fractal Generator Desktop",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "center": true,
+        "resizable": true,
+        "maximizable": true,
+        "webSecurity": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "",
+    "category": "DeveloperTool",
+    "shortDescription": "High-performance desktop fractal generator",
+    "longDescription": "A desktop application for generating beautiful fractals with no browser limitations. Supports chaos game, IFS, random chaos finder and escape-time fractals.",
+    "deb": {
+      "depends": []
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "",
+      "exceptionDomain": ""
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "permissions": [
+    "core:default",
+    "shell:allow-open"
+  ],
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [],
+      "dialog": true,
+      "pubkey": ""
+    }
+  }
+}

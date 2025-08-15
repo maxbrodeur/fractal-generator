@@ -1,0 +1,17 @@
+[package]
+name = "fractal-cli-demo"
+version = "1.0.0"
+description = "CLI demonstration of desktop fractal generation capabilities"
+authors = ["Max Brodeur <maxbrodeur@users.noreply.github.com>"]
+license = "MIT"
+edition = "2021"
+
+[[bin]]
+name = "fractal-cli"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+rand = { version = "0.8", features = ["getrandom"] }
+rayon = "1.0" # For parallel processing
+num_cpus = "1.0" # For system information
