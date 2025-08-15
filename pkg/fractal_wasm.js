@@ -60,13 +60,20 @@ function getArrayF64FromWasm0(ptr, len) {
     return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
+let WASM_VECTOR_LEN = 0;
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64ArrayMemory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
         throw new Error(`expected instance of ${klass.name}`);
     }
 }
-
-let WASM_VECTOR_LEN = 0;
 
 const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
 
@@ -148,11 +155,18 @@ function getArrayU8FromWasm0(ptr, len) {
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
-function passArrayF64ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 8, 8) >>> 0;
-    getFloat64ArrayMemory0().set(arg, ptr / 8);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
+let cachedUint8ClampedArrayMemory0 = null;
+
+function getUint8ClampedArrayMemory0() {
+    if (cachedUint8ClampedArrayMemory0 === null || cachedUint8ClampedArrayMemory0.byteLength === 0) {
+        cachedUint8ClampedArrayMemory0 = new Uint8ClampedArray(wasm.memory.buffer);
+    }
+    return cachedUint8ClampedArrayMemory0;
+}
+
+function getClampedArrayU8FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint8ClampedArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 /**
  * Standalone function to generate chaotic map points
@@ -204,6 +218,131 @@ export const ColorScheme = Object.freeze({
     WhiteViridis: 22, "22": "WhiteViridis",
     WhiteMagma: 23, "23": "WhiteMagma",
 });
+
+const ChaoticAccumulatorFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_chaoticaccumulator_free(ptr >>> 0, 1));
+/**
+ * Stateful accumulator that keeps a running density grid and incremental
+ * coverage metrics entirely inside WASM to avoid large per-batch memory copies
+ * and repeated JS-side scans for non-zero counts.
+ */
+export class ChaoticAccumulator {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        ChaoticAccumulatorFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_chaoticaccumulator_free(ptr, 0);
+    }
+    /**
+     * Create a new accumulator with initial orbit state and fixed bounds.
+     * Bounds are not dynamically expanded (mirrors current JS behavior prior
+     * to dynamic expansion logic). A future enhancement could expose a method
+     * to adjust bounds and remap existing density if required.
+     * @param {Float64Array} x_params
+     * @param {Float64Array} y_params
+     * @param {boolean} is_cubic
+     * @param {number} width
+     * @param {number} height
+     * @param {number} min_x
+     * @param {number} max_x
+     * @param {number} min_y
+     * @param {number} max_y
+     * @param {number} start_x
+     * @param {number} start_y
+     */
+    constructor(x_params, y_params, is_cubic, width, height, min_x, max_x, min_y, max_y, start_x, start_y) {
+        const ptr0 = passArrayF64ToWasm0(x_params, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayF64ToWasm0(y_params, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.chaoticaccumulator_new(ptr0, len0, ptr1, len1, is_cubic, width, height, min_x, max_x, min_y, max_y, start_x, start_y);
+        this.__wbg_ptr = ret >>> 0;
+        ChaoticAccumulatorFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Advance the chaotic map by n_points, updating the internal density.
+     * Returns a small stats vector to minimize JS processing:
+     * [ final_x, final_y, new_pixels_added, total_non_zero_pixels ]
+     * @param {number} n_points
+     * @returns {Float64Array}
+     */
+    step_batch(n_points) {
+        const ret = wasm.chaoticaccumulator_step_batch(this.__wbg_ptr, n_points);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Same as step_batch but also reports how many brand new pixels were lit this batch.
+     * Returns: [final_x, final_y, newly_lit_pixels, total_non_zero]
+     * @param {number} n_points
+     * @returns {Float64Array}
+     */
+    step_batch_with_new(n_points) {
+        const ret = wasm.chaoticaccumulator_step_batch_with_new(this.__wbg_ptr, n_points);
+        var v1 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v1;
+    }
+    /**
+     * Export a clone of the density grid (used only at finalization / external caching).
+     * @returns {Uint32Array}
+     */
+    density() {
+        const ret = wasm.chaoticaccumulator_density(this.__wbg_ptr);
+        var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Convenience: directly map current density to RGBA with scaling & color scheme.
+     * @param {ColorScheme} color_scheme
+     * @param {number} scale_mode
+     * @returns {Uint8ClampedArray}
+     */
+    to_rgba_scaled(color_scheme, scale_mode) {
+        const ret = wasm.chaoticaccumulator_to_rgba_scaled(this.__wbg_ptr, color_scheme, scale_mode);
+        var v1 = getClampedArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * Map current density to RGBA using log-soft mapping with adjustable softness
+     * @param {ColorScheme} color_scheme
+     * @param {number} softness
+     * @returns {Uint8ClampedArray}
+     */
+    to_rgba_log_soft(color_scheme, softness) {
+        const ret = wasm.chaoticaccumulator_to_rgba_log_soft(this.__wbg_ptr, color_scheme, softness);
+        var v1 = getClampedArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
+    }
+    /**
+     * Fill the internal reusable RGBA buffer from current density with log-soft mapping (zero-copy view ready)
+     * @param {ColorScheme} color_scheme
+     * @param {number} softness
+     */
+    fill_rgba_log_soft(color_scheme, softness) {
+        wasm.chaoticaccumulator_fill_rgba_log_soft(this.__wbg_ptr, color_scheme, softness);
+    }
+    /**
+     * Return a zero-copy JS view over the internal RGBA buffer. Recreate the view after memory growth.
+     * @returns {Uint8ClampedArray}
+     */
+    rgba_view() {
+        const ret = wasm.chaoticaccumulator_rgba_view(this.__wbg_ptr);
+        return ret;
+    }
+}
 
 const ChaoticMapResultFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
@@ -307,6 +446,27 @@ export class FractalGenerator {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_fractalgenerator_free(ptr, 0);
+    }
+    /**
+     * Estimate bounds for a chaotic map entirely inside WASM to avoid
+     * transferring large point arrays back to JS. Returns
+     * [min_x, max_x, min_y, max_y] with a small padding similar to
+     * calculate_point_bounds.
+     * @param {Float64Array} x_params
+     * @param {Float64Array} y_params
+     * @param {number} n_points
+     * @param {boolean} is_cubic
+     * @returns {Float64Array}
+     */
+    estimate_bounds_for_map(x_params, y_params, n_points, is_cubic) {
+        const ptr0 = passArrayF64ToWasm0(x_params, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayF64ToWasm0(y_params, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_estimate_bounds_for_map(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_points, is_cubic);
+        var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        return v3;
     }
     constructor() {
         const ret = wasm.fractalgenerator_new();
@@ -478,13 +638,13 @@ export class FractalGenerator {
      * @param {number} width
      * @param {number} height
      * @param {ColorScheme} color_scheme
-     * @returns {Uint8Array}
+     * @returns {Uint8ClampedArray}
      */
     density_grid_to_rgba(density, width, height, color_scheme) {
         const ptr0 = passArray32ToWasm0(density, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.fractalgenerator_density_grid_to_rgba(this.__wbg_ptr, ptr0, len0, width, height, color_scheme);
-        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        var v2 = getClampedArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v2;
     }
@@ -502,13 +662,31 @@ export class FractalGenerator {
      * @param {number} height
      * @param {ColorScheme} color_scheme
      * @param {number} scale_mode
-     * @returns {Uint8Array}
+     * @returns {Uint8ClampedArray}
      */
     density_grid_to_rgba_scaled(density, width, height, color_scheme, scale_mode) {
         const ptr0 = passArray32ToWasm0(density, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.fractalgenerator_density_grid_to_rgba_scaled(this.__wbg_ptr, ptr0, len0, width, height, color_scheme, scale_mode);
-        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        var v2 = getClampedArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
+    /**
+     * Log-soft density mapping with adjustable softness factor s (>0):
+     * mapped = ln(1 + s * d) / ln(1 + s * max_d)
+     * @param {Uint32Array} density
+     * @param {number} width
+     * @param {number} height
+     * @param {ColorScheme} color_scheme
+     * @param {number} softness
+     * @returns {Uint8ClampedArray}
+     */
+    density_grid_to_rgba_log_soft(density, width, height, color_scheme, softness) {
+        const ptr0 = passArray32ToWasm0(density, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.fractalgenerator_density_grid_to_rgba_log_soft(this.__wbg_ptr, ptr0, len0, width, height, color_scheme, softness);
+        var v2 = getClampedArrayU8FromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         return v2;
     }
@@ -982,6 +1160,10 @@ function __wbg_get_imports() {
         const ret = new Function(getStringFromWasm0(arg0, arg1));
         return ret;
     };
+    imports.wbg.__wbg_newwithbyteoffsetandlength_6d34787141015158 = function(arg0, arg1, arg2) {
+        const ret = new Uint8ClampedArray(arg0, arg1 >>> 0, arg2 >>> 0);
+        return ret;
+    };
     imports.wbg.__wbg_newwithbyteoffsetandlength_d97e637ebe145a9a = function(arg0, arg1, arg2) {
         const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
         return ret;
@@ -1103,6 +1285,7 @@ function __wbg_finalize_init(instance, module) {
     cachedFloat64ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
+    cachedUint8ClampedArrayMemory0 = null;
 
 
     wasm.__wbindgen_start();

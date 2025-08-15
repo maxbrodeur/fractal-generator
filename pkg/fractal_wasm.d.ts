@@ -35,6 +35,52 @@ export enum ColorScheme {
   WhiteMagma = 23,
 }
 /**
+ * Stateful accumulator that keeps a running density grid and incremental
+ * coverage metrics entirely inside WASM to avoid large per-batch memory copies
+ * and repeated JS-side scans for non-zero counts.
+ */
+export class ChaoticAccumulator {
+  free(): void;
+  /**
+   * Create a new accumulator with initial orbit state and fixed bounds.
+   * Bounds are not dynamically expanded (mirrors current JS behavior prior
+   * to dynamic expansion logic). A future enhancement could expose a method
+   * to adjust bounds and remap existing density if required.
+   */
+  constructor(x_params: Float64Array, y_params: Float64Array, is_cubic: boolean, width: number, height: number, min_x: number, max_x: number, min_y: number, max_y: number, start_x: number, start_y: number);
+  /**
+   * Advance the chaotic map by n_points, updating the internal density.
+   * Returns a small stats vector to minimize JS processing:
+   * [ final_x, final_y, new_pixels_added, total_non_zero_pixels ]
+   */
+  step_batch(n_points: number): Float64Array;
+  /**
+   * Same as step_batch but also reports how many brand new pixels were lit this batch.
+   * Returns: [final_x, final_y, newly_lit_pixels, total_non_zero]
+   */
+  step_batch_with_new(n_points: number): Float64Array;
+  /**
+   * Export a clone of the density grid (used only at finalization / external caching).
+   */
+  density(): Uint32Array;
+  /**
+   * Convenience: directly map current density to RGBA with scaling & color scheme.
+   */
+  to_rgba_scaled(color_scheme: ColorScheme, scale_mode: number): Uint8ClampedArray;
+  /**
+   * Map current density to RGBA using log-soft mapping with adjustable softness
+   */
+  to_rgba_log_soft(color_scheme: ColorScheme, softness: number): Uint8ClampedArray;
+  /**
+   * Fill the internal reusable RGBA buffer from current density with log-soft mapping (zero-copy view ready)
+   */
+  fill_rgba_log_soft(color_scheme: ColorScheme, softness: number): void;
+  /**
+   * Return a zero-copy JS view over the internal RGBA buffer. Recreate the view after memory growth.
+   */
+  rgba_view(): Uint8ClampedArray;
+}
+/**
  * Result structure for chaotic map with parameters
  */
 export class ChaoticMapResult {
@@ -53,6 +99,13 @@ export class ChaoticMapResult {
  */
 export class FractalGenerator {
   free(): void;
+  /**
+   * Estimate bounds for a chaotic map entirely inside WASM to avoid
+   * transferring large point arrays back to JS. Returns
+   * [min_x, max_x, min_y, max_y] with a small padding similar to
+   * calculate_point_bounds.
+   */
+  estimate_bounds_for_map(x_params: Float64Array, y_params: Float64Array, n_points: number, is_cubic: boolean): Float64Array;
   constructor();
   /**
    * Generate chaos game fractal points
@@ -107,7 +160,7 @@ export class FractalGenerator {
    * # Returns
    * A vector of RGBA bytes representing the image.
    */
-  density_grid_to_rgba(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme): Uint8Array;
+  density_grid_to_rgba(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme): Uint8ClampedArray;
   /**
    * Variant with selectable scaling mode for density mapping.
    * scale_mode:
@@ -118,7 +171,12 @@ export class FractalGenerator {
    * 4 = gamma 0.5 (sqrt) alias
    * 5 = gamma 0.25 (4th root)
    */
-  density_grid_to_rgba_scaled(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme, scale_mode: number): Uint8Array;
+  density_grid_to_rgba_scaled(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme, scale_mode: number): Uint8ClampedArray;
+  /**
+   * Log-soft density mapping with adjustable softness factor s (>0):
+   * mapped = ln(1 + s * d) / ln(1 + s * max_d)
+   */
+  density_grid_to_rgba_log_soft(density: Uint32Array, width: number, height: number, color_scheme: ColorScheme, softness: number): Uint8ClampedArray;
   /**
    * Calculate bounds for a set of points
    */
@@ -277,6 +335,7 @@ export interface InitOutput {
   readonly rule_add: (a: number, b: number) => void;
   readonly rule_check: (a: number, b: number, c: number) => number;
   readonly __wbg_fractalgenerator_free: (a: number, b: number) => void;
+  readonly fractalgenerator_estimate_bounds_for_map: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly fractalgenerator_new: () => number;
   readonly fractalgenerator_chaos_game: (a: number, b: any, c: number, d: number, e: number, f: any, g: number) => [number, number];
   readonly fractalgenerator_ifs_fractal: (a: number, b: number, c: number, d: number, e: any, f: any, g: number, h: number) => [number, number];
@@ -288,8 +347,18 @@ export interface InitOutput {
   readonly fractalgenerator_merge_density_grids: (a: number, b: number, c: number, d: number, e: number) => [number, number];
   readonly fractalgenerator_density_grid_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly fractalgenerator_density_grid_to_rgba_scaled: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+  readonly fractalgenerator_density_grid_to_rgba_log_soft: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly fractalgenerator_calculate_point_bounds: (a: number, b: number, c: number) => [number, number];
   readonly fractalgenerator_points_to_rgba: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+  readonly __wbg_chaoticaccumulator_free: (a: number, b: number) => void;
+  readonly chaoticaccumulator_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => number;
+  readonly chaoticaccumulator_step_batch: (a: number, b: number) => [number, number];
+  readonly chaoticaccumulator_step_batch_with_new: (a: number, b: number) => [number, number];
+  readonly chaoticaccumulator_density: (a: number) => [number, number];
+  readonly chaoticaccumulator_to_rgba_scaled: (a: number, b: number, c: number) => [number, number];
+  readonly chaoticaccumulator_to_rgba_log_soft: (a: number, b: number, c: number) => [number, number];
+  readonly chaoticaccumulator_fill_rgba_log_soft: (a: number, b: number, c: number) => void;
+  readonly chaoticaccumulator_rgba_view: (a: number) => any;
   readonly __wbg_fractalpresets_free: (a: number, b: number) => void;
   readonly fractalpresets_sierpinski_triangle: () => any;
   readonly fractalpresets_sierpinski_triangle_transforms: () => any;
