@@ -395,8 +395,8 @@
         
         /* Compact inline coefficient inputs for chaotic map equations */
         .inline-param {
-            width: 52px;
-            min-width: 48px;
+            width: 80px;
+            min-width: 70px;
             padding: 2px 4px;
             margin: 0 2px;
             font-size: 0.8rem;
@@ -450,21 +450,22 @@
         /* Chaotic map history chips */
         .chaos-history {
             display: flex;
+            flex-direction: column;
             gap: 6px;
-            flex-wrap: wrap;
             margin-top: 8px;
         }
         .chaos-chip {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 6px;
-            padding: 4px 8px;
+            padding: 6px 8px;
             border: 1px solid #cbd5e1;
-            border-radius: 999px;
+            border-radius: 8px;
             background: #f8fafc;
             font-size: 0.8rem;
             cursor: pointer;
             user-select: none;
+            width: 100%;
         }
     .chaos-chip:hover { background:#eef2ff; border-color:#a5b4fc; }
     .chip-meta { color:#64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -473,6 +474,7 @@
     .chip-btn { all: unset; cursor:pointer; color:#64748b; padding:0 4px; border-radius:4px; line-height:1; }
     .chip-btn:hover { background:#e2e8f0; color:#334155; }
     .chaos-chip.active { background:#e0e7ff; border-color:#6366f1; box-shadow: inset 0 0 0 1px #6366f1; }
+    .chaos-chip { z-index: 25; } /* Ensure history chips appear above overlay menu */
     .history-header { display:flex; align-items:center; justify-content:space-between; font-size:0.8rem; color:#64748b; margin-top:6px; }
     .history-header button { all: unset; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; }
     .history-header button:hover { background:#e2e8f0; color:#334155; }
@@ -527,7 +529,8 @@
         .batch-progress {
             position: absolute;
             top: 10px;
-            right: 10px;
+            left: 50%;
+            transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.45);
             backdrop-filter: blur(2px);
             color: #fff;
@@ -658,10 +661,12 @@
                 box-shadow: 0 -8px 24px rgba(0,0,0,0.3);
                 transform: translateY(100%);
                 transition: transform 180ms ease;
-                z-index: 20;
-                max-height: 70vh;
+                z-index: 30;
+                height: auto;
+                max-height: 50vh;
                 overflow-y: auto;
-                padding-bottom: calc(10px + env(safe-area-inset-bottom));
+                padding: 12px;
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
             }
             #chipEditor.show { transform: translateY(0); }
             #chipEditor .overlay-header { display:flex; align-items:center; gap:8px; }
@@ -890,26 +895,34 @@
             }
             
             .control-group {
-                margin-bottom: 0.75rem !important;
+                margin-bottom: 0.5rem !important;
                 min-height: auto !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 0.5rem !important;
             }
             
             .control-group label {
                 display: block !important;
-                margin-bottom: 0.25rem !important;
+                margin-bottom: 0 !important;
                 font-weight: 500 !important;
-                font-size: 0.9rem !important;
+                font-size: 0.8rem !important;
+                flex-shrink: 0 !important;
+                width: auto !important;
+                max-width: 50% !important;
             }
             
             .control-group select,
             .control-group input {
-                width: 100% !important;
-                padding: 0.5rem !important;
+                width: auto !important;
+                flex: 1 !important;
+                padding: 0.375rem 0.5rem !important;
                 border: 1px solid #d1d5db !important;
                 border-radius: 0.375rem !important;
-                font-size: 1rem !important;
+                font-size: 0.85rem !important;
                 background: white !important;
-                min-height: 2.5rem !important;
+                min-height: 2rem !important;
                 box-sizing: border-box !important;
             }
             
@@ -918,6 +931,31 @@
                 padding: 0.5rem 1rem !important;
                 font-size: 0.9rem !important;
             }
+        }
+        
+        /* Compact layout for both desktop and mobile */
+        .control-group {
+            margin-bottom: 0.5rem;
+            min-height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0;
+            font-weight: 500;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            width: auto;
+            max-width: 50%;
+        }
+        
+        .inline-param {
+            width: 80px;
+            min-width: 80px;
         }
     </style>
 </head>
@@ -1080,10 +1118,12 @@
                     </div>
                 </div>
                 
-                <div class="control-group">
+                <div class="control-group" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
                     <label>Background Color <span class="info-icon" data-tip="Applied behind the fractal. Use min-density color to blend with colormap or None for raw colormap background.">i</span></label>
-                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <input type="color" id="backgroundColor" value="#000000" style="width:40px; height:32px; padding:0; border:1px solid #cbd5e1; border-radius:4px;">
+                    <div style="display:flex; gap:8px; align-items:center; width:100%;">
+                        <input type="color" id="backgroundColor" value="#000000" style="width:40px; height:32px; padding:0; border:1px solid #cbd5e1; border-radius:4px; flex-shrink:0;">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; width:100%;">
                         <label style="display:flex; gap:6px; align-items:center; font-size:0.8rem;">
                             <input type="checkbox" id="bgUseMinDensityColor"> Use min-density color
                         </label>
@@ -1104,19 +1144,22 @@
                         <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000" max="100000000">
                     </div>
                     <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="chaosConvergenceMode" checked>
-                            Auto-Convergence Mode <span class="info-icon" data-tip="Plot in batches until coverage stabilizes (low growth). Helps choose sufficient points automatically.">i</span>
-                        </label>
+                        <label>Auto-Convergence Mode <span class="info-icon" data-tip="Plot in batches until coverage stabilizes (low growth). Helps choose sufficient points automatically.">i</span></label>
+                        <input type="checkbox" id="chaosConvergenceMode" checked>
                     </div>
                 </div>
                 
                 <!-- Chaotic Map History Only -->
                 <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
                     <div class="control-group">
-                        <div class="history-header"><span>Recent</span><button id="clearChaosHistoryBtn" title="Clear recent maps">Clear</button></div>
-                        <div id="chaosHistory" class="chaos-history" aria-label="Recent chaotic maps" title="Recent chaotic maps (click to load)"></div>
+                        <label>Recent</label>
+                        <div style="display: flex; gap: 4px;">
+                            <button id="copyCurrentCoeffsBtn" class="btn btn-secondary" title="Copy current loaded coefficients" style="font-size: 0.7rem; padding: 2px 6px;">Copy</button>
+                            <button id="pasteCurrentCoeffsBtn" class="btn btn-secondary" title="Paste coefficients to current" style="font-size: 0.7rem; padding: 2px 6px;">Paste</button>
+                            <button id="clearChaosHistoryBtn" title="Clear recent maps">Clear</button>
+                        </div>
                     </div>
+                    <div id="chaosHistory" class="chaos-history" aria-label="Recent chaotic maps" title="Recent chaotic maps (click to load)" style="margin-top: 8px;"></div>
                 </div>
             </div>
             
@@ -1303,9 +1346,6 @@
                         <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
                             <button id="applyEditBtn" class="btn btn-secondary">Apply</button>
                             <button id="cancelEditBtn" class="btn">Close</button>
-                            <span style="flex:1 1 auto"></span>
-                            <button id="copyParametersBtn" class="btn btn-secondary" title="Copy parameters">Copy</button>
-                            <button id="pasteParametersBtn" class="btn btn-secondary" title="Paste parameters">Paste</button>
                         </div>
                     </div>
                     <div id="sheetBackdrop" class="sheet-backdrop" aria-hidden="true"></div>
@@ -1509,8 +1549,9 @@
             // Chaotic map display elements (history only)
             chaoticMapDisplay: document.getElementById('chaoticMapDisplay'),
             // legacy sidebar fields removed; keep optional references for clipboard buttons if present
-            copyParametersBtn: document.getElementById('copyParametersBtn'),
-            pasteParametersBtn: document.getElementById('pasteParametersBtn')
+            // New copy/paste buttons in the menu
+            copyCurrentCoeffsBtn: document.getElementById('copyCurrentCoeffsBtn'),
+            pasteCurrentCoeffsBtn: document.getElementById('pasteCurrentCoeffsBtn')
         };
 
         // Abort button handler
@@ -1874,6 +1915,12 @@
         // Plot stored chaotic map with current parameters
         async function plotStoredChaoticMap() {
             if (isLoading || !generator || !storedChaoticMap) return;
+            
+            // Check if chaos history is empty
+            if (!chaosHistory || chaosHistory.length === 0) {
+                showNotification('No chaotic maps available. Generate a chaotic map first.', 'warning');
+                return;
+            }
 
             setLoading(true);
 
@@ -2750,6 +2797,16 @@
                 elements.chaoticMapDisplay.style.display = 'block';
                 if (elements.iterationsHelp) {
                     elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
+                }
+            }
+            
+            // Mobile-specific logic: hide other method preset selectors when in Random Chaos Finder mode
+            if (window.innerWidth <= 768) {
+                if (method === 'random_chaos') {
+                    // On mobile in Random Chaos Finder mode, hide all other method presets
+                    elements.escapeTimePresets.style.display = 'none';
+                    elements.chaosGamePresets.style.display = 'none';
+                    elements.ifsPresets.style.display = 'none';
                 }
             }
             
@@ -4563,23 +4620,34 @@
         // Copy all parameters to clipboard
         async function copyParametersToClipboard() {
             try {
-                const editedParams = getEditedParameters(elements.chipEditor);
+                let parametersData = null;
                 
-                // Validate parameters
-                if (!editedParams || !editedParams.xParams || !editedParams.yParams || 
-                    editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
-                    !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
-                    !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
-                    showNotification('Invalid parameters. Cannot copy invalid parameter values.', 'error');
-                    return;
+                // Get from currently selected history entry
+                if (activeHistoryIndex >= 0 && activeHistoryIndex < chaosHistory.length) {
+                    const selectedEntry = chaosHistory[activeHistoryIndex];
+                    if (selectedEntry && selectedEntry.x_params && selectedEntry.y_params) {
+                        parametersData = {
+                            xParams: selectedEntry.x_params,
+                            yParams: selectedEntry.y_params,
+                            isCubic: selectedEntry.is_cubic || false
+                        };
+                    }
                 }
                 
-                const { xParams, yParams } = editedParams;
-                const parametersData = {
-                    xParams: xParams,
-                    yParams: yParams,
-                    isCubic: currentChaoticMapData ? currentChaoticMapData.is_cubic : false
-                };
+                // Fallback to current chaotic map if no history entry selected
+                if (!parametersData && currentChaoticMapData && 
+                    currentChaoticMapData.x_params && currentChaoticMapData.y_params) {
+                    parametersData = {
+                        xParams: currentChaoticMapData.x_params,
+                        yParams: currentChaoticMapData.y_params,
+                        isCubic: currentChaoticMapData.is_cubic || false
+                    };
+                }
+                
+                if (!parametersData) {
+                    showNotification('No valid parameters to copy. Generate or load a chaotic map first.', 'warning');
+                    return;
+                }
                 
                 const parametersString = JSON.stringify(parametersData, null, 2);
                 await navigator.clipboard.writeText(parametersString);
@@ -4603,32 +4671,29 @@
                     throw new Error('Invalid parameters format');
                 }
                 
-                // Update the inline parameter inputs
-                const scope = elements.chipEditor || document;
-                const xInputs = scope.querySelectorAll('.inline-param[data-param-axis="x"]');
-                const yInputs = scope.querySelectorAll('.inline-param[data-param-axis="y"]');
+                // Create a new history entry from the pasted parameters
+                const entry = {
+                    timestamp: Date.now(),
+                    type: parametersData.isCubic ? 'cubic' : 'quadratic',
+                    is_cubic: !!parametersData.isCubic,
+                    x_params: parametersData.xParams,
+                    y_params: parametersData.yParams,
+                    max_lyapunov: null, // Will be calculated when generating
+                    min_lyapunov: null,
+                    fractal_dimension: null
+                };
                 
-                // Update X parameters
-                parametersData.xParams.forEach((value, index) => {
-                    const input = scope.querySelector(`.inline-param[data-param-axis="x"][data-param-index="${index}"]`);
-                    if (input) {
-                        input.value = value.toFixed(6);
-                    }
-                });
+                // Add to history and select it
+                chaosHistory.unshift(entry);
+                if (chaosHistory.length > CHAOS_HISTORY_LIMIT) chaosHistory.pop();
+                activeHistoryIndex = 0;
+                saveChaosHistory();
+                renderChaosHistory();
                 
-                // Update Y parameters
-                parametersData.yParams.forEach((value, index) => {
-                    const input = scope.querySelector(`.inline-param[data-param-axis="y"][data-param-index="${index}"]`);
-                    if (input) {
-                        input.value = value.toFixed(6);
-                    }
-                });
+                // Load the new entry
+                selectHistoryEntry(0, false);
                 
-                // Show parameter buttons (removed Apply Changes button)
-                elements.copyParametersBtn.style.display = 'inline-block';
-                elements.pasteParametersBtn.style.display = 'inline-block';
-                
-                showNotification('Parameters pasted successfully!', 'success');
+                showNotification('Parameters pasted and loaded successfully!', 'success');
                 
             } catch (error) {
                 console.error('❌ Error pasting parameters:', error);
@@ -4638,8 +4703,8 @@
         
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
-            if (elements.copyParametersBtn) elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
-            if (elements.pasteParametersBtn) elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
+            if (elements.copyCurrentCoeffsBtn) elements.copyCurrentCoeffsBtn.addEventListener('click', copyParametersToClipboard);
+            if (elements.pasteCurrentCoeffsBtn) elements.pasteCurrentCoeffsBtn.addEventListener('click', pasteParametersFromClipboard);
             const clearBtn = document.getElementById('clearChaosHistoryBtn');
             if (clearBtn) {
                 clearBtn.addEventListener('click', () => {
