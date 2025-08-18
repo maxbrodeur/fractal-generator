@@ -301,6 +301,37 @@
             box-shadow: 0 0 0 1px #444;
         }
     /* Removed old full-canvas overlay style */
+        /* Compact equation overlay on canvas */
+        .equation-overlay {
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            background: rgba(0,0,0,0.6);
+            color: #e5e7eb;
+            padding: 6px 8px;
+            border-radius: 6px;
+            backdrop-filter: blur(2px);
+            max-width: calc(100% - 16px);
+            pointer-events: auto;
+            display: none;
+            z-index: 15;
+        }
+        .equation-overlay.show { display: block; }
+        .equation-overlay .eq-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 1.3; }
+        .equation-overlay .overlay-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:12px; color:#cbd5e1; }
+        .canvas-overlay-toggle {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            z-index: 6;
+            background: rgba(0,0,0,0.5);
+            color: #e5e7eb;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 8px;
+            cursor: pointer;
+        }
+        .canvas-overlay-toggle:hover { background: rgba(0,0,0,0.65); }
         
         .dynamic-controls {
             display: none;
@@ -362,6 +393,92 @@
             margin-bottom: 0.2rem;
         }
         
+        /* Compact inline coefficient inputs for chaotic map equations */
+        .inline-param {
+            width: 80px;
+            min-width: 70px;
+            padding: 2px 4px;
+            margin: 0 2px;
+            font-size: 0.8rem;
+            text-align: right;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .equation-formula { line-height: 1.8; }
+        .equation-label { font-weight: 600; min-width: 56px; color:#1f2937; }
+        
+        /* Info icon tooltip for parameter help */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-left: 6px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #334155;
+            font-size: 12px;
+            cursor: help;
+            position: relative;
+            user-select: none;
+        }
+        .info-icon::after {
+            content: attr(data-tip);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            white-space: normal;
+            min-width: 180px;
+            max-width: 280px;
+            padding: 6px 8px;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            color: #fff;
+            background: rgba(17,24,39,0.95);
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.12s ease;
+            z-index: 20;
+        }
+        .info-icon:hover::after { opacity: 1; }
+        
+        /* Chaotic map history chips */
+        .chaos-history {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .chaos-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #f8fafc;
+            font-size: 0.8rem;
+            cursor: pointer;
+            user-select: none;
+            width: 100%;
+        }
+    .chaos-chip:hover { background:#eef2ff; border-color:#a5b4fc; }
+    .chip-meta { color:#64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .chip-type { font-weight: 600; color:#334155; }
+    .chaos-chip .chip-actions { display:inline-flex; gap:4px; margin-left:4px; }
+    .chip-btn { all: unset; cursor:pointer; color:#64748b; padding:0 4px; border-radius:4px; line-height:1; }
+    .chip-btn:hover { background:#e2e8f0; color:#334155; }
+    .chaos-chip.active { background:#e0e7ff; border-color:#6366f1; box-shadow: inset 0 0 0 1px #6366f1; }
+    .chaos-chip { z-index: 25; } /* Ensure history chips appear above overlay menu */
+    .history-header { display:flex; align-items:center; justify-content:space-between; font-size:0.8rem; color:#64748b; margin-top:6px; }
+    .history-header button { all: unset; color:#64748b; cursor:pointer; padding:2px 6px; border-radius:4px; }
+    .history-header button:hover { background:#e2e8f0; color:#334155; }
+        
         .notification {
             position: fixed;
             top: 5rem;
@@ -397,12 +514,23 @@
         .notification.info {
             background: #4299e1;
         }
+
+        /* Backdrop for mobile bottom sheet editor */
+        .sheet-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(2px);
+            display: none;
+            z-index: 14;
+        }
         
         /* Subtle batch progress indicator */
         .batch-progress {
             position: absolute;
             top: 10px;
-            right: 10px;
+            left: 50%;
+            transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.45);
             backdrop-filter: blur(2px);
             color: #fff;
@@ -508,6 +636,46 @@
                 max-height: 100%;
                 object-fit: contain;
             }
+            /* History chips become horizontally scrollable */
+            .chaos-history {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 4px;
+                gap: 8px;
+            }
+            .chaos-chip { min-height: 36px; }
+
+            /* Chip editor becomes a bottom sheet */
+            #chipEditor {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                top: auto !important;
+                max-width: 100vw !important;
+                width: 100vw !important;
+                border-radius: 12px 12px 0 0;
+                background: rgba(17,24,39,0.98);
+                color: #e5e7eb;
+                box-shadow: 0 -8px 24px rgba(0,0,0,0.3);
+                transform: translateY(100%);
+                transition: transform 180ms ease;
+                z-index: 30;
+                height: auto;
+                max-height: 50vh;
+                overflow-y: auto;
+                padding: 12px;
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            }
+            #chipEditor.show { transform: translateY(0); }
+            #chipEditor .overlay-header { display:flex; align-items:center; gap:8px; }
+            #chipEditor .sheet-handle {
+                width: 40px; height: 4px; background: #6b7280; border-radius: 2px;
+                margin: 6px auto 8px auto;
+                cursor: grab;
+            }
+            #chipEditor.dragging { transition: none !important; }
             
 
         }
@@ -584,11 +752,210 @@
                 min-height: 44px;
                 padding: 0.75rem;
             }
+            .chip-btn { padding: 2px 8px; }
             
             /* Disable hover effects on touch devices */
             .btn:hover {
                 transform: none;
             }
+        }
+        
+        /* Mobile Header (shown only on mobile) */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid #e2e8f0;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+        }
+        
+        .mobile-header h1 {
+            font-size: 1.2rem;
+            margin: 0;
+            color: #1f2937;
+        }
+        
+        .mobile-header-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .mobile-quick-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .mobile-menu-btn {
+            background: #f8fafc;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        
+        /* Mobile styles - transform existing sidebar */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr; /* Single column on mobile */
+            }
+            
+            .mobile-header {
+                display: flex; /* Show mobile header */
+            }
+            
+            .sidebar {
+                position: fixed !important;
+                top: 60px !important; /* Below mobile header */
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: calc(100vh - 60px) !important;
+                max-height: calc(100vh - 60px) !important;
+                z-index: 999;
+                transform: translateX(-100%); /* Hidden by default */
+                transition: transform 0.3s ease;
+                border-radius: 0;
+                box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+                padding: 0 1rem 1rem 1rem;
+                overflow: visible !important; /* Allow content to be visible */
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0); /* Show when toggled */
+            }
+            
+            .sidebar-toggle {
+                display: none; /* Hide desktop toggle on mobile */
+            }
+            
+            .main-content {
+                margin-top: 60px; /* Space for mobile header */
+                grid-column: 1; /* Full width */
+            }
+            
+            /* Ensure canvas is visible below mobile controls */
+            .canvas-container {
+                padding-top: 0;
+            }
+            
+            /* Adjust sidebar content for mobile */
+            .sidebar-content {
+                padding-top: 1rem !important;
+                height: 100% !important; /* Fill the mobile sidebar height */
+                display: flex !important;
+                flex-direction: column !important;
+                min-height: 0 !important;
+            }
+            
+            .sidebar-header {
+                flex-shrink: 0 !important; /* Don't shrink the header */
+            }
+            
+            .sidebar-scroll {
+                flex: 1 !important; /* Take remaining space */
+                overflow-y: auto !important; /* Enable scrolling */
+                -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+                padding-bottom: 2rem; /* Extra padding at bottom */
+                min-height: 0 !important; /* Allow flex shrinking */
+                height: auto !important; /* Let it size properly */
+                display: block !important; /* Ensure it's a block element */
+            }
+            
+            .sidebar-header h1 {
+                display: none; /* Hide duplicate title */
+            }
+            
+            /* Force control elements to be visible on mobile */
+            .control-section {
+                margin-bottom: 1rem !important;
+                padding: 0.5rem 0 !important;
+            }
+            
+            .control-section h3 {
+                font-size: 1rem !important;
+                margin-bottom: 0.75rem !important;
+                color: #374151 !important;
+            }
+            
+            .control-group {
+                margin-bottom: 0.5rem !important;
+                min-height: auto !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 0.5rem !important;
+            }
+            
+            .control-group label {
+                display: block !important;
+                margin-bottom: 0 !important;
+                font-weight: 500 !important;
+                font-size: 0.8rem !important;
+                flex-shrink: 0 !important;
+                width: auto !important;
+                max-width: 50% !important;
+            }
+            
+            .control-group select,
+            .control-group input {
+                width: auto !important;
+                flex: 1 !important;
+                padding: 0.375rem 0.5rem !important;
+                border: 1px solid #d1d5db !important;
+                border-radius: 0.375rem !important;
+                font-size: 0.85rem !important;
+                background: white !important;
+                min-height: 2rem !important;
+                box-sizing: border-box !important;
+            }
+            
+            .btn {
+                min-height: 2.5rem !important;
+                padding: 0.5rem 1rem !important;
+                font-size: 0.9rem !important;
+            }
+        }
+        
+        /* Compact layout for both desktop and mobile */
+        .control-group {
+            margin-bottom: 0.5rem;
+            min-height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0;
+            font-weight: 500;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            width: auto;
+            max-width: 50%;
+        }
+        
+        .inline-param {
+            width: 80px;
+            min-width: 80px;
         }
     </style>
 </head>
@@ -691,7 +1058,7 @@
                 <h3>Visual Parameters</h3>
                 
                 <div class="control-group">
-                    <label>Canvas Size</label>
+                    <label>Canvas Size <span class="info-icon" data-tip="Sets the internal render resolution. Larger sizes produce sharper images but take longer and use more memory.">i</span></label>
                     <select id="canvasSize">
                         <option value="400">400x400</option>
                         <option value="600">600x600</option>
@@ -706,7 +1073,7 @@
                 </div>
                 
                 <div class="control-group">
-                    <label>Aspect Ratio</label>
+                    <label>Aspect Ratio <span class="info-icon" data-tip="Controls the width:height ratio of the canvas. Landscape, Portrait, or Square.">i</span></label>
                     <select id="aspectRatio">
                         <option value="square">Square (1:1)</option>
                         <option value="portrait">Portrait (3:4)</option>
@@ -715,12 +1082,12 @@
                 </div>
                 
                 <div class="control-group">
-                    <label>Color Scheme</label>
+                    <label>Color Scheme <span class="info-icon" data-tip="Choose from precomputed color lookup tables that map densities to colors.">i</span></label>
                     <select id="colorScheme">
                         <option value="0">Fire</option>
                         <option value="1">Jet</option>
                         <option value="2">Prism</option>
-                        <option value="3" selected>Turbo</option>
+                        <option value="3">Turbo</option>
                         <option value="4">Color Wheel</option>
                         <option value="5">GNU Plot</option>
                         <option value="6">BMY</option>
@@ -732,7 +1099,7 @@
                         <option value="12">Magma</option>
                         <option value="13">Cividis</option>
                         <option value="14">Gray</option>
-                        <option value="15">Cubehelix</option>
+                        <option value="15" selected>Cubehelix</option>
                         <option value="16">Blue-Orange</option>
                         <option value="17">Heat</option>
                         <option value="18">Ice</option>
@@ -744,18 +1111,19 @@
                     </select>
                 </div>
                 <div class="control-group">
-                    <label>Density Softness (log)</label>
+                    <label>Density Softness (log) <span class="info-icon" data-tip="Adjusts the logarithmic mapping from density to brightness. Higher = softer (brighter low densities).">i</span></label>
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="range" id="densitySoftness" min="0.1" max="50" step="0.1" value="1" style="flex:1;">
-                        <input type="number" id="densitySoftnessInput" min="0.1" max="50" step="0.1" value="1" style="width:80px;">
+                        <input type="range" id="densitySoftness" min="0.01" max="500" step="0.01" value="1" style="flex:1;">
+                        <input type="number" id="densitySoftnessInput" min="0.01" max="500" step="0.01" value="1" style="width:80px;">
                     </div>
-                    <small>Pure log by default. Increase softness for brighter lows; decrease for higher contrast.</small>
                 </div>
                 
-                <div class="control-group">
-                    <label>Background Color</label>
-                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <input type="color" id="backgroundColor" value="#000000" style="width:40px; height:32px; padding:0; border:1px solid #cbd5e1; border-radius:4px;">
+                <div class="control-group" style="flex-direction: column; align-items: flex-start; gap: 0.75rem;">
+                    <label>Background Color <span class="info-icon" data-tip="Applied behind the fractal. Use min-density color to blend with colormap or None for raw colormap background.">i</span></label>
+                    <div style="display:flex; gap:8px; align-items:center; width:100%;">
+                        <input type="color" id="backgroundColor" value="#000000" style="width:40px; height:32px; padding:0; border:1px solid #cbd5e1; border-radius:4px; flex-shrink:0;">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; width:100%;">
                         <label style="display:flex; gap:6px; align-items:center; font-size:0.8rem;">
                             <input type="checkbox" id="bgUseMinDensityColor"> Use min-density color
                         </label>
@@ -763,7 +1131,6 @@
                             <input type="checkbox" id="noBackgroundColor"> None
                         </label>
                     </div>
-                    <small>Choose a color, or use min-density color, or check None to use raw colormap background</small>
                 </div>
             </div>
             
@@ -773,64 +1140,26 @@
                 <!-- Random Chaos Finder specific controls -->
                 <div id="chaosFinderControls" class="method-controls">
                     <div class="control-group">
-                        <label>Plot Points</label>
+                        <label>Plot Points <span class="info-icon" data-tip="Total points to draw when plotting a discovered chaotic map. Auto-Convergence can override this.">i</span></label>
                         <input type="number" id="chaosPlotPoints" value="10000000" min="100000" step="100000" max="100000000">
-                        <small>Total number of points to plot for discovered map</small>
                     </div>
                     <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="chaosConvergenceMode" checked>
-                            Auto-Convergence Mode
-                        </label>
-                        <small>Plot until attractor coverage stabilizes (ignores Plot Points)</small>
+                        <label>Auto-Convergence Mode <span class="info-icon" data-tip="Plot in batches until coverage stabilizes (low growth). Helps choose sufficient points automatically.">i</span></label>
+                        <input type="checkbox" id="chaosConvergenceMode" checked>
                     </div>
                 </div>
                 
-                <!-- Chaotic Map Display and Editor -->
+                <!-- Chaotic Map History Only -->
                 <div id="chaoticMapDisplay" class="method-controls" style="display: none;">
                     <div class="control-group">
-                        <label>Current Chaotic Map</label>
-                        <div id="mapEquationDisplay" class="equation-display" style="font-size:0.85rem;">
-                            <div class="equation-section" style="display:flex; gap:4px; align-items:flex-start;">
-                                <span class="equation-label">x<sub>n+1</sub>=</span>
-                                <span id="xEquation" class="equation-formula editable-equation" style="flex:1; white-space:normal;">No map generated</span>
-                            </div>
-                            <div class="equation-section" style="display:flex; gap:4px; align-items:flex-start;">
-                                <span class="equation-label">y<sub>n+1</sub>=</span>
-                                <span id="yEquation" class="equation-formula editable-equation" style="flex:1; white-space:normal;">No map generated</span>
-                            </div>
-                        </div>
-                        <div class="parameter-controls">
-                            <button id="copyParametersBtn" class="btn btn-secondary" style="display: none;">Copy Parameters</button>
-                            <button id="pasteParametersBtn" class="btn btn-secondary" style="display: none;">Paste Parameters</button>
-                        </div>
-                        <div class="compact-params" style="margin-top:6px;">
-                            <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
-                                <input type="checkbox" id="compactParamsToggle"> Compact view
-                            </label>
-                            <div id="compactParamsPanel" style="display:none; margin-top:6px; border:1px dashed #cbd5e1; padding:8px; border-radius:6px; background:#f8fafc;">
-                                <div style="display:flex; flex-direction:column; gap:6px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;">
-                                    <label style="display:flex; gap:6px; align-items:center;">
-                                        <span style="width:72px; color:#334155;">x params</span>
-                                        <input id="xParamsCompact" type="text" placeholder="a,b,c,d,e,f,..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px;">
-                                    </label>
-                                    <label style="display:flex; gap:6px; align-items:center;">
-                                        <span style="width:72px; color:#334155;">y params</span>
-                                        <input id="yParamsCompact" type="text" placeholder="a,b,c,d,e,f,..." style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:4px;">
-                                    </label>
-                                    <div style="display:flex; gap:8px;">
-                                        <button id="applyCompactParamsBtn" class="btn btn-primary">Apply</button>
-                                        <small style="color:#64748b; align-self:center;">Tip: comma-separated list; Enter to apply.</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="mapStatistics" class="map-stats" style="display:block; line-height:1.4;">
-                            <div><span id="maxLyapunov">Max Lyapunov: -</span></div>
-                            <div><span id="minLyapunov">Min Lyapunov: -</span></div>
-                            <div><span id="fractalDim">Fractal Dim: -</span></div>
+                        <label>Recent</label>
+                        <div style="display: flex; gap: 4px;">
+                            <button id="copyCurrentCoeffsBtn" class="btn btn-secondary" title="Copy current loaded coefficients" style="font-size: 0.7rem; padding: 2px 6px;">Copy</button>
+                            <button id="pasteCurrentCoeffsBtn" class="btn btn-secondary" title="Paste coefficients to current" style="font-size: 0.7rem; padding: 2px 6px;">Paste</button>
+                            <button id="clearChaosHistoryBtn" title="Clear recent maps">Clear</button>
                         </div>
                     </div>
+                    <div id="chaosHistory" class="chaos-history" aria-label="Recent chaotic maps" title="Recent chaotic maps (click to load)" style="margin-top: 8px;"></div>
                 </div>
             </div>
             
@@ -839,46 +1168,39 @@
                 
                 <!-- Universal Parameters -->
                 <div class="control-group">
-                    <label>Iterations</label>
+            <label>Iterations <span class="info-icon" data-tip="Number of iterations or points. Hidden for Random Chaos Finder where plotting is iterative.">i</span></label>
                     <input type="number" id="iterations" value="50000" min="1000" max="1000000" step="1000">
-                    <small id="iterationsHelp">Number of iterations or points to generate</small>
                 </div>
                 
                 <div class="control-group">
-                    <label>Batch Size</label>
+            <label>Batch Size <span class="info-icon" data-tip="Points per batch during plotting. Larger increases memory; smaller may slow down.">i</span></label>
                     <input type="number" id="chaosBatchSize" value="1000000" min="1000000" step="1000000" max="10000000">
-                    <small>Points per batch (larger = more memory, smaller = slower)</small>
                 </div>
                 <div class="control-group">
-                    <label>Test Points</label>
+            <label>Test Points <span class="info-icon" data-tip="Points used to estimate chaos (Lyapunov). Higher is slower but more accurate.">i</span></label>
                     <input type="number" id="chaosTestPoints" value="100000" min="10000" max="1000000" step="10000">
-                    <small>Number of points for Lyapunov exponent calculation</small>
                 </div>
                 <div class="control-group">
-                    <label>Discard Points</label>
+            <label>Discard Points <span class="info-icon" data-tip="Transient iterations dropped before analysis to allow convergence to the attractor.">i</span></label>
                     <input type="number" id="chaosDiscardPoints" value="10000" min="1000" max="50000" step="1000">
-                    <small>Transient iterations to discard before analysis</small>
                 </div>
                 <div class="control-group">
-                    <label>Search Attempts</label>
+            <label>Search Attempts <span class="info-icon" data-tip="Maximum parameter samples to try when searching for a chaotic map.">i</span></label>
                     <input type="number" id="searchAttempts" value="1000" min="100" max="10000" step="100">
-                    <small>Maximum attempts to find chaotic map</small>
                 </div>
                 <div class="control-group">
-                    <label>Randomization Type</label>
+            <label>Randomization Type <span class="info-icon" data-tip="Continuous samples coefficients from ranges; Discrete samples from a fixed alphabet.">i</span></label>
                     <select id="chaosRandomizationType">
                         <option value="continuous">Continuous</option>
                         <option value="discrete">Discrete (Alphabet mode)</option>
                     </select>
-                    <small>Parameter generation method</small>
                 </div>
 
                 <!-- Auto-Convergence Threshold Controls (visible only when auto-convergence enabled) -->
-        <div id="convergenceAdvancedControls" style="display:none; border:1px solid #e2e8f0; padding:0.75rem; border-radius:6px; background:#f8fafc; margin-top:0.5rem;">
-                    <div class="control-group" style="margin-bottom:0.5rem;">
-            <label style="margin-bottom:0.25rem;">Auto-Convergence Thresholds Δ</label>
-            <small>Stop when BOTH relative growth (%) and absolute new pixels fall below thresholds for consecutive batches</small>
-                    </div>
+    <div id="convergenceAdvancedControls" style="display:none; border:1px solid #e2e8f0; padding:0.75rem; border-radius:6px; background:#f8fafc; margin-top:0.5rem;">
+            <div class="control-group" style="margin-bottom:0.5rem;">
+        <label style="margin-bottom:0.25rem;">Auto-Convergence Thresholds Δ <span class="info-icon" data-tip="Stop when BOTH relative growth (%) and absolute new pixels fall below thresholds for consecutive batches.">i</span></label>
+            </div>
                     <div class="parameter-inputs" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:0.5rem;">
                         <div class="parameter-input-group">
                             <label for="chaosRelGrowthThreshold">Rel Growth %</label>
@@ -999,10 +1321,34 @@
             </div>
         </aside>
         
+        <!-- Mobile Header (overlay for mobile only) -->
+        <div id="mobileHeader" class="mobile-header">
+            <h1>Fractal Generator</h1>
+            <div class="mobile-header-buttons">
+                <button id="mobileQuickGenerate" class="mobile-quick-btn">Generate</button>
+                <button id="mobileMenuToggle" class="mobile-menu-btn">≡</button>
+            </div>
+        </div>
+        
         <main class="main-content">
             <div class="canvas-container" id="canvasContainer">
                 <div class="canvas-display-wrapper" id="canvasDisplayWrapper">
                     <canvas id="fractalCanvas" width="2048" height="2048"></canvas>
+                    <!-- Floating toggle to restore controls when sidebar is collapsed -->
+                    <button id="sidebarFab" class="btn" title="Show controls" aria-label="Show controls" style="display:none; position:fixed; top:12px; left:12px; z-index:30; padding:6px 10px; border-radius:999px; backdrop-filter: blur(6px); background: rgba(17,24,39,0.8); color:#e5e7eb; border:1px solid rgba(229,231,235,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.25);">
+                        ☰
+                    </button>
+                    <div id="chipEditor" class="equation-overlay" style="max-width: min(560px, calc(100% - 16px)); display:none;">
+                        <div class="sheet-handle" aria-hidden="true"></div>
+                        <div class="overlay-header">Edit Coefficients</div>
+                        <div class="eq-line"><span class="eq-prefix">xₙ₊₁ = </span><span id="editorX"></span></div>
+                        <div class="eq-line"><span class="eq-prefix">yₙ₊₁ = </span><span id="editorY"></span></div>
+                        <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                            <button id="applyEditBtn" class="btn btn-secondary">Apply</button>
+                            <button id="cancelEditBtn" class="btn">Close</button>
+                        </div>
+                    </div>
+                    <div id="sheetBackdrop" class="sheet-backdrop" aria-hidden="true"></div>
                     <button id="abortBatchesBtn" class="btn abort-btn" style="display:none;" title="Abort iterative plotting and keep current image">Abort</button>
                     <div class="batch-progress" id="batchProgress">
                         <div class="batch-info">
@@ -1029,6 +1375,71 @@
         
         // Chaotic map state for separate generation and plotting
         let storedChaoticMap = null;
+    const CHAOS_HISTORY_LIMIT = 6;
+    const CHAOS_HISTORY_STORAGE_KEY = 'fg-chaos-history.v1';
+    let chaosHistory = [];
+    let activeHistoryIndex = -1;
+
+        // Mobile Interface Management - Reuses Desktop Sidebar
+        function initializeMobileInterface() {
+            console.log('Mobile interface initializing...');
+            
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const mobileQuickGenerate = document.getElementById('mobileQuickGenerate');
+            const sidebar = document.getElementById('sidebar');
+            
+            // Toggle mobile sidebar (shows/hides existing desktop sidebar)
+            if (mobileMenuToggle && sidebar) {
+                mobileMenuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('mobile-open');
+                    mobileMenuToggle.textContent = sidebar.classList.contains('mobile-open') ? '✕' : '≡';
+                });
+            }
+            
+            // Quick generate button (always visible)
+            if (mobileQuickGenerate) {
+                mobileQuickGenerate.addEventListener('click', async () => {
+                    console.log('Mobile: Quick generate');
+                    
+                    try {
+                        await generateAndPlotChaoticMap();
+                    } catch (error) {
+                        console.error('Failed to generate fractal:', error);
+                        alert('Failed to generate fractal. Please try again.');
+                    }
+                });
+            }
+            
+            // Close mobile sidebar when user taps outside (optional enhancement)
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('mobile-open')) {
+                    if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                        sidebar.classList.remove('mobile-open');
+                        mobileMenuToggle.textContent = '≡';
+                    }
+                }
+            });
+        }
+
+    function saveChaosHistory() {
+        try {
+            const payload = chaosHistory.slice(0, CHAOS_HISTORY_LIMIT);
+            localStorage.setItem(CHAOS_HISTORY_STORAGE_KEY, JSON.stringify(payload));
+        } catch (e) { console.warn('Failed to persist chaos history', e); }
+    }
+
+    function loadChaosHistory() {
+        try {
+            const raw = localStorage.getItem(CHAOS_HISTORY_STORAGE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                // Basic shape validation
+                chaosHistory = parsed.filter(e => e && Array.isArray(e.x_params) && Array.isArray(e.y_params));
+                activeHistoryIndex = chaosHistory.length ? 0 : -1;
+            }
+        } catch (e) { console.warn('Failed to load chaos history', e); }
+    }
         
         // Constants
         const DEFAULT_BATCH_SIZE = 1000000; // 1M points per batch for optimal memory usage
@@ -1065,6 +1476,12 @@
             generateAndPlotBtn: document.getElementById('generateAndPlotBtn'),
             generateMapBtn: document.getElementById('generateMapBtn'),
             plotMapBtn: document.getElementById('plotMapBtn'),
+            // Editor overlay elements
+            chipEditor: document.getElementById('chipEditor'),
+            editorX: document.getElementById('editorX'),
+            editorY: document.getElementById('editorY'),
+            applyEditBtn: document.getElementById('applyEditBtn'),
+            cancelEditBtn: document.getElementById('cancelEditBtn'),
             
             // Method and preset selectors
             fractalMethod: document.getElementById('fractalMethod'),
@@ -1129,17 +1546,12 @@
             // Convergence detection controls
             chaosConvergenceMode: document.getElementById('chaosConvergenceMode'),
             
-            // Chaotic map display elements
+            // Chaotic map display elements (history only)
             chaoticMapDisplay: document.getElementById('chaoticMapDisplay'),
-            mapEquationDisplay: document.getElementById('mapEquationDisplay'),
-            xEquation: document.getElementById('xEquation'),
-            yEquation: document.getElementById('yEquation'),
-            mapStatistics: document.getElementById('mapStatistics'),
-            maxLyapunov: document.getElementById('maxLyapunov'),
-            minLyapunov: document.getElementById('minLyapunov'),
-            fractalDim: document.getElementById('fractalDim'),
-            copyParametersBtn: document.getElementById('copyParametersBtn'),
-            pasteParametersBtn: document.getElementById('pasteParametersBtn')
+            // legacy sidebar fields removed; keep optional references for clipboard buttons if present
+            // New copy/paste buttons in the menu
+            copyCurrentCoeffsBtn: document.getElementById('copyCurrentCoeffsBtn'),
+            pasteCurrentCoeffsBtn: document.getElementById('pasteCurrentCoeffsBtn')
         };
 
         // Abort button handler
@@ -1231,7 +1643,7 @@
 
         // UI Helper Functions
         // Simplified progress functions using only batch progress indicator
-    function showBatchProgress(batchNumber, coveragePct = null, growthInfo = null, nonZero = null, elapsedMs = null) {
+    function showBatchProgress(batchNumber, coveragePct = null, growthInfo = null, nonZero = null, totalElapsedMs = null) {
             if (elements.batchProgress && elements.batchText) {
                 let txt = `Batch ${batchNumber}`;
                 if (coveragePct !== null) {
@@ -1241,7 +1653,7 @@
                     txt += ` · Δ ${growthInfo}`;
                 }
                 if (nonZero !== null) { txt += ` · lit ${nonZero.toLocaleString()}`; }
-                if (elapsedMs !== null) { txt += ` · ${Math.round(elapsedMs)}ms`; }
+                if (totalElapsedMs !== null) { txt += ` · ${Math.round(totalElapsedMs)}ms`; }
                 elements.batchText.textContent = txt;
                 elements.batchProgress.classList.add('visible');
         const abortEl = document.getElementById('abortBatchesBtn');
@@ -1353,6 +1765,38 @@
                 xParamsLength: coefficients?.x_params?.length,
                 yParamsLength: coefficients?.y_params?.length
             });
+
+            // Push to history if coefficients exist
+            try {
+                // WASM getters return TypedArrays, not plain Arrays. Accept any array-like view.
+                const toJsArray = (v) => {
+                    if (!v) return null;
+                    if (Array.isArray(v)) return v.slice();
+                    if (ArrayBuffer.isView(v)) return Array.from(v);
+                    return null;
+                };
+                const xArr = toJsArray(coefficients && coefficients.x_params);
+                const yArr = toJsArray(coefficients && coefficients.y_params);
+                if (xArr && yArr) {
+                    const entry = {
+                        timestamp: Date.now(),
+                        type: chaosType,
+                        is_cubic: !!isCubic,
+                        x_params: xArr,
+                        y_params: yArr,
+                        max_lyapunov: coefficients.max_lyapunov ?? null,
+                        min_lyapunov: coefficients.min_lyapunov ?? null,
+                        fractal_dimension: coefficients.fractal_dimension ?? null
+                    };
+                    chaosHistory.unshift(entry);
+                    if (chaosHistory.length > CHAOS_HISTORY_LIMIT) chaosHistory.pop();
+                    activeHistoryIndex = 0;
+                    saveChaosHistory();
+                    renderChaosHistory();
+                }
+            } catch (e) {
+                console.warn('History update failed', e);
+            }
         }
 
         // Validate and normalize point data before plotting
@@ -1453,11 +1897,7 @@
                     );
 
                     // For basic version, show limited information
-                    elements.xEquation.textContent = 'Basic version - equation details not available';
-                    elements.yEquation.textContent = 'Basic version - equation details not available';
-                    elements.maxLyapunov.textContent = 'Max Lyapunov: N/A';
-                    elements.minLyapunov.textContent = 'Min Lyapunov: N/A';
-                    elements.fractalDim.textContent = 'Fractal Dim: N/A';
+                    // Basic version fallback: no overlay
 
                     console.log('✅ Chaotic map stored for plotting');
                 }
@@ -1475,6 +1915,12 @@
         // Plot stored chaotic map with current parameters
         async function plotStoredChaoticMap() {
             if (isLoading || !generator || !storedChaoticMap) return;
+            
+            // Check if chaos history is empty
+            if (!chaosHistory || chaosHistory.length === 0) {
+                showNotification('No chaotic maps available. Generate a chaotic map first.', 'warning');
+                return;
+            }
 
             setLoading(true);
 
@@ -1486,9 +1932,10 @@
                     editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
                     editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
                     console.log('🔄 Applying edited parameters automatically...');
-                    // Update stored map with edited parameters
-                    storedChaoticMap.xParams = editedParams.xParams;
-                    storedChaoticMap.yParams = editedParams.yParams;
+                    // Update stored map coefficients with edited parameters
+                    if (!storedChaoticMap.coefficients) storedChaoticMap.coefficients = {};
+                    storedChaoticMap.coefficients.x_params = editedParams.xParams.slice();
+                    storedChaoticMap.coefficients.y_params = editedParams.yParams.slice();
                 } else {
                     console.log('🔄 No valid edited parameters found, using stored parameters');
                 }
@@ -1597,10 +2044,13 @@
 
         // Generate and plot chaotic map (original behavior)
         async function generateAndPlotChaoticMap() {
-            // Abort any in-progress iterative plotting
+            // Abort in-progress plotting and supersede tokens to stop current loop
             abortRequested = true;
             activeGenerationToken++;
+            // Small delay to allow current batch cycle to observe abort flag
+            await new Promise(r => setTimeout(r, 20));
             await generateChaoticMapOnly();
+            // Immediately plot the new one if available
             if (storedChaoticMap) {
                 await plotStoredChaoticMap();
             }
@@ -2317,19 +2767,25 @@
             if (method === 'escape_time') {
                 elements.escapeTimePresets.style.display = 'block';
                 elements.escapeTimeControls.style.display = 'block';
-                elements.iterationsHelp.textContent = 'Maximum iterations for escape-time calculation';
+                if (elements.iterationsHelp) {
+                    elements.iterationsHelp.textContent = 'Maximum iterations for escape-time calculation';
+                }
                 updateEscapeTimeControls();
                 
             } else if (method === 'chaos_game') {
                 elements.chaosGamePresets.style.display = 'block';
                 elements.chaosGameControls.style.display = 'block';
-                elements.iterationsHelp.textContent = 'Number of points to generate with chaos game';
+                if (elements.iterationsHelp) {
+                    elements.iterationsHelp.textContent = 'Number of points to generate with chaos game';
+                }
                 updateChaosGameDefaults();
                 
             } else if (method === 'ifs') {
                 elements.ifsPresets.style.display = 'block';
                 elements.ifsControls.style.display = 'block';
-                elements.iterationsHelp.textContent = 'Number of points to generate with IFS';
+                if (elements.iterationsHelp) {
+                    elements.iterationsHelp.textContent = 'Number of points to generate with IFS';
+                }
                 
                 // Initialize transformation inputs and load default preset
                 createTransformationInputs();
@@ -2339,7 +2795,19 @@
                 elements.chaosFinderMethods.style.display = 'block';
                 elements.chaosFinderControls.style.display = 'block';
                 elements.chaoticMapDisplay.style.display = 'block';
-                elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
+                if (elements.iterationsHelp) {
+                    elements.iterationsHelp.textContent = 'Points generated after finding chaotic map';
+                }
+            }
+            
+            // Mobile-specific logic: hide other method preset selectors when in Random Chaos Finder mode
+            if (window.innerWidth <= 768) {
+                if (method === 'random_chaos') {
+                    // On mobile in Random Chaos Finder mode, hide all other method presets
+                    elements.escapeTimePresets.style.display = 'none';
+                    elements.chaosGamePresets.style.display = 'none';
+                    elements.ifsPresets.style.display = 'none';
+                }
             }
             
             // Update iterations visibility after all other updates
@@ -2811,38 +3279,62 @@
             const sidebar = document.getElementById('sidebar');
             const sidebarToggle = document.getElementById('sidebarToggle');
             const appContainer = document.querySelector('.app-container');
+            const SIDEBAR_MOBILE_STATE_KEY = 'fg.sidebar.mobileCollapsed.v1';
+            const sidebarFab = document.getElementById('sidebarFab');
             
             // Enhanced mobile support
             function handleMobileLayout() {
                 const isMobileView = window.innerWidth <= 768;
                 
                 if (isMobileView) {
-                    // Mobile layout handling
+                    // Mobile layout handling - restore persisted state or default to collapsed
+                    let shouldCollapse = true; // Default to collapsed on mobile
+                    try {
+                        const persisted = localStorage.getItem(SIDEBAR_MOBILE_STATE_KEY);
+                        if (persisted !== null) {
+                            shouldCollapse = persisted === '1';
+                        }
+                    } catch (_) { /* ignore */ }
+                    
+                    // Apply the collapse state
+                    sidebar.classList.toggle('mobile-collapsed', shouldCollapse);
+                    sidebarToggle.textContent = shouldCollapse ? '↓' : '↑';
+                    if (sidebarFab) sidebarFab.style.display = shouldCollapse ? 'inline-flex' : 'none';
                 } else {
                     // Desktop layout
                     sidebar.classList.remove('mobile-collapsed');
+                    if (sidebarFab) sidebarFab.style.display = sidebar.classList.contains('collapsed') ? 'inline-flex' : 'none';
                 }
-            }
-            
-            // Auto-collapse sidebar on mobile after generation
+            }            // Auto-collapse sidebar on mobile after generation
             function autoCollapseMobileAfterGeneration() {
                 const isMobileView = window.innerWidth <= 768;
                 if (isMobileView) {
                     sidebar.classList.add('mobile-collapsed');
+                    // Update toggle, persist state, and reveal FAB so users can restore controls
+                    sidebarToggle.textContent = '↓';
+                    try { localStorage.setItem(SIDEBAR_MOBILE_STATE_KEY, '1'); } catch (_) { /* ignore */ }
+                    if (sidebarFab) sidebarFab.style.display = 'inline-flex';
+                    // Recompute canvas size after layout change
+                    setTimeout(updateCanvasDisplaySize, 0);
                 }
             }
             
             // Store reference for use in generation function
             window.autoCollapseMobileAfterGeneration = autoCollapseMobileAfterGeneration;
             
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                appContainer.classList.toggle('sidebar-collapsed');
-                
-                // Update toggle button
-                sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '→' : '←';
-                
-                // Update canvas display size after sidebar toggle
+        sidebarToggle.addEventListener('click', () => {
+                const isMobileView = window.innerWidth <= 768;
+                if (isMobileView) {
+                    sidebar.classList.toggle('mobile-collapsed');
+                    sidebarToggle.textContent = sidebar.classList.contains('mobile-collapsed') ? '↓' : '↑';
+            try { localStorage.setItem(SIDEBAR_MOBILE_STATE_KEY, sidebar.classList.contains('mobile-collapsed') ? '1' : '0'); } catch (_) { /* ignore */ }
+                    if (sidebarFab) sidebarFab.style.display = sidebar.classList.contains('mobile-collapsed') ? 'inline-flex' : 'none';
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                    appContainer.classList.toggle('sidebar-collapsed');
+                    sidebarToggle.textContent = sidebar.classList.contains('collapsed') ? '→' : '←';
+                    if (sidebarFab) sidebarFab.style.display = sidebar.classList.contains('collapsed') ? 'inline-flex' : 'none';
+                }
                 setTimeout(updateCanvasDisplaySize, 300);
             });
             
@@ -2852,8 +3344,116 @@
                 updateCanvasDisplaySize();
             });
             
-            // Initial mobile layout setup
+            // Initial mobile layout setup (after sizing defaults)
             handleMobileLayout();
+            // Ensure FAB visibility matches current state on first paint
+            const isMobileView = window.innerWidth <= 768;
+            if (isMobileView && sidebarFab) {
+                sidebarFab.style.display = sidebar.classList.contains('mobile-collapsed') ? 'inline-flex' : 'none';
+            }
+
+            // Backdrop click closes the editor sheet
+            const sheetBackdrop = document.getElementById('sheetBackdrop');
+            if (sheetBackdrop) {
+                sheetBackdrop.addEventListener('click', () => {
+                    if (!elements.chipEditor) return;
+                    elements.chipEditor.classList.remove('show');
+                    setTimeout(() => { elements.chipEditor.style.display = 'none'; }, 180);
+                    sheetBackdrop.style.display = 'none';
+                    delete elements.chipEditor.dataset.editIndex;
+                    elements.chipEditor.style.transform = '';
+                });
+            }
+
+            // Sidebar FAB click expands the sidebar
+            if (sidebarFab) {
+                sidebarFab.addEventListener('click', () => {
+                    const isMobileView = window.innerWidth <= 768;
+                    if (isMobileView) {
+                        sidebar.classList.remove('mobile-collapsed');
+                        sidebarToggle.textContent = '↑';
+                        try { localStorage.setItem(SIDEBAR_MOBILE_STATE_KEY, '0'); } catch (_) { /* ignore */ }
+                        sidebarFab.style.display = 'none';
+                    } else {
+                        sidebar.classList.remove('collapsed');
+                        appContainer.classList.remove('sidebar-collapsed');
+                        sidebarToggle.textContent = '←';
+                        sidebarFab.style.display = 'none';
+                    }
+                    updateCanvasDisplaySize();
+                });
+            }
+
+            // Swipe-to-close for the bottom sheet (mobile)
+            (function setupSheetGestures(){
+                const editor = elements.chipEditor;
+                if (!editor) return;
+                let startY = 0;
+                let currentY = 0;
+                let dragging = false;
+                const threshold = 80; // px to trigger close
+                const backdrop = document.getElementById('sheetBackdrop');
+
+                function onStart(e) {
+                    const isMobileView = window.innerWidth <= 768;
+                    if (!isMobileView || editor.style.display === 'none') return;
+                    dragging = true;
+                    editor.classList.add('dragging');
+                    startY = (e.touches ? e.touches[0].clientY : e.clientY);
+                    currentY = startY;
+                }
+                function onMove(e) {
+                    if (!dragging) return;
+                    currentY = (e.touches ? e.touches[0].clientY : e.clientY);
+                    const delta = Math.max(0, currentY - startY);
+                    editor.style.transform = `translateY(${delta}px)`;
+                }
+                function onEnd() {
+                    if (!dragging) return;
+                    const delta = Math.max(0, currentY - startY);
+                    dragging = false;
+                    editor.classList.remove('dragging');
+                    if (delta > threshold) {
+                        // close
+                        editor.classList.remove('show');
+                        setTimeout(() => { editor.style.display = 'none'; }, 180);
+                        if (backdrop) backdrop.style.display = 'none';
+                        delete editor.dataset.editIndex;
+                        // reset transform for next open
+                        editor.style.transform = '';
+                    } else {
+                        // snap back
+                        editor.style.transform = '';
+                    }
+                }
+                // Attach listeners to handle & content
+                editor.addEventListener('touchstart', onStart, { passive: true });
+                editor.addEventListener('touchmove', onMove, { passive: true });
+                editor.addEventListener('touchend', onEnd);
+                // Also support mouse drags on the handle
+                const handle = editor.querySelector('.sheet-handle');
+                if (handle) {
+                    handle.addEventListener('mousedown', onStart);
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onEnd);
+                }
+            })();
+
+            // Adjust for on-screen keyboard using visualViewport (where available)
+            if (window.visualViewport) {
+                const editor = elements.chipEditor;
+                const onViewportChange = () => {
+                    if (!editor) return;
+                    const isMobileView = window.innerWidth <= 768;
+                    if (!isMobileView) return;
+                    const vh = window.visualViewport.height;
+                    // Limit height so content stays above keyboard
+                    editor.style.maxHeight = Math.round(vh * 0.7) + 'px';
+                };
+                window.visualViewport.addEventListener('resize', onViewportChange);
+                window.visualViewport.addEventListener('scroll', onViewportChange);
+            }
+            
             
             // Hide iterations parameter for Random Chaos Finder to avoid redundancy
             updateIterationsVisibility();
@@ -2977,65 +3577,186 @@
             return terms.map((term) => term.fmt(safeParams[term.idx].toFixed(3))).join('').trim();
         }
         
-        function createEditableEquation(params, isCubic, axis) {
+    function createEditableEquation(params, isCubic, axis) {
             const terms = isCubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic : CHAOTIC_MAP_EQUATION_TERMS.quadratic;
             const safeParams = fillParams(params, terms.length);
             
             return terms.map((term, i) => {
-                const value = safeParams[term.idx].toFixed(3);
-                return term.fmt(`<input type="number" step="0.001" value="${value}" data-param-axis="${axis}" data-param-index="${term.idx}" class="inline-param">`);
+        const value = safeParams[term.idx].toFixed(3);
+        return term.fmt(`<input type="number" step="0.001" value="${value}" data-param-axis="${axis}" data-param-index="${term.idx}" class="inline-param" inputmode="decimal">`);
             }).join('').trim();
         }
         
-        function setupParameterChangeListeners() {
-            const paramInputs = document.querySelectorAll('.inline-param');
-            paramInputs.forEach(input => {
-                input.addEventListener('input', () => {
-                    // Show parameter buttons when parameters change (removed Apply Changes button)
-                    elements.copyParametersBtn.style.display = 'inline-block';
-                    elements.pasteParametersBtn.style.display = 'inline-block';
-                });
-            });
-        }
+    function setupParameterChangeListeners() { /* sidebar editor removed */ }
         
         function displayChaoticMap(mapData) {
             currentChaoticMapData = mapData;
-            
-            // Update equation display with editable parameters inline
-            elements.xEquation.innerHTML = createEditableEquation(mapData.x_params, mapData.is_cubic, 'x');
-            elements.yEquation.innerHTML = createEditableEquation(mapData.y_params, mapData.is_cubic, 'y');
-            
-            // Update statistics
-            elements.maxLyapunov.textContent = `Max Lyapunov: ${mapData.max_lyapunov.toFixed(4)}`;
-            elements.minLyapunov.textContent = `Min Lyapunov: ${mapData.min_lyapunov.toFixed(4)}`;
-            elements.fractalDim.textContent = `Fractal Dim: ${mapData.fractal_dimension.toFixed(4)}`;
-            
-            // Show parameter buttons (removed Apply Changes button)
-            elements.copyParametersBtn.style.display = 'inline-block';
-            elements.pasteParametersBtn.style.display = 'inline-block';
-            
-            // Set up event listeners for parameter changes
-            setupParameterChangeListeners();
+            // Refresh history chips so the active one (latest) is visible
+            renderChaosHistory();
+            // No canvas equation overlay anymore
         }
+
+    function renderChaosHistory() {
+        const host = document.getElementById('chaosHistory');
+        if (!host) return;
+        host.innerHTML = '';
+        if (!chaosHistory.length) {
+            const empty = document.createElement('span');
+            empty.className = 'chip-meta';
+            empty.textContent = 'No recent maps yet';
+            host.appendChild(empty);
+            return;
+        }
+        chaosHistory.forEach((entry, idx) => {
+            const chip = document.createElement('div');
+            chip.className = 'chaos-chip' + (idx === activeHistoryIndex ? ' active' : '');
+            const typeText = entry.is_cubic ? 'cubic' : 'quad';
+            const maxLE = (typeof entry.max_lyapunov === 'number') ? entry.max_lyapunov.toFixed(3) : '—';
+            const fd = (typeof entry.fractal_dimension === 'number') ? entry.fractal_dimension.toFixed(2) : '—';
+            chip.title = `Load ${typeText} map (${entry.x_params.length}/${entry.y_params.length} coeffs)`;
+            chip.innerHTML = `
+                <span class="chip-type">${typeText}</span>
+                <span class="chip-meta">LE:${maxLE} · FD:${fd}</span>
+                <span class="chip-actions">
+                    <button class="chip-btn chip-edit" title="Edit">✎</button>
+                    <button class="chip-btn chip-delete" title="Delete">×</button>
+                </span>
+            `;
+            // Click on chip selects it (but ignore clicks on action buttons)
+            chip.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target && (target.classList.contains('chip-btn') || target.closest('.chip-actions'))) return;
+                selectHistoryEntry(idx);
+            });
+            chip.querySelector('.chip-edit')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openChipEditor(idx, chip);
+            });
+            chip.querySelector('.chip-delete')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteHistoryEntry(idx);
+            });
+            host.appendChild(chip);
+        });
+    }
+
+    function selectHistoryEntry(idx, silent = false) {
+        try {
+            activeHistoryIndex = idx;
+            const entry = chaosHistory[idx];
+            if (!entry) return;
+            // Update current map data snapshot
+            currentChaoticMapData = {
+                x_params: [...entry.x_params],
+                y_params: [...entry.y_params],
+                is_cubic: entry.is_cubic,
+                max_lyapunov: entry.max_lyapunov ?? 0,
+                min_lyapunov: entry.min_lyapunov ?? 0,
+                fractal_dimension: entry.fractal_dimension ?? 0
+            };
+            // Prepare stored map so Plot works immediately
+            storedChaoticMap = {
+                type: 'history',
+                testPoints: parseInt(elements.chaosTestPoints.value) || 100000,
+                discardPoints: parseInt(elements.chaosDiscardPoints.value) || 10000,
+                useAlphabet: elements.chaosRandomizationType.value === 'discrete',
+                isCubic: !!entry.is_cubic,
+                pointData: null,
+                coefficients: {
+                    x_params: [...entry.x_params],
+                    y_params: [...entry.y_params],
+                    max_lyapunov: entry.max_lyapunov ?? null,
+                    min_lyapunov: entry.min_lyapunov ?? null,
+                    fractal_dimension: entry.fractal_dimension ?? null
+                },
+                originalPlotPoints: 0
+            };
+            renderChaosHistory();
+            updateChaosMapButtonStates();
+            if (!silent) showNotification('Loaded coefficients from history', 'success');
+        } catch (e) {
+            console.error('Failed to load history entry', e);
+            showNotification('Failed to load history entry', 'error');
+        }
+    }
+
+    function openChipEditor(idx, anchorEl) {
+        const entry = chaosHistory[idx];
+        if (!entry || !elements.chipEditor) return;
+        elements.chipEditor.dataset.editIndex = String(idx);
+        elements.editorX.innerHTML = createEditableEquation(entry.x_params, entry.is_cubic, 'x');
+        elements.editorY.innerHTML = createEditableEquation(entry.y_params, entry.is_cubic, 'y');
+        const isMobile = window.innerWidth <= 768;
+        const editor = elements.chipEditor;
+        const backdrop = document.getElementById('sheetBackdrop');
+        if (isMobile) {
+            editor.style.display = 'block';
+            requestAnimationFrame(() => editor.classList.add('show'));
+            if (backdrop) backdrop.style.display = 'block';
+        } else {
+            // Position near the clicked chip inside the canvas container bounds
+            try {
+                const hostRect = elements.canvasDisplayWrapper.getBoundingClientRect();
+                const anchorRect = (anchorEl || document.body).getBoundingClientRect();
+                // Prefer to the right of the chip; clamp within canvas area
+                const left = Math.min(
+                    hostRect.right - 16 - 560,
+                    Math.max(hostRect.left + 8, anchorRect.right + 8)
+                );
+                const top = Math.min(
+                    hostRect.bottom - 16 - 160,
+                    Math.max(hostRect.top + 8, anchorRect.top - 8)
+                );
+                editor.style.position = 'fixed';
+                editor.style.left = `${left}px`;
+                editor.style.top = `${top}px`;
+            } catch (e) { /* fallback: default CSS position */ }
+            editor.style.display = 'block';
+            editor.classList.add('show');
+        }
+    }
+
+    function deleteHistoryEntry(idx) {
+        if (idx < 0 || idx >= chaosHistory.length) return;
+        chaosHistory.splice(idx, 1);
+        if (activeHistoryIndex >= chaosHistory.length) {
+            activeHistoryIndex = chaosHistory.length - 1;
+        }
+        // If editor was open for this index, close it
+        if (elements.chipEditor && elements.chipEditor.dataset.editIndex === String(idx)) {
+            const backdrop = document.getElementById('sheetBackdrop');
+            elements.chipEditor.classList.remove('show');
+            setTimeout(() => { elements.chipEditor.style.display = 'none'; }, 180);
+            if (backdrop) backdrop.style.display = 'none';
+            delete elements.chipEditor.dataset.editIndex;
+            // reset transform (in case of partial drag)
+            elements.chipEditor.style.transform = '';
+        }
+        saveChaosHistory();
+        renderChaosHistory();
+    }
         
-        function getEditedParameters() {
+        function getEditedParameters(rootEl = elements.chipEditor, requireVisible = true) {
+            const scope = rootEl || null;
+            if (!scope) return null;
+            // Optionally require the editor to be visible (prevents stale edits from forcing params)
+            if (requireVisible) {
+                const isVisible = !!(scope.classList.contains('show') && scope.style.display !== 'none');
+                if (!isVisible) return null;
+            }
+            const xInputs = scope.querySelectorAll('input[data-param-axis="x"]');
+            const yInputs = scope.querySelectorAll('input[data-param-axis="y"]');
+            if (!xInputs.length || !yInputs.length) return null;
             const xParams = [];
             const yParams = [];
-            
-            // Get X parameters from inline inputs
-            const xInputs = document.querySelectorAll('input[data-param-axis="x"]');
             xInputs.forEach(input => {
                 const index = parseInt(input.dataset.paramIndex);
                 xParams[index] = parseFloat(input.value);
             });
-            
-            // Get Y parameters from inline inputs
-            const yInputs = document.querySelectorAll('input[data-param-axis="y"]');
             yInputs.forEach(input => {
                 const index = parseInt(input.dataset.paramIndex);
                 yParams[index] = parseFloat(input.value);
             });
-            
             return { xParams, yParams };
         }
         
@@ -3111,72 +3832,25 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize mobile interface first
+            initializeMobileInterface();
+            
             observeCanvasResizing();
             requestAnimationFrame(fitCanvasToViewport);
-        });
-        /* ============================================================= */
-        // Compact parameter editing wiring
-        (function wireCompactParams() {
-            const toggle = document.getElementById('compactParamsToggle');
-            const panel = document.getElementById('compactParamsPanel');
-            const xInput = document.getElementById('xParamsCompact');
-            const yInput = document.getElementById('yParamsCompact');
-            const applyBtn = document.getElementById('applyCompactParamsBtn');
-            const fillFromCurrent = () => {
-                if (!currentChaoticMapData) return;
-                const termsLen = currentChaoticMapData.is_cubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic.length : CHAOTIC_MAP_EQUATION_TERMS.quadratic.length;
-                const fill = (arr) => Array.from({length: termsLen}, (_, i) => (arr && arr[i] !== undefined) ? arr[i] : 0);
-                const xArr = fill(getEditedParameters().xParams || currentChaoticMapData.x_params);
-                const yArr = fill(getEditedParameters().yParams || currentChaoticMapData.y_params);
-                xInput.value = xArr.join(',');
-                yInput.value = yArr.join(',');
-            };
-            const parseList = (text) => text.split(/[,\s]+/).map(s => s.trim()).filter(s => s.length>0).map(Number);
-            const syncToInlineInputs = (xArr, yArr) => {
-                // Update the inline equation editors to reflect new values
-                const xInputs = document.querySelectorAll('input[data-param-axis="x"]');
-                const yInputs = document.querySelectorAll('input[data-param-axis="y"]');
-                xInputs.forEach(inp => { const idx = parseInt(inp.dataset.paramIndex); if (!isNaN(xArr[idx])) inp.value = xArr[idx]; });
-                yInputs.forEach(inp => { const idx = parseInt(inp.dataset.paramIndex); if (!isNaN(yArr[idx])) inp.value = yArr[idx]; });
-            };
-            if (toggle && panel) {
-                toggle.addEventListener('change', () => {
-                    panel.style.display = toggle.checked ? 'block' : 'none';
-                    if (toggle.checked) fillFromCurrent();
+            // Overlay toggle wiring
+            if (elements.toggleOverlayBtn) {
+                elements.toggleOverlayBtn.addEventListener('click', () => {
+                    const isShown = elements.equationOverlay.classList.toggle('show');
+                    if (isShown) {
+                        elements.toggleOverlayBtn.dataset.pinned = '1';
+                    } else {
+                        delete elements.toggleOverlayBtn.dataset.pinned;
+                    }
                 });
             }
-            if (applyBtn) {
-                const apply = () => {
-                    try {
-                        const xArr = parseList(xInput.value);
-                        const yArr = parseList(yInput.value);
-                        if (xArr.length === 0 || yArr.length === 0 || xArr.some(isNaN) || yArr.some(isNaN)) {
-                            showNotification('Invalid compact parameters. Provide comma-separated numbers for both X and Y.', 'error');
-                            return;
-                        }
-                        // Ensure length matches current equation term count by padding/truncating
-                        const termsLen = currentChaoticMapData && currentChaoticMapData.is_cubic ? CHAOTIC_MAP_EQUATION_TERMS.cubic.length : CHAOTIC_MAP_EQUATION_TERMS.quadratic.length;
-                        const norm = (arr) => {
-                            const a = arr.slice(0, termsLen);
-                            while (a.length < termsLen) a.push(0);
-                            return a;
-                        };
-                        const xNorm = norm(xArr);
-                        const yNorm = norm(yArr);
-                        // Reflect into inline inputs and regenerate
-                        syncToInlineInputs(xNorm, yNorm);
-                        regenerateWithCustomParameters();
-                    } catch (e) {
-                        console.error('Compact params apply failed', e);
-                        showNotification('Failed to apply compact parameters.', 'error');
-                    }
-                };
-                applyBtn.addEventListener('click', apply);
-                [xInput, yInput].forEach(inp => inp && inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') apply(); }));
-            }
-            // Pre-fill if toggled on by default
-            if (toggle && toggle.checked) fillFromCurrent();
-        })();
+        });
+        /* ============================================================= */
+    // Removed legacy compact parameter panel in favor of inline editable equations and history
         
         // Initialize canvas with proper background to prevent transparency issues
         function initializeCanvas(canvas, backgroundColor = '#000000') {
@@ -3285,7 +3959,7 @@
         }
         
         // Iterative plotting function with progress bars
-        async function plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme) {
+    async function plotChaoticMapIterative(requestedPoints, canvasWidth, canvasHeight, colorScheme) {
             console.log('🔄 plotChaoticMapIterative called with:', { requestedPoints, canvasWidth, canvasHeight, colorScheme });
             // Capture a new token for this run
             const runToken = ++activeGenerationToken;
@@ -3320,7 +3994,7 @@
                 const editedParams = getEditedParameters();
                 
                 // Validate edited parameters - use stored coefficients as fallback
-                if (editedParams.xParams && editedParams.xParams.length > 0 && 
+                if (editedParams && editedParams.xParams && editedParams.xParams.length > 0 && 
                     editedParams.yParams && editedParams.yParams.length > 0 &&
                     editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) &&
                     editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
@@ -3396,6 +4070,8 @@
                     abortEl.textContent = 'Abort';
                 }
 
+                // Track total elapsed time for the whole plotting session
+                const sessionStart = performance.now();
                 // Process in batches with efficient state continuity
                 const processBatch = () => {
                     if (finished) return; // guard against re-entry after finish
@@ -3517,7 +4193,8 @@
                                 }
                             }
                             lastNonZero = totalNonZero;
-                            showBatchProgress(batchCount, coveragePct, delta.toLocaleString(), totalNonZero, performance.now() - startTime);
+                            const totalElapsed = performance.now() - sessionStart;
+                            showBatchProgress(batchCount, coveragePct, delta.toLocaleString(), totalNonZero, totalElapsed);
 
                             const sCtl2 = document.getElementById('densitySoftness');
                             const sInp2 = document.getElementById('densitySoftnessInput');
@@ -3581,7 +4258,7 @@
             const editedParams = getEditedParameters();
             
             // Validate parameters
-            if (!editedParams.xParams || !editedParams.yParams || 
+            if (!editedParams || !editedParams.xParams || !editedParams.yParams || 
                 editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
                 !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
                 !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
@@ -3653,9 +4330,7 @@
                             height: canvasHeight
                         };
                         
-                        // Update equation display with new parameters
-                        elements.xEquation.textContent = formatChaoticMapEquation(xParams, currentChaoticMapData.is_cubic);
-                        elements.yEquation.textContent = formatChaoticMapEquation(yParams, currentChaoticMapData.is_cubic);
+                        // Overlay removed; keep internal state only
                         
                         // Update the stored data
                         currentChaoticMapData.x_params = xParams;
@@ -3880,7 +4555,7 @@
             const editedParams = getEditedParameters();
             
             // Validate parameters
-            if (!editedParams.xParams || !editedParams.yParams || 
+            if (!editedParams || !editedParams.xParams || !editedParams.yParams || 
                 editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
                 !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
                 !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
@@ -3926,9 +4601,7 @@
                     height: canvasHeight
                 };
                 
-                // Update equation display with new parameters
-                elements.xEquation.textContent = formatChaoticMapEquation(xParams, currentChaoticMapData.is_cubic);
-                elements.yEquation.textContent = formatChaoticMapEquation(yParams, currentChaoticMapData.is_cubic);
+                // Overlay removed; keep internal state only
                 
                 // Update the stored data
                 currentChaoticMapData.x_params = xParams;
@@ -3947,23 +4620,34 @@
         // Copy all parameters to clipboard
         async function copyParametersToClipboard() {
             try {
-                const editedParams = getEditedParameters();
+                let parametersData = null;
                 
-                // Validate parameters
-                if (!editedParams.xParams || !editedParams.yParams || 
-                    editedParams.xParams.length === 0 || editedParams.yParams.length === 0 ||
-                    !editedParams.xParams.every(p => typeof p === 'number' && !isNaN(p)) ||
-                    !editedParams.yParams.every(p => typeof p === 'number' && !isNaN(p))) {
-                    showNotification('Invalid parameters. Cannot copy invalid parameter values.', 'error');
-                    return;
+                // Get from currently selected history entry
+                if (activeHistoryIndex >= 0 && activeHistoryIndex < chaosHistory.length) {
+                    const selectedEntry = chaosHistory[activeHistoryIndex];
+                    if (selectedEntry && selectedEntry.x_params && selectedEntry.y_params) {
+                        parametersData = {
+                            xParams: selectedEntry.x_params,
+                            yParams: selectedEntry.y_params,
+                            isCubic: selectedEntry.is_cubic || false
+                        };
+                    }
                 }
                 
-                const { xParams, yParams } = editedParams;
-                const parametersData = {
-                    xParams: xParams,
-                    yParams: yParams,
-                    isCubic: currentChaoticMapData ? currentChaoticMapData.is_cubic : false
-                };
+                // Fallback to current chaotic map if no history entry selected
+                if (!parametersData && currentChaoticMapData && 
+                    currentChaoticMapData.x_params && currentChaoticMapData.y_params) {
+                    parametersData = {
+                        xParams: currentChaoticMapData.x_params,
+                        yParams: currentChaoticMapData.y_params,
+                        isCubic: currentChaoticMapData.is_cubic || false
+                    };
+                }
+                
+                if (!parametersData) {
+                    showNotification('No valid parameters to copy. Generate or load a chaotic map first.', 'warning');
+                    return;
+                }
                 
                 const parametersString = JSON.stringify(parametersData, null, 2);
                 await navigator.clipboard.writeText(parametersString);
@@ -3987,31 +4671,29 @@
                     throw new Error('Invalid parameters format');
                 }
                 
-                // Update the inline parameter inputs
-                const xInputs = document.querySelectorAll('.inline-param[data-param-axis="x"]');
-                const yInputs = document.querySelectorAll('.inline-param[data-param-axis="y"]');
+                // Create a new history entry from the pasted parameters
+                const entry = {
+                    timestamp: Date.now(),
+                    type: parametersData.isCubic ? 'cubic' : 'quadratic',
+                    is_cubic: !!parametersData.isCubic,
+                    x_params: parametersData.xParams,
+                    y_params: parametersData.yParams,
+                    max_lyapunov: null, // Will be calculated when generating
+                    min_lyapunov: null,
+                    fractal_dimension: null
+                };
                 
-                // Update X parameters
-                parametersData.xParams.forEach((value, index) => {
-                    const input = document.querySelector(`.inline-param[data-param-axis="x"][data-param-index="${index}"]`);
-                    if (input) {
-                        input.value = value.toFixed(6);
-                    }
-                });
+                // Add to history and select it
+                chaosHistory.unshift(entry);
+                if (chaosHistory.length > CHAOS_HISTORY_LIMIT) chaosHistory.pop();
+                activeHistoryIndex = 0;
+                saveChaosHistory();
+                renderChaosHistory();
                 
-                // Update Y parameters
-                parametersData.yParams.forEach((value, index) => {
-                    const input = document.querySelector(`.inline-param[data-param-axis="y"][data-param-index="${index}"]`);
-                    if (input) {
-                        input.value = value.toFixed(6);
-                    }
-                });
+                // Load the new entry
+                selectHistoryEntry(0, false);
                 
-                // Show parameter buttons (removed Apply Changes button)
-                elements.copyParametersBtn.style.display = 'inline-block';
-                elements.pasteParametersBtn.style.display = 'inline-block';
-                
-                showNotification('Parameters pasted successfully!', 'success');
+                showNotification('Parameters pasted and loaded successfully!', 'success');
                 
             } catch (error) {
                 console.error('❌ Error pasting parameters:', error);
@@ -4021,8 +4703,60 @@
         
         // Event listeners for chaotic map functionality
         function setupChaoticMapEventListeners() {
-            elements.copyParametersBtn.addEventListener('click', copyParametersToClipboard);
-            elements.pasteParametersBtn.addEventListener('click', pasteParametersFromClipboard);
+            if (elements.copyCurrentCoeffsBtn) elements.copyCurrentCoeffsBtn.addEventListener('click', copyParametersToClipboard);
+            if (elements.pasteCurrentCoeffsBtn) elements.pasteCurrentCoeffsBtn.addEventListener('click', pasteParametersFromClipboard);
+            const clearBtn = document.getElementById('clearChaosHistoryBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    chaosHistory = [];
+                    activeHistoryIndex = -1;
+                    saveChaosHistory();
+                    renderChaosHistory();
+                });
+            }
+            if (elements.applyEditBtn) {
+                elements.applyEditBtn.addEventListener('click', () => {
+                    const idxStr = elements.chipEditor?.dataset.editIndex;
+                    const idx = idxStr ? parseInt(idxStr) : -1;
+                    if (idx < 0 || !chaosHistory[idx]) { elements.chipEditor?.classList.remove('show'); return; }
+                    const edited = getEditedParameters();
+                    if (!edited) { elements.chipEditor?.classList.remove('show'); return; }
+                    const { xParams, yParams } = edited;
+                    // Update entry
+                    chaosHistory[idx].x_params = xParams.map(Number);
+                    chaosHistory[idx].y_params = yParams.map(Number);
+                    // Reflect into current map and stored map if this is active
+                    if (activeHistoryIndex === idx) {
+                        currentChaoticMapData.x_params = [...xParams];
+                        currentChaoticMapData.y_params = [...yParams];
+                        if (storedChaoticMap && storedChaoticMap.coefficients) {
+                            storedChaoticMap.coefficients.x_params = [...xParams];
+                            storedChaoticMap.coefficients.y_params = [...yParams];
+                        }
+                    }
+                    saveChaosHistory();
+                    renderChaosHistory();
+                    if (elements.chipEditor) {
+                        const backdrop = document.getElementById('sheetBackdrop');
+                        elements.chipEditor.classList.remove('show');
+                        setTimeout(() => { elements.chipEditor.style.display = 'none'; }, 180);
+                        if (backdrop) backdrop.style.display = 'none';
+                        delete elements.chipEditor.dataset.editIndex;
+                        elements.chipEditor.style.transform = '';
+                    }
+                });
+            }
+            if (elements.cancelEditBtn) {
+                elements.cancelEditBtn.addEventListener('click', () => {
+                    if (!elements.chipEditor) return;
+                    const backdrop = document.getElementById('sheetBackdrop');
+                    elements.chipEditor.classList.remove('show');
+                    setTimeout(() => { elements.chipEditor.style.display = 'none'; }, 180);
+                    if (backdrop) backdrop.style.display = 'none';
+                    delete elements.chipEditor.dataset.editIndex;
+                    elements.chipEditor.style.transform = '';
+                });
+            }
             
             // Update batch count display when point count changes
             elements.chaosPlotPoints.addEventListener('input', updateBatchCountDisplay);
@@ -4045,13 +4779,20 @@
             console.log(`📊 Batch calculation: ${points} points ÷ ${batchSize} batch size = ${batches} batches`);
         }
         
-        initializeApp();
+    // Load persisted chaos history before initializing UI
+    loadChaosHistory();
+    initializeApp();
         initWasm();
         updateControlVisibility();
         updateStatus();
         updateCanvasDisplaySize();
         setupChaoticMapEventListeners();
-        updateBatchCountDisplay(); // Initialize batch count display
+    renderChaosHistory();
+    // If history exists, select the most recent entry silently so Plot works
+    if (chaosHistory.length > 0) {
+        selectHistoryEntry(0, true);
+    }
+    updateBatchCountDisplay(); // Initialize batch count display
         updateMainContentBackground(); // Initialize main content background color
     </script>
 </body>
