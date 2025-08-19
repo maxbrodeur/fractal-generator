@@ -22,6 +22,29 @@
             overflow: hidden; /* lock page scroll; sidebar will scroll */
         }
         
+        /* Fullscreen mode styles */
+        body.fullscreen-mode {
+            background: #000;
+        }
+        
+        body.fullscreen-mode .app-container {
+            grid-template-columns: 1fr;
+        }
+        
+        body.fullscreen-mode .sidebar {
+            display: none !important;
+        }
+        
+        body.fullscreen-mode .main-content {
+            background: #000;
+        }
+        
+        body.fullscreen-mode #fractalCanvas {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+        
         .app-container {
             display: grid;
             grid-template-columns: 300px 1fr;
@@ -994,6 +1017,16 @@
                             Download PNG
                         </button>
                     </div>
+                    
+                    <!-- Share and fullscreen buttons -->
+                    <div class="header-actions" id="shareSection">
+                        <button class="btn btn-secondary" id="shareBtn" disabled>
+                            Share
+                        </button>
+                        <button class="btn btn-secondary" id="fullscreenBtn">
+                            Fullscreen
+                        </button>
+                    </div>
                 </div>
                 <div class="sidebar-scroll">
             <div class="control-section">
@@ -1379,6 +1412,9 @@
     const CHAOS_HISTORY_STORAGE_KEY = 'fg-chaos-history.v1';
     let chaosHistory = [];
     let activeHistoryIndex = -1;
+    
+    // URL embedding and fullscreen state
+    let isFullscreenMode = false;
 
         // Mobile Interface Management - Reuses Desktop Sidebar
         function initializeMobileInterface() {
@@ -1440,6 +1476,381 @@
             }
         } catch (e) { console.warn('Failed to load chaos history', e); }
     }
+    
+    // URL Embedding Functions
+    function encodeParametersToURL(parameters) {
+        try {
+            const compressed = btoa(JSON.stringify(parameters));
+            return compressed;
+        } catch (error) {
+            console.error('Failed to encode parameters:', error);
+            return null;
+        }
+    }
+    
+    function decodeParametersFromURL(encoded) {
+        try {
+            const decoded = atob(encoded);
+            return JSON.parse(decoded);
+        } catch (error) {
+            console.error('Failed to decode parameters:', error);
+            return null;
+        }
+    }
+    
+    function getCurrentFractalParameters() {
+        const method = elements.fractalMethod.value;
+        const fractalType = getCurrentFractalType();
+        
+        const baseParams = {
+            method,
+            fractalType,
+            iterations: parseInt(elements.iterations.value),
+            canvasSize: parseInt(elements.canvasSize.value),
+            aspectRatio: elements.aspectRatio.value,
+            colorScheme: parseInt(elements.colorScheme.value),
+            backgroundColor: elements.backgroundColor.value,
+            // Additional visual styling parameters
+            densitySoftness: parseFloat(document.getElementById('densitySoftness')?.value || 1),
+            useMinDensityColor: document.getElementById('bgUseMinDensityColor')?.checked || false,
+            noBackgroundColor: document.getElementById('noBackgroundColor')?.checked || false
+        };
+        
+        // Add method-specific parameters
+        if (method === 'escape_time') {
+            if (fractalType === 'julia') {
+                baseParams.juliaReal = parseFloat(elements.juliaReal.value);
+                baseParams.juliaImag = parseFloat(elements.juliaImag.value);
+            }
+        } else if (method === 'chaos_game') {
+            baseParams.compressionRatio = parseFloat(elements.compressionRatio.value);
+            baseParams.rotationAngle = parseFloat(elements.rotationAngle.value);
+            baseParams.ruleLength = parseInt(elements.ruleLength.value);
+            baseParams.ruleOffset = parseInt(elements.ruleOffset.value);
+            baseParams.ruleSymmetry = elements.ruleSymmetry.value === 'true';
+            if (fractalType === 'techs') {
+                baseParams.techsSkew = parseInt(elements.techsSkew.value);
+            }
+        } else if (method === 'random_chaos') {
+            // For chaotic maps, include current coefficients if available
+            if (currentChaoticMapData) {
+                baseParams.chaoticMap = {
+                    x_params: currentChaoticMapData.x_params,
+                    y_params: currentChaoticMapData.y_params,
+                    point_count: parseInt(elements.chaosPlotPoints.value),
+                    batch_size: parseInt(elements.chaosBatchSize.value)
+                };
+            }
+        }
+        
+        return baseParams;
+    }
+    
+    function applyParametersFromURL(parameters) {
+        try {
+            // Apply base parameters
+            if (parameters.method) elements.fractalMethod.value = parameters.method;
+            if (parameters.fractalType) setCurrentFractalType(parameters.fractalType);
+            if (parameters.iterations) elements.iterations.value = parameters.iterations;
+            if (parameters.canvasSize) elements.canvasSize.value = parameters.canvasSize;
+            if (parameters.aspectRatio) elements.aspectRatio.value = parameters.aspectRatio;
+            if (parameters.colorScheme !== undefined) elements.colorScheme.value = parameters.colorScheme;
+            if (parameters.backgroundColor) elements.backgroundColor.value = parameters.backgroundColor;
+            
+            // Apply visual styling parameters
+            if (parameters.densitySoftness !== undefined) {
+                const densitySlider = document.getElementById('densitySoftness');
+                const densityInput = document.getElementById('densitySoftnessInput');
+                if (densitySlider) densitySlider.value = parameters.densitySoftness;
+                if (densityInput) densityInput.value = parameters.densitySoftness;
+            }
+            if (parameters.useMinDensityColor !== undefined) {
+                const useMinDensity = document.getElementById('bgUseMinDensityColor');
+                if (useMinDensity) useMinDensity.checked = parameters.useMinDensityColor;
+            }
+            if (parameters.noBackgroundColor !== undefined) {
+                const noBackground = document.getElementById('noBackgroundColor');
+                if (noBackground) noBackground.checked = parameters.noBackgroundColor;
+            }
+            
+            // Apply method-specific parameters
+            if (parameters.method === 'escape_time') {
+                if (parameters.juliaReal !== undefined && elements.juliaReal) {
+                    elements.juliaReal.value = parameters.juliaReal;
+                }
+                if (parameters.juliaImag !== undefined && elements.juliaImag) {
+                    elements.juliaImag.value = parameters.juliaImag;
+                }
+            } else if (parameters.method === 'chaos_game') {
+                if (parameters.compressionRatio) elements.compressionRatio.value = parameters.compressionRatio;
+                if (parameters.rotationAngle) elements.rotationAngle.value = parameters.rotationAngle;
+                if (parameters.ruleLength) elements.ruleLength.value = parameters.ruleLength;
+                if (parameters.ruleOffset) elements.ruleOffset.value = parameters.ruleOffset;
+                if (parameters.ruleSymmetry !== undefined) elements.ruleSymmetry.value = parameters.ruleSymmetry.toString();
+                if (parameters.techsSkew && elements.techsSkew) {
+                    elements.techsSkew.value = parameters.techsSkew;
+                }
+            } else if (parameters.method === 'random_chaos' && parameters.chaoticMap) {
+                // Apply chaotic map parameters
+                currentChaoticMapData = {
+                    x_params: parameters.chaoticMap.x_params,
+                    y_params: parameters.chaoticMap.y_params
+                };
+                if (parameters.chaoticMap.point_count) {
+                    elements.chaosPlotPoints.value = parameters.chaoticMap.point_count;
+                }
+                if (parameters.chaoticMap.batch_size) {
+                    elements.chaosBatchSize.value = parameters.chaoticMap.batch_size;
+                }
+            }
+            
+            // Update UI to reflect the new values
+            updateControlVisibility();
+            return true;
+        } catch (error) {
+            console.error('Failed to apply parameters from URL:', error);
+            return false;
+        }
+    }
+    
+    function generateShareableURL(includeFullscreen = false) {
+        const params = getCurrentFractalParameters();
+        const encoded = encodeParametersToURL(params);
+        
+        if (!encoded) {
+            showNotification('Failed to generate shareable URL', 'error');
+            return null;
+        }
+        
+        const url = new URL(window.location.href);
+        url.searchParams.set('fractal', encoded);
+        
+        if (includeFullscreen) {
+            url.searchParams.set('fullscreen', '1');
+        }
+        
+        return url.toString();
+    }
+    
+    function parseURLParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const fractalParam = urlParams.get('fractal');
+        const fullscreenParam = urlParams.get('fullscreen');
+        
+        if (fullscreenParam === '1') {
+            enterFullscreenMode();
+        }
+        
+        if (fractalParam) {
+            const parameters = decodeParametersFromURL(fractalParam);
+            if (parameters) {
+                console.log('Loading fractal from URL:', parameters);
+                return parameters;
+            }
+        }
+        
+        return null;
+    }
+    
+    function enterFullscreenMode() {
+        isFullscreenMode = true;
+        document.body.classList.add('fullscreen-mode');
+        
+        // Hide sidebar and show only canvas
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+        
+        // Update app container layout for fullscreen
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) {
+            appContainer.style.gridTemplateColumns = '1fr';
+        }
+        
+        // Add click-to-exit functionality to the entire page after a small delay
+        // to prevent the current click from immediately triggering exit
+        setTimeout(() => {
+            document.addEventListener('click', exitFullscreenOnClick);
+        }, 100);
+        document.addEventListener('keydown', exitFullscreenOnKeyPress);
+        
+        console.log('Entered fullscreen mode - click anywhere or press any key to exit');
+    }
+    
+    function exitFullscreenMode() {
+        isFullscreenMode = false;
+        document.body.classList.remove('fullscreen-mode');
+        
+        // Restore sidebar
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.style.display = '';
+        
+        // Restore app container layout
+        const appContainer = document.querySelector('.app-container');
+        if (appContainer) {
+            appContainer.style.gridTemplateColumns = '300px 1fr';
+        }
+        
+        // Remove click-to-exit functionality
+        document.removeEventListener('click', exitFullscreenOnClick);
+        document.removeEventListener('keydown', exitFullscreenOnKeyPress);
+        
+        console.log('Exited fullscreen mode');
+    }
+    
+    function exitFullscreenOnClick(event) {
+        // Exit fullscreen on any click
+        if (isFullscreenMode) {
+            event.preventDefault();
+            event.stopPropagation();
+            exitFullscreenMode();
+        }
+    }
+    
+    function exitFullscreenOnKeyPress(event) {
+        // Exit fullscreen on any key press
+        if (isFullscreenMode) {
+            event.preventDefault();
+            exitFullscreenMode();
+        }
+    }
+    
+    function toggleFullscreenMode() {
+        if (isFullscreenMode) {
+            exitFullscreenMode();
+        } else {
+            enterFullscreenMode();
+        }
+    }
+    
+    function showShareModal() {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        `;
+        
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        `;
+        
+        // Function to update URLs based on checkbox state
+        function updateShareURLs() {
+            const fullscreenCheckbox = document.getElementById('fullscreen-checkbox');
+            const isFullscreen = fullscreenCheckbox.checked;
+            
+            const shareUrl = generateShareableURL(isFullscreen);
+            const embedUrl = generateShareableURL(true); // Embed always uses fullscreen
+            
+            if (!shareUrl || !embedUrl) {
+                showNotification('Failed to generate share URLs', 'error');
+                return;
+            }
+            
+            const embedCode = `<iframe src="${embedUrl}" width="800" height="600" frameborder="0" style="border: none;"></iframe>`;
+            
+            document.getElementById('share-url-input').value = shareUrl;
+            document.getElementById('embed-code-input').value = embedCode;
+        }
+        
+        modalContent.innerHTML = `
+            <h3 style="margin-top: 0;">Share This Fractal</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="fullscreen-checkbox" checked style="margin: 0;">
+                        <span>Share in fullscreen mode</span>
+                    </label>
+                </div>
+                
+                <p><strong>Share Link:</strong></p>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input readonly id="share-url-input" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;" value="">
+                    <button id="copy-share-url" class="btn" style="white-space: nowrap;">Copy URL</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <p><strong>Embed Code for Websites:</strong></p>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <textarea readonly id="embed-code-input" style="flex: 1; height: 80px; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
+                    <button id="copy-embed-code" class="btn" style="white-space: nowrap; align-self: start;">Copy Code</button>
+                </div>
+            </div>
+            
+            <div style="text-align: right;">
+                <button id="close-share-modal" class="btn">Close</button>
+            </div>
+        `;
+        
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Initialize URLs
+        updateShareURLs();
+        
+        // Add event listener for checkbox change
+        document.getElementById('fullscreen-checkbox').addEventListener('change', updateShareURLs);
+        
+        // Copy URL functionality
+        document.getElementById('copy-share-url').addEventListener('click', () => {
+            const input = document.getElementById('share-url-input');
+            const shareUrl = input.value;
+            input.select();
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showNotification('Share URL copied to clipboard!', 'success');
+            }).catch(() => {
+                document.execCommand('copy');
+                showNotification('Share URL copied to clipboard!', 'success');
+            });
+        });
+        
+        // Copy embed code functionality  
+        document.getElementById('copy-embed-code').addEventListener('click', () => {
+            const textarea = document.getElementById('embed-code-input');
+            const embedCode = textarea.value;
+            textarea.select();
+            navigator.clipboard.writeText(embedCode).then(() => {
+                showNotification('Embed code copied to clipboard!', 'success');
+            }).catch(() => {
+                document.execCommand('copy');
+                showNotification('Embed code copied to clipboard!', 'success');
+            });
+        });
+        
+        // Close modal events
+        document.getElementById('close-share-modal').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+        
+        // Select the share URL for easy copying
+        const shareInput = modalContent.querySelector('#share-url-input');
+        shareInput.focus();
+        shareInput.select();
+    }
         
         // Constants
         const DEFAULT_BATCH_SIZE = 1000000; // 1M points per batch for optimal memory usage
@@ -1471,6 +1882,8 @@
             // Buttons
             generateBtn: document.getElementById('generateBtn'),
             downloadBtn: document.getElementById('downloadBtn'),
+            shareBtn: document.getElementById('shareBtn'),
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
             
             // Chaos map specific buttons
             generateAndPlotBtn: document.getElementById('generateAndPlotBtn'),
@@ -1707,6 +2120,9 @@
             elements.generateBtn.disabled = loading;
             elements.downloadBtn.disabled = loading || !currentFractal;
             
+            // Update share button
+            if (elements.shareBtn) elements.shareBtn.disabled = loading || !currentFractal;
+            
             // Update chaos map buttons
             updateChaosMapButtonStates();
             
@@ -1914,10 +2330,26 @@
 
         // Plot stored chaotic map with current parameters
         async function plotStoredChaoticMap() {
-            if (isLoading || !generator || !storedChaoticMap) return;
+            console.log('🔍 plotStoredChaoticMap() entry debug:', {
+                isLoading: isLoading,
+                hasGenerator: !!generator,
+                hasStoredChaoticMap: !!storedChaoticMap,
+                hasChaosHistory: !!(chaosHistory && chaosHistory.length > 0),
+                chaosHistoryLength: chaosHistory ? chaosHistory.length : 0
+            });
+            
+            if (isLoading || !generator || !storedChaoticMap) {
+                console.log('❌ Early return from plotStoredChaoticMap:', {
+                    isLoading: isLoading,
+                    hasGenerator: !!generator,
+                    hasStoredChaoticMap: !!storedChaoticMap
+                });
+                return;
+            }
             
             // Check if chaos history is empty
             if (!chaosHistory || chaosHistory.length === 0) {
+                console.log('❌ No chaos history, showing notification');
                 showNotification('No chaotic maps available. Generate a chaotic map first.', 'warning');
                 return;
             }
@@ -2053,6 +2485,74 @@
             // Immediately plot the new one if available
             if (storedChaoticMap) {
                 await plotStoredChaoticMap();
+            }
+        }
+
+        // Plot chaotic map from URL parameters without generating new ones
+        async function plotChaoticMapFromURL(chaoticMapData) {
+            if (isLoading || !generator) return;
+
+            setLoading(true);
+
+            try {
+                // Store the chaotic map data from URL parameters
+                // Convert object coefficients to arrays (URL stores as {"0": val, "1": val, ...})
+                const xParamsObj = chaoticMapData.x_params;
+                const yParamsObj = chaoticMapData.y_params;
+                
+                // Convert objects to arrays by extracting values in order
+                const xParams = Object.keys(xParamsObj).sort((a, b) => parseInt(a) - parseInt(b)).map(key => xParamsObj[key]);
+                const yParams = Object.keys(yParamsObj).sort((a, b) => parseInt(a) - parseInt(b)).map(key => yParamsObj[key]);
+                
+                const pointCount = chaoticMapData.point_count || 10000000;
+                const batchSize = chaoticMapData.batch_size || 1000000;
+
+                console.log('🔄 Plotting chaotic map from URL coefficients...');
+                console.log('🔢 X coefficients (converted to array):', xParams);
+                console.log('🔢 Y coefficients (converted to array):', yParams);
+
+                // Create a mock result with the parameters to store the chaotic map
+                const mockResult = {
+                    x_params: xParams,
+                    y_params: yParams,
+                    max_lyapunov: null,
+                    min_lyapunov: null,
+                    fractal_dimension: null
+                };
+
+                // Store the chaotic map data for plotting
+                storeChaoticMap(
+                    null, // No point data initially
+                    mockResult, // Parameters from URL
+                    'quadratic', // Default type
+                    100000, // Default test points
+                    10000, // Default discard points
+                    false, // Default useAlphabet
+                    false, // Default isCubic
+                    pointCount // Plot points from URL
+                );
+
+                console.log('✅ Chaotic map data stored from URL');
+
+                // Clear loading state before calling plotStoredChaoticMap
+                setLoading(false);
+
+                // Now plot the stored chaotic map
+                console.log('🔄 About to call plotStoredChaoticMap()...');
+                try {
+                    await plotStoredChaoticMap();
+                    console.log('✅ plotStoredChaoticMap() completed successfully');
+                } catch (plotError) {
+                    console.error('❌ Error in plotStoredChaoticMap():', plotError);
+                    throw plotError;
+                }
+
+            } catch (error) {
+                console.error('❌ Failed to plot chaotic map from URL:', error);
+                showNotification('Error loading fractal from URL. Check console for details.', 'error');
+            } finally {
+                setLoading(false);
+                updateChaosMapButtonStates();
             }
         }
 
@@ -2844,6 +3344,19 @@
             
             return 'mandelbrot'; // fallback
         }
+        
+        function setCurrentFractalType(fractalType) {
+            const method = elements.fractalMethod.value;
+            
+            if (method === 'escape_time') {
+                if (elements.escapeTimeType) elements.escapeTimeType.value = fractalType;
+            } else if (method === 'chaos_game') {
+                if (elements.chaosGameType) elements.chaosGameType.value = fractalType;
+            } else if (method === 'ifs') {
+                if (elements.ifsType) elements.ifsType.value = fractalType;
+            }
+            // Note: random_chaos doesn't have subtypes to set
+        }
 
         function updateChaosGameDefaults() {
             const chaosType = elements.chaosGameType.value;
@@ -3083,6 +3596,13 @@
         elements.generateMapBtn.addEventListener('click', generateChaoticMapOnly);
         elements.plotMapBtn.addEventListener('click', plotStoredChaoticMap);
         
+        // Share and fullscreen event listeners
+        const shareBtn = document.getElementById('shareBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        if (shareBtn) shareBtn.addEventListener('click', showShareModal);
+        if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreenMode);
+        
     // Convergence mode toggle - show/hide advanced convergence thresholds
         function updateConvergenceMode() {
             const isConvergenceMode = elements.chaosConvergenceMode.checked;
@@ -3104,19 +3624,6 @@
         
         // Add event listener for convergence mode checkbox
         elements.chaosConvergenceMode.addEventListener('change', updateConvergenceMode);
-        
-        // Enter key to generate fractal
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !isLoading) {
-                e.preventDefault();
-                const method = elements.fractalMethod.value;
-                if (method === 'random_chaos') {
-                    generateAndPlotChaoticMap();
-                } else {
-                    generateFractal();
-                }
-            }
-        });
         
         // Method and preset change handlers
         elements.fractalMethod.addEventListener('change', updateControlVisibility);
@@ -4794,6 +5301,26 @@
     }
     updateBatchCountDisplay(); // Initialize batch count display
         updateMainContentBackground(); // Initialize main content background color
+        
+    // Parse URL parameters and load fractal if specified
+    const urlParameters = parseURLParameters();
+    if (urlParameters) {
+        // Apply URL parameters and generate the fractal
+        const applied = applyParametersFromURL(urlParameters);
+        if (applied) {
+            // Give the WASM a moment to initialize before generating
+            setTimeout(async () => {
+                // For random chaos with existing chaotic map data, use the plotting function
+                if (urlParameters.method === 'random_chaos' && urlParameters.chaoticMap) {
+                    console.log('🔄 Loading chaotic map from URL parameters...');
+                    await plotChaoticMapFromURL(urlParameters.chaoticMap);
+                } else {
+                    // For other methods, use the general fractal generation function
+                    await generateFractal();
+                }
+            }, 500);
+        }
+    }
     </script>
 </body>
 </html>
