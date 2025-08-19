@@ -2330,10 +2330,26 @@
 
         // Plot stored chaotic map with current parameters
         async function plotStoredChaoticMap() {
-            if (isLoading || !generator || !storedChaoticMap) return;
+            console.log('🔍 plotStoredChaoticMap() entry debug:', {
+                isLoading: isLoading,
+                hasGenerator: !!generator,
+                hasStoredChaoticMap: !!storedChaoticMap,
+                hasChaosHistory: !!(chaosHistory && chaosHistory.length > 0),
+                chaosHistoryLength: chaosHistory ? chaosHistory.length : 0
+            });
+            
+            if (isLoading || !generator || !storedChaoticMap) {
+                console.log('❌ Early return from plotStoredChaoticMap:', {
+                    isLoading: isLoading,
+                    hasGenerator: !!generator,
+                    hasStoredChaoticMap: !!storedChaoticMap
+                });
+                return;
+            }
             
             // Check if chaos history is empty
             if (!chaosHistory || chaosHistory.length === 0) {
+                console.log('❌ No chaos history, showing notification');
                 showNotification('No chaotic maps available. Generate a chaotic map first.', 'warning');
                 return;
             }
@@ -2518,8 +2534,18 @@
 
                 console.log('✅ Chaotic map data stored from URL');
 
+                // Clear loading state before calling plotStoredChaoticMap
+                setLoading(false);
+
                 // Now plot the stored chaotic map
-                await plotStoredChaoticMap();
+                console.log('🔄 About to call plotStoredChaoticMap()...');
+                try {
+                    await plotStoredChaoticMap();
+                    console.log('✅ plotStoredChaoticMap() completed successfully');
+                } catch (plotError) {
+                    console.error('❌ Error in plotStoredChaoticMap():', plotError);
+                    throw plotError;
+                }
 
             } catch (error) {
                 console.error('❌ Failed to plot chaotic map from URL:', error);
