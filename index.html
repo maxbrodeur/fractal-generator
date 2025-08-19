@@ -3300,13 +3300,23 @@
                 }
             }
             
-            // Mobile-specific logic: hide other method preset selectors when in Random Chaos Finder mode
+            // Mobile-specific logic: only show preset selectors for the current method
             if (window.innerWidth <= 768) {
-                if (method === 'random_chaos') {
-                    // On mobile in Random Chaos Finder mode, hide all other method presets
-                    elements.escapeTimePresets.style.display = 'none';
-                    elements.chaosGamePresets.style.display = 'none';
-                    elements.ifsPresets.style.display = 'none';
+                // On mobile, always hide all preset selectors first using !important to override CSS
+                elements.escapeTimePresets.style.setProperty('display', 'none', 'important');
+                elements.chaosGamePresets.style.setProperty('display', 'none', 'important');
+                elements.ifsPresets.style.setProperty('display', 'none', 'important');
+                elements.chaosFinderMethods.style.setProperty('display', 'none', 'important');
+                
+                // Then show only the relevant preset selector for the current method
+                if (method === 'escape_time') {
+                    elements.escapeTimePresets.style.setProperty('display', 'block', 'important');
+                } else if (method === 'chaos_game') {
+                    elements.chaosGamePresets.style.setProperty('display', 'block', 'important');
+                } else if (method === 'ifs') {
+                    elements.ifsPresets.style.setProperty('display', 'block', 'important');
+                } else if (method === 'random_chaos') {
+                    elements.chaosFinderMethods.style.setProperty('display', 'block', 'important');
                 }
             }
             
@@ -3736,6 +3746,9 @@
         
         // Update canvas display size on window resize
         window.addEventListener('resize', updateCanvasDisplaySize);
+        
+        // Update control visibility on window resize to handle mobile/desktop switching
+        window.addEventListener('resize', updateControlVisibility);
 
         // Real-time parameter updates for Julia set (disabled for chaos maps)
         elements.juliaReal.addEventListener('input', () => {
@@ -5301,6 +5314,11 @@
     }
     updateBatchCountDisplay(); // Initialize batch count display
         updateMainContentBackground(); // Initialize main content background color
+        
+    // Ensure mobile control visibility is properly applied after viewport is established
+    setTimeout(() => {
+        updateControlVisibility();
+    }, 100);
         
     // Parse URL parameters and load fractal if specified
     const urlParameters = parseURLParameters();
