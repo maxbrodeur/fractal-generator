@@ -1477,10 +1477,12 @@
         } catch (e) { console.warn('Failed to load chaos history', e); }
     }
     
-    // URL Embedding Functions
+    // URL Embedding Functions with Compression
     function encodeParametersToURL(parameters) {
         try {
-            const compressed = btoa(JSON.stringify(parameters));
+            // First, compress the parameters to reduce URL length
+            const compressedParams = compressParameters(parameters);
+            const compressed = btoa(JSON.stringify(compressedParams));
             return compressed;
         } catch (error) {
             console.error('Failed to encode parameters:', error);
@@ -1491,11 +1493,95 @@
     function decodeParametersFromURL(encoded) {
         try {
             const decoded = atob(encoded);
-            return JSON.parse(decoded);
+            const compressedParams = JSON.parse(decoded);
+            return decompressParameters(compressedParams);
         } catch (error) {
             console.error('Failed to decode parameters:', error);
             return null;
         }
+    }
+
+    // Compress parameters to reduce URL size
+    function compressParameters(params) {
+        const compressed = { ...params };
+        
+        // Reduce floating point precision to 4 decimal places
+        if (compressed.chaoticMap) {
+            if (compressed.chaoticMap.x_params) {
+                for (let key in compressed.chaoticMap.x_params) {
+                    compressed.chaoticMap.x_params[key] = Math.round(compressed.chaoticMap.x_params[key] * 10000) / 10000;
+                }
+            }
+            if (compressed.chaoticMap.y_params) {
+                for (let key in compressed.chaoticMap.y_params) {
+                    compressed.chaoticMap.y_params[key] = Math.round(compressed.chaoticMap.y_params[key] * 10000) / 10000;
+                }
+            }
+        }
+        
+        // Use shorter property names
+        const shortForm = {
+            m: compressed.method,
+            ft: compressed.fractalType,
+            i: compressed.iterations,
+            cs: compressed.canvasSize,
+            ar: compressed.aspectRatio,
+            col: compressed.colorScheme,
+            bg: compressed.backgroundColor,
+            ds: compressed.densitySoftness,
+            umd: compressed.useMinDensityColor,
+            nbg: compressed.noBackgroundColor
+        };
+        
+        // Add chaotic map with shorter keys if present
+        if (compressed.chaoticMap) {
+            shortForm.cm = {
+                x: compressed.chaoticMap.x_params,
+                y: compressed.chaoticMap.y_params,
+                pc: compressed.chaoticMap.point_count,
+                bs: compressed.chaoticMap.batch_size
+            };
+        }
+        
+        // Add other method-specific parameters if present
+        if (compressed.escapeTime) shortForm.et = compressed.escapeTime;
+        if (compressed.chaosGame) shortForm.cg = compressed.chaosGame;
+        if (compressed.ifs) shortForm.if = compressed.ifs;
+        
+        return shortForm;
+    }
+    
+    // Decompress parameters back to full form
+    function decompressParameters(shortForm) {
+        const params = {
+            method: shortForm.m,
+            fractalType: shortForm.ft,
+            iterations: shortForm.i,
+            canvasSize: shortForm.cs,
+            aspectRatio: shortForm.ar,
+            colorScheme: shortForm.col,
+            backgroundColor: shortForm.bg,
+            densitySoftness: shortForm.ds,
+            useMinDensityColor: shortForm.umd,
+            noBackgroundColor: shortForm.nbg
+        };
+        
+        // Restore chaotic map with full keys if present
+        if (shortForm.cm) {
+            params.chaoticMap = {
+                x_params: shortForm.cm.x,
+                y_params: shortForm.cm.y,
+                point_count: shortForm.cm.pc,
+                batch_size: shortForm.cm.bs
+            };
+        }
+        
+        // Restore other method-specific parameters if present
+        if (shortForm.et) params.escapeTime = shortForm.et;
+        if (shortForm.cg) params.chaosGame = shortForm.cg;
+        if (shortForm.if) params.ifs = shortForm.if;
+        
+        return params;
     }
     
     function getCurrentFractalParameters() {
@@ -1629,7 +1715,14 @@
             url.searchParams.set('fullscreen', '1');
         }
         
-        return url.toString();
+        const finalUrl = url.toString();
+        
+        // Check URL length and show warning if too long
+        if (finalUrl.length > 800) {
+            console.warn('Generated URL is very long:', finalUrl.length, 'characters. May cause issues in some messaging apps.');
+        }
+        
+        return finalUrl;
     }
     
     function parseURLParameters() {
@@ -1765,8 +1858,21 @@
             
             const embedCode = `<iframe src="${embedUrl}" width="800" height="600" frameborder="0" style="border: none;"></iframe>`;
             
-            document.getElementById('share-url-input').value = shareUrl;
-            document.getElementById('embed-code-input').value = embedCode;
+            document.getElementById('share-url-input').value = shareUrl.trim();
+            document.getElementById('embed-code-input').value = embedCode.trim();
+            
+            // Show warning for very long URLs
+            const urlWarning = document.getElementById('url-length-warning');
+            if (shareUrl.length > 800) {
+                if (urlWarning) {
+                    urlWarning.style.display = 'block';
+                    urlWarning.innerHTML = `⚠️ Long URL (${shareUrl.length} chars) may split in messaging apps. Copy from browser address bar after visiting for shorter link.`;
+                }
+            } else {
+                if (urlWarning) {
+                    urlWarning.style.display = 'none';
+                }
+            }
         }
         
         modalContent.innerHTML = `
@@ -1785,6 +1891,7 @@
                     <input readonly id="share-url-input" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;" value="">
                     <button id="copy-share-url" class="btn" style="white-space: nowrap;">Copy URL</button>
                 </div>
+                <div id="url-length-warning" style="display: none; color: #ff6b35; font-size: 12px; margin-top: 5px; padding: 5px; background: #fff3cd; border-radius: 3px; border-left: 3px solid #ff6b35;"></div>
             </div>
             
             <div style="margin-bottom: 20px;">
@@ -1812,27 +1919,51 @@
         // Copy URL functionality
         document.getElementById('copy-share-url').addEventListener('click', () => {
             const input = document.getElementById('share-url-input');
-            const shareUrl = input.value;
-            input.select();
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                showNotification('Share URL copied to clipboard!', 'success');
-            }).catch(() => {
+            const shareUrl = input.value.trim(); // Ensure no extra whitespace
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    showNotification('Share URL copied to clipboard!', 'success');
+                }).catch(() => {
+                    // Fallback to legacy method
+                    input.select();
+                    input.setSelectionRange(0, 99999); // For mobile devices
+                    document.execCommand('copy');
+                    showNotification('Share URL copied to clipboard!', 'success');
+                });
+            } else {
+                // Legacy fallback for older browsers
+                input.select();
+                input.setSelectionRange(0, 99999); // For mobile devices
                 document.execCommand('copy');
                 showNotification('Share URL copied to clipboard!', 'success');
-            });
+            }
         });
         
         // Copy embed code functionality  
         document.getElementById('copy-embed-code').addEventListener('click', () => {
             const textarea = document.getElementById('embed-code-input');
-            const embedCode = textarea.value;
-            textarea.select();
-            navigator.clipboard.writeText(embedCode).then(() => {
-                showNotification('Embed code copied to clipboard!', 'success');
-            }).catch(() => {
+            const embedCode = textarea.value.trim(); // Ensure no extra whitespace
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(embedCode).then(() => {
+                    showNotification('Embed code copied to clipboard!', 'success');
+                }).catch(() => {
+                    // Fallback to legacy method
+                    textarea.select();
+                    textarea.setSelectionRange(0, 99999); // For mobile devices
+                    document.execCommand('copy');
+                    showNotification('Embed code copied to clipboard!', 'success');
+                });
+            } else {
+                // Legacy fallback for older browsers
+                textarea.select();
+                textarea.setSelectionRange(0, 99999); // For mobile devices
                 document.execCommand('copy');
                 showNotification('Embed code copied to clipboard!', 'success');
-            });
+            }
         });
         
         // Close modal events
