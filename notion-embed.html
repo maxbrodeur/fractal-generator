@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Generator</title>
+    
+    <!-- Open Graph meta tags for better Notion preview -->
+    <meta property="og:title" content="Interactive Fractal Generator">
+    <meta property="og:description" content="Generate beautiful mathematical fractals in real-time using WebAssembly">
+    <meta property="og:image" content="https://maxbrodeur.github.io/fractal-generator/assets/sierpinski_triangle.png">
+    <meta property="og:url" content="https://maxbrodeur.github.io/fractal-generator/notion-embed.html">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card meta tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Interactive Fractal Generator">
+    <meta name="twitter:description" content="Generate beautiful mathematical fractals in real-time using WebAssembly">
+    <meta name="twitter:image" content="https://maxbrodeur.github.io/fractal-generator/assets/sierpinski_triangle.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #fractalCanvas {
+            display: block;
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+            margin: 0 auto;
+        }
+        
+        .notion-embed-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+        
+        .notion-embed-overlay:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        .loading::after {
+            content: '';
+            display: block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            margin: 10px auto;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Notion-specific optimizations */
+        @media (max-width: 768px) {
+            .notion-embed-overlay {
+                top: 10px;
+                left: 10px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loadingIndicator">
+        Loading fractal generator...
+    </div>
+    
+    <canvas id="fractalCanvas" style="display: none;"></canvas>
+    
+    <a href="https://maxbrodeur.github.io/fractal-generator/" 
+       class="notion-embed-overlay" 
+       target="_blank" 
+       title="Open full fractal generator">
+        🔮 Fractal Generator
+    </a>
+
+    <script>
+        // Default fractal configuration for Notion embed
+        const defaultFractalConfig = {
+            method: "chaos_game",
+            fractalType: "chaos_game", 
+            iterations: 50000,
+            canvasSize: 800,
+            aspectRatio: "square",
+            colorScheme: 15,
+            backgroundColor: "#000000",
+            chaosGameType: "sierpinski_triangle",
+            presetName: "Sierpinski Triangle"
+        };
+
+        let wasmModule;
+        let canvas, ctx;
+
+        // Initialize the application
+        async function init() {
+            try {
+                canvas = document.getElementById('fractalCanvas');
+                ctx = canvas.getContext('2d');
+                
+                // Set canvas size
+                const size = Math.min(window.innerWidth, window.innerHeight, 800);
+                canvas.width = size;
+                canvas.height = size;
+                canvas.style.width = size + 'px';
+                canvas.style.height = size + 'px';
+
+                // Load WebAssembly module
+                const script = document.createElement('script');
+                script.src = './pkg/fractal_wasm.js';
+                script.onload = async () => {
+                    const { default: init, greet } = wasm_bindgen;
+                    await init('./pkg/fractal_wasm_bg.wasm');
+                    wasmModule = wasm_bindgen;
+                    
+                    // Hide loading and show canvas
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    canvas.style.display = 'block';
+                    
+                    // Generate default fractal
+                    generateFractal();
+                };
+                script.onerror = () => {
+                    document.getElementById('loadingIndicator').innerHTML = 
+                        '❌ Failed to load fractal generator<br><small>Please try refreshing the page</small>';
+                };
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                document.getElementById('loadingIndicator').innerHTML = 
+                    '❌ Error loading fractal generator<br><small>Please try refreshing the page</small>';
+            }
+        }
+
+        function generateFractal() {
+            if (!wasmModule) return;
+            
+            try {
+                // Clear canvas
+                ctx.fillStyle = defaultFractalConfig.backgroundColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Generate Sierpinski Triangle (fast and recognizable)
+                const imageData = wasmModule.generate_chaos_game_fractal(
+                    canvas.width,
+                    canvas.height,
+                    defaultFractalConfig.iterations,
+                    "sierpinski_triangle",
+                    defaultFractalConfig.colorScheme,
+                    1.0, // density_softness
+                    false, // use_min_density_color
+                    false // no_background_color
+                );
+                
+                // Convert WebAssembly result to ImageData
+                const uint8Array = new Uint8Array(imageData);
+                const imgData = new ImageData(
+                    new Uint8ClampedArray(uint8Array), 
+                    canvas.width, 
+                    canvas.height
+                );
+                
+                // Draw to canvas
+                ctx.putImageData(imgData, 0, 0);
+                
+            } catch (error) {
+                console.error('Failed to generate fractal:', error);
+                // Draw a simple fallback pattern
+                drawFallbackPattern();
+            }
+        }
+
+        function drawFallbackPattern() {
+            const gradient = ctx.createRadialGradient(
+                canvas.width/2, canvas.height/2, 0,
+                canvas.width/2, canvas.height/2, canvas.width/2
+            );
+            gradient.addColorStop(0, '#ff6b6b');
+            gradient.addColorStop(0.5, '#4ecdc4');
+            gradient.addColorStop(1, '#45b7d1');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add some geometric patterns
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x1 = canvas.width/2;
+                const y1 = canvas.height/2;
+                const x2 = x1 + Math.cos(angle) * canvas.width/3;
+                const y2 = y1 + Math.sin(angle) * canvas.height/3;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (canvas) {
+                const size = Math.min(window.innerWidth, window.innerHeight, 800);
+                canvas.style.width = size + 'px';
+                canvas.style.height = size + 'px';
+            }
+        });
+
+        // Start initialization
+        init();
+    </script>
+</body>
+</html>
