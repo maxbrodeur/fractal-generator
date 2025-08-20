@@ -3413,14 +3413,17 @@
         function downloadPNG() {
             if (!currentFractal) return;
             
-            try {
-                // Get PNG data from canvas
-                const dataURL = elements.canvas.toDataURL('image/png');
-                
-                // Add metadata if we have chaotic map data
-                let finalDataURL = dataURL;
-                if (currentChaoticMapData && currentFractal.method === 'random_chaos') {
-                    finalDataURL = addMetadataToPNG(dataURL, {
+            showNotification('Preparing download...', 'info');
+            
+            // For very large canvases (16K and above), skip metadata to avoid memory issues
+            const canvasSize = elements.canvas.width * elements.canvas.height;
+            const isLargeImage = canvasSize > (8192 * 8192); // Threshold for large images
+            
+            if (!isLargeImage && currentChaoticMapData && currentFractal.method === 'random_chaos') {
+                // Try to add metadata for smaller images
+                try {
+                    const dataURL = elements.canvas.toDataURL('image/png');
+                    const finalDataURL = addMetadataToPNG(dataURL, {
                         fractalType: currentFractal.type,
                         method: currentFractal.method,
                         xParams: currentChaoticMapData.x_params,
@@ -3431,23 +3434,62 @@
                         fractalDimension: currentChaoticMapData.fractal_dimension,
                         timestamp: new Date().toISOString()
                     });
+                    
+                    // Convert back to blob for consistent download behavior
+                    const base64Data = finalDataURL.split(',')[1];
+                    const binaryData = atob(base64Data);
+                    const bytes = new Uint8Array(binaryData.length);
+                    for (let i = 0; i < binaryData.length; i++) {
+                        bytes[i] = binaryData.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes], { type: 'image/png' });
+                    downloadBlob(blob, `fractal-${currentFractal.type}-${Date.now()}.png`);
+                    showNotification('Fractal image downloaded with metadata!', 'success');
+                    return;
+                } catch (error) {
+                    console.warn('⚠️ Metadata addition failed, falling back to standard download:', error);
+                }
+            }
+            
+            // Use canvas.toBlob() for better memory efficiency with large images
+            elements.canvas.toBlob(function(blob) {
+                if (!blob) {
+                    console.error('❌ Failed to create blob from canvas');
+                    showNotification('Failed to create image data', 'error');
+                    return;
                 }
                 
-                const link = document.createElement('a');
-                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
-                link.href = finalDataURL;
-                link.click();
+                downloadBlob(blob, `fractal-${currentFractal.type}-${Date.now()}.png`);
+                showNotification('Fractal image downloaded!', 'success');
                 
-                showNotification('Fractal image downloaded with metadata!', 'success');
+            }, 'image/png', 0.95); // Use 95% quality to balance file size and quality
+        }
+        
+        // Helper function to download a blob
+        function downloadBlob(blob, filename) {
+            try {
+                // Create object URL for the blob
+                const url = URL.createObjectURL(blob);
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = url;
+                link.style.display = 'none';
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up object URL after a short delay
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                }, 1000);
                 
             } catch (error) {
-                console.error('❌ Error downloading PNG:', error);
-                // Fallback to basic download
-                const link = document.createElement('a');
-                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
-                link.href = elements.canvas.toDataURL('image/png');
-                link.click();
-                showNotification('Fractal image downloaded!', 'success');
+                console.error('❌ Error downloading file:', error);
+                showNotification('Download failed: ' + error.message, 'error');
             }
         }
         
