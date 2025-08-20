@@ -1573,8 +1573,18 @@
     function decodeParametersFromURL(encoded) {
         try {
             const decoded = atob(encoded);
-            const compressedParams = JSON.parse(decoded);
-            return decompressParameters(compressedParams);
+            const params = JSON.parse(decoded);
+            
+            // Check if this is the new compressed format (has short keys like 'm', 'ft')
+            // or old uncompressed format (has full keys like 'method', 'fractalType')
+            if (params.m !== undefined || params.ft !== undefined) {
+                // New compressed format
+                return decompressParameters(params);
+            } else {
+                // Old uncompressed format - return as-is for backward compatibility
+                console.log('🔄 Loading legacy uncompressed fractal parameters');
+                return params;
+            }
         } catch (error) {
             console.error('Failed to decode parameters:', error);
             return null;
