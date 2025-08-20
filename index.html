@@ -4926,8 +4926,46 @@
                 
                 console.log(`📏 Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
                 
+                // Smart memory allocation for high-resolution canvases
+                const totalPixels = canvasWidth * canvasHeight;
+                const maxSafeArraySize = 2147483647; // JavaScript's max array size
+                const useChunkedApproach = totalPixels > maxSafeArraySize;
+                
                 // Initialize accumulated density grid and state tracking
-                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
+                let accumulatedDensity;
+                let densityChunks = null;
+                const chunkSize = 16777216; // 16M pixels per chunk
+                
+                if (useChunkedApproach) {
+                    console.log(`🔧 Using chunked approach for large canvas: ${canvasWidth}x${canvasHeight} (${totalPixels} pixels)`);
+                    // Use chunked TypedArrays for very large canvases
+                    const numChunks = Math.ceil(totalPixels / chunkSize);
+                    densityChunks = [];
+                    for (let i = 0; i < numChunks; i++) {
+                        const remainingPixels = Math.min(chunkSize, totalPixels - (i * chunkSize));
+                        densityChunks.push(new Float32Array(remainingPixels));
+                    }
+                    console.log(`🔧 Created ${numChunks} chunks for density data`);
+                } else {
+                    // Use regular array for smaller canvases
+                    try {
+                        accumulatedDensity = new Float32Array(totalPixels);
+                    } catch (error) {
+                        if (error instanceof RangeError) {
+                            console.log(`🔧 Falling back to chunked approach due to memory allocation failure`);
+                            // Fallback to chunked approach
+                            const numChunks = Math.ceil(totalPixels / chunkSize);
+                            densityChunks = [];
+                            for (let i = 0; i < numChunks; i++) {
+                                const remainingPixels = Math.min(chunkSize, totalPixels - (i * chunkSize));
+                                densityChunks.push(new Float32Array(remainingPixels));
+                            }
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+                
                 let processedPoints = 0;
                 let batchCount = 0;
                 let currentX = 0.05; // Initial state
@@ -4937,7 +4975,6 @@
                 
                 // Convergence detection variables (early adaptive algorithm) using user thresholds
                 const convergenceMode = document.getElementById('chaosConvergenceMode').checked;
-                const totalPixels = canvasWidth * canvasHeight;
                 const userRelPct = parseFloat(elements.relGrowthThreshold?.value || '0.05');
                 const relativeGrowthThreshold = Math.max(0.0000005, userRelPct / 100.0); // convert percent to fraction
                 const userAbsPixels = parseInt(elements.absGrowthPixels?.value || '50');
@@ -4951,6 +4988,54 @@
                 let batchGrowths = []; // For logging
                 console.log(`🎯 Convergence mode: ${convergenceMode ? 'ON' : 'OFF'}${convergenceMode ? ` (rel<th ${(relativeGrowthThreshold*100).toFixed(3)}%, abs<th ${absoluteGrowthThreshold} px, min batches ${minBatchesBeforeConvergence}, stagnant ${requiredConsecutiveStagnant})` : ''}`);
                 
+                // Helper functions for chunked density operations
+                function getDensityValue(pixelIndex) {
+                    if (densityChunks) {
+                        const chunkIndex = Math.floor(pixelIndex / chunkSize);
+                        const localIndex = pixelIndex % chunkSize;
+                        return chunkIndex < densityChunks.length ? densityChunks[chunkIndex][localIndex] : 0;
+                    }
+                    return accumulatedDensity[pixelIndex];
+                }
+                
+                function setDensityValue(pixelIndex, value) {
+                    if (densityChunks) {
+                        const chunkIndex = Math.floor(pixelIndex / chunkSize);
+                        const localIndex = pixelIndex % chunkSize;
+                        if (chunkIndex < densityChunks.length) {
+                            densityChunks[chunkIndex][localIndex] = value;
+                        }
+                    } else {
+                        accumulatedDensity[pixelIndex] = value;
+                    }
+                }
+                
+                function incrementDensityValue(pixelIndex, increment = 1) {
+                    if (densityChunks) {
+                        const chunkIndex = Math.floor(pixelIndex / chunkSize);
+                        const localIndex = pixelIndex % chunkSize;
+                        if (chunkIndex < densityChunks.length) {
+                            densityChunks[chunkIndex][localIndex] += increment;
+                        }
+                    } else {
+                        accumulatedDensity[pixelIndex] += increment;
+                    }
+                }
+                
+                function getDensityArray() {
+                    if (densityChunks) {
+                        // Convert chunked data back to a single array for RGBA conversion
+                        const result = new Float32Array(totalPixels);
+                        let offset = 0;
+                        for (let i = 0; i < densityChunks.length; i++) {
+                            const chunkData = densityChunks[i];
+                            result.set(chunkData, offset);
+                            offset += chunkData.length;
+                        }
+                        return result;
+                    }
+                    return accumulatedDensity;
+                }
                 // Reset abort state and show abort button
                 // If a newer generation started, stop immediately
                 if (runToken !== activeGenerationToken) {
@@ -5012,7 +5097,8 @@
                             const sCtl = document.getElementById('densitySoftness');
                             const sInp = document.getElementById('densitySoftnessInput');
                             const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
-                            resultRgba = generator.density_grid_to_rgba_log_soft(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, sVal);
+                            const densityArray = getDensityArray();
+                            resultRgba = generator.density_grid_to_rgba_log_soft(densityArray, canvasWidth, canvasHeight, colorScheme, sVal);
                         }
 
                         // Display result on canvas
@@ -5035,10 +5121,11 @@
                             parameters: { xParams, yParams, points: processedPoints },
                             colorScheme,
                             backgroundColor: elements.backgroundColor.value,
-                            ...(accRef ? { accumulator: accRef } : { density: accumulatedDensity })
+                            ...(accRef ? { accumulator: accRef } : { density: getDensityArray() })
                         };
                         if (!accRef) {
-                            lastAccumulatedDensity = accumulatedDensity.slice();
+                            const densityArray = getDensityArray();
+                            lastAccumulatedDensity = densityArray.slice ? densityArray.slice() : Array.from(densityArray);
                         } else {
                             try { lastAccumulatedDensity = accRef.density(); } catch {}
                         }
@@ -5207,7 +5294,8 @@
                     
                     if (currentBatchSize <= 0) {
                         // All batches complete - generate final image
-                        const result = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                        const densityArray = getDensityArray();
+                        const result = generator.density_grid_to_rgba(densityArray, canvasWidth, canvasHeight, colorScheme);
                         
                         // Display result on canvas
                         elements.canvas.width = canvasWidth;
@@ -5291,9 +5379,22 @@
                                 }
                                 
                                 // Extract density grid (convert from f64 back to u32)
-                                batchDensity = new Array(canvasWidth * canvasHeight);
-                                for (let i = 0; i < batchDensity.length; i++) {
-                                    batchDensity[i] = Math.round(batchResult[i + 6]);
+                                let batchDensity;
+                                if (densityChunks) {
+                                    // Use chunked approach for large canvases
+                                    batchDensity = {
+                                        isChunked: true,
+                                        getValue: function(index) {
+                                            return Math.round(batchResult[index + 6]);
+                                        },
+                                        length: totalPixels
+                                    };
+                                } else {
+                                    // Use regular array for smaller canvases
+                                    batchDensity = new Array(totalPixels);
+                                    for (let i = 0; i < batchDensity.length; i++) {
+                                        batchDensity[i] = Math.round(batchResult[i + 6]);
+                                    }
                                 }
                             } else {
                                 // Fallback to old method
@@ -5313,18 +5414,30 @@
                             currentY = currentBatchY;
                             
                             // Merge with accumulated density
-                            if (batchDensity.length) {
-                                accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
-                            } else {
-                                // Manual merge for new method
-                                for (let i = 0; i < accumulatedDensity.length; i++) {
-                                    accumulatedDensity[i] += batchDensity[i];
+                            if (densityChunks && batchDensity.isChunked) {
+                                // Chunked accumulation for large canvases
+                                for (let i = 0; i < totalPixels; i++) {
+                                    const batchValue = batchDensity.getValue(i);
+                                    if (batchValue > 0) {
+                                        incrementDensityValue(i, batchValue);
+                                    }
+                                }
+                            } else if (batchDensity.length && !batchDensity.isChunked) {
+                                // Regular accumulation for smaller canvases
+                                if (generator.merge_density_grids) {
+                                    accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
+                                } else {
+                                    // Manual merge for new method
+                                    for (let i = 0; i < accumulatedDensity.length; i++) {
+                                        accumulatedDensity[i] += batchDensity[i];
+                                    }
                                 }
                             }
                             
                             // Update canvas after each batch completion
                             const ctx = elements.canvas.getContext('2d');
-                            const currentResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                            const densityArray = getDensityArray();
+                            const currentResult = generator.density_grid_to_rgba(densityArray, canvasWidth, canvasHeight, colorScheme);
                             const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
                             const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
                             ctx.putImageData(finalImageData, 0, 0);
@@ -5333,7 +5446,8 @@
                             
                             // Show intermediate result if this is not the first batch
                             if (batchCount > 1 && batchCount % 2 === 0) {
-                                const intermediateResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
+                                const densityArray = getDensityArray();
+                                const intermediateResult = generator.density_grid_to_rgba(densityArray, canvasWidth, canvasHeight, colorScheme);
                                 const ctx = elements.canvas.getContext('2d');
                                 const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
                                 ctx.putImageData(imageData, 0, 0);
