@@ -38,6 +38,8 @@ export const chaoticaccumulator_to_rgba_scaled: (a: number, b: number, c: number
 export const chaoticaccumulator_to_rgba_log_soft: (a: number, b: number, c: number) => [number, number];
 export const chaoticaccumulator_fill_rgba_log_soft: (a: number, b: number, c: number) => void;
 export const chaoticaccumulator_rgba_view: (a: number) => any;
+export const chaoticaccumulator_use_chunked: (a: number) => number;
+export const chaoticaccumulator_get_rgba_rows: (a: number, b: number, c: number) => [number, number];
 export const __wbg_fractalpresets_free: (a: number, b: number) => void;
 export const fractalpresets_sierpinski_triangle: () => any;
 export const fractalpresets_sierpinski_triangle_transforms: () => any;
@@ -63,6 +65,7 @@ export const fractalgenerator_find_random_chaos: (a: number, b: number, c: numbe
 export const fractalgenerator_generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
 export const fractalgenerator_generate_chaotic_map_batch_to_density: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number];
 export const fractalgenerator_generate_chaotic_map_batch_with_state: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => [number, number];
+export const generate_trajectory_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
 export const generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const fractalpresets_vicsek_square_transforms: () => any;
 export const fractalpresets_t_square_transforms: () => any;

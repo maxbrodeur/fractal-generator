@@ -1,6 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+ * Generate just the trajectory points for streaming processing
+ * Returns alternating [x1, y1, x2, y2, ...] coordinates and final state
+ */
+export function generate_trajectory_points(x_params: Float64Array, y_params: Float64Array, n_points: number, is_cubic: boolean, start_x: number, start_y: number): Float64Array;
+/**
  * Standalone function to generate chaotic map points
  * This is called from JavaScript as generator.generate_chaotic_map_points()
  */
@@ -38,14 +43,13 @@ export enum ColorScheme {
  * Stateful accumulator that keeps a running density grid and incremental
  * coverage metrics entirely inside WASM to avoid large per-batch memory copies
  * and repeated JS-side scans for non-zero counts.
+ * Uses chunked memory allocation for very large resolutions (32K+).
  */
 export class ChaoticAccumulator {
   free(): void;
   /**
    * Create a new accumulator with initial orbit state and fixed bounds.
-   * Bounds are not dynamically expanded (mirrors current JS behavior prior
-   * to dynamic expansion logic). A future enhancement could expose a method
-   * to adjust bounds and remap existing density if required.
+   * Uses chunked memory allocation for very large resolutions to avoid WASM memory limits.
    */
   constructor(x_params: Float64Array, y_params: Float64Array, is_cubic: boolean, width: number, height: number, min_x: number, max_x: number, min_y: number, max_y: number, start_x: number, start_y: number);
   /**
@@ -77,8 +81,18 @@ export class ChaoticAccumulator {
   fill_rgba_log_soft(color_scheme: ColorScheme, softness: number): void;
   /**
    * Return a zero-copy JS view over the internal RGBA buffer. Recreate the view after memory growth.
+   * For large/sparse memory, returns an empty view. Use get_rgba_rows() from JS.
    */
   rgba_view(): Uint8ClampedArray;
+  /**
+   * Whether this accumulator uses chunked (large) memory mode
+   */
+  use_chunked(): boolean;
+  /**
+   * Stream RGBA rows computed with the last fill_rgba_log_soft mapping.
+   * start_row + rows will be clamped to height.
+   */
+  get_rgba_rows(start_row: number, rows: number): Uint8ClampedArray;
 }
 /**
  * Result structure for chaotic map with parameters
@@ -359,6 +373,8 @@ export interface InitOutput {
   readonly chaoticaccumulator_to_rgba_log_soft: (a: number, b: number, c: number) => [number, number];
   readonly chaoticaccumulator_fill_rgba_log_soft: (a: number, b: number, c: number) => void;
   readonly chaoticaccumulator_rgba_view: (a: number) => any;
+  readonly chaoticaccumulator_use_chunked: (a: number) => number;
+  readonly chaoticaccumulator_get_rgba_rows: (a: number, b: number, c: number) => [number, number];
   readonly __wbg_fractalpresets_free: (a: number, b: number) => void;
   readonly fractalpresets_sierpinski_triangle: () => any;
   readonly fractalpresets_sierpinski_triangle_transforms: () => any;
@@ -384,6 +400,7 @@ export interface InitOutput {
   readonly fractalgenerator_generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly fractalgenerator_generate_chaotic_map_batch_to_density: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => [number, number];
   readonly fractalgenerator_generate_chaotic_map_batch_with_state: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => [number, number];
+  readonly generate_trajectory_points: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number];
   readonly generate_chaotic_map_points: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly fractalpresets_vicsek_square_transforms: () => any;
   readonly fractalpresets_t_square_transforms: () => any;

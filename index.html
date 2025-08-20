@@ -4754,6 +4754,16 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
         
+        // Simple verbose flag for throttling logs: URL ?debug=1 or localStorage 'verboseLogs' = '1' or window.__verboseLogs
+        function __isVerbose() {
+            try {
+                if (typeof window !== 'undefined' && window.__verboseLogs) return true;
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('debug') === '1') return true;
+            } catch (_) { /* ignore */ }
+            return false;
+        }
+
         // Apply background color to image data (for zero-value pixels)
         function applyBackgroundColor(imageData, backgroundColor, colorScheme) {
             const data = imageData.data;
@@ -4767,8 +4777,6 @@
             // Map numeric colorScheme to scheme name
             const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
             const schemeName = schemeNames[colorScheme] || 'Fire';
-            
-            console.log(`🎨 Applying background color: ${backgroundColor} -> RGB(${r}, ${g}, ${b}) for ${schemeName} scheme`);
             
             // Define the background colors for each colormap scheme (t=0.0 values)
             const backgroundColors = {
@@ -4799,11 +4807,14 @@
             };
             
             const targetColor = backgroundColors[schemeName] || [0, 0, 0]; // Default to black
-            console.log(`🎯 Targeting background color for ${schemeName}: RGB(${targetColor})`);
-            
-            // If "no background" option is enabled, skip recoloring
+            // If "no background" option is enabled, skip recoloring (and logging)
             if (document.getElementById('noBackgroundColor')?.checked) {
                 return imageData; // leave original colormap background
+            }
+
+            if (__isVerbose()) {
+                console.log(`🎨 Applying background color: ${backgroundColor} -> RGB(${r}, ${g}, ${b}) for ${schemeName} scheme`);
+                console.log(`🎯 Targeting background color for ${schemeName}: RGB(${targetColor})`);
             }
 
             // If "use min-density color" is enabled, scan the image for the faintest non-background pixel color
@@ -4826,9 +4837,9 @@
                 }
                 if (found) {
                     r = minR; g = minG; b = minB;
-                    console.log(`🎯 Using min-density color as background: RGB(${r}, ${g}, ${b})`);
+                    if (__isVerbose()) console.log(`🎯 Using min-density color as background: RGB(${r}, ${g}, ${b})`);
                 } else {
-                    console.log('ℹ️ No non-background pixels found; falling back to chosen background color.');
+                    if (__isVerbose()) console.log('ℹ️ No non-background pixels found; falling back to chosen background color.');
                 }
             }
 
@@ -4848,9 +4859,21 @@
                 }
             }
             
-            console.log(`🎨 Background color applied to ${pixelsChanged} pixels`);
+            if (__isVerbose()) console.log(`🎨 Background color applied to ${pixelsChanged} pixels`);
             
             return imageData;
+        }
+
+        // Stream rows from WASM accumulator for large (chunked) images and draw to canvas
+        function drawAccumulatorRows(acc, width, height, colorScheme, bgColor, rowsPerChunk = 256) {
+            const ctx = elements.canvas.getContext('2d');
+            for (let start = 0; start < height; start += rowsPerChunk) {
+                const rows = Math.min(rowsPerChunk, height - start);
+                const clamped = acc.get_rgba_rows(start, rows);
+                const imageData = new ImageData(clamped, width, rows);
+                const finalImageData = applyBackgroundColor(imageData, bgColor, colorScheme);
+                ctx.putImageData(finalImageData, 0, start);
+            }
         }
         
         // Iterative plotting function with progress bars
@@ -4920,51 +4943,13 @@
                 const boundsCalculationPoints = Math.min(requestedPoints, batchSize * 3); // Use up to 3 batches worth for bounds
                 console.log(`📏 Calculating bounds from ${boundsCalculationPoints} points for full trajectory coverage`);
                 
-                const boundsData = generator.generate_chaotic_map_points(xParams, yParams, boundsCalculationPoints, isCubic);
-                const bounds = generator.calculate_point_bounds(boundsData);
+                // Use WASM-side bounds estimation to avoid transferring millions of points
+                const bounds = generator.estimate_bounds_for_map(xParams, yParams, boundsCalculationPoints, isCubic);
                 const [minX, maxX, minY, maxY] = bounds;
                 
                 console.log(`📏 Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
                 
-                // Smart memory allocation for high-resolution canvases
-                const totalPixels = canvasWidth * canvasHeight;
-                const maxSafeArraySize = 2147483647; // JavaScript's max array size
-                const useChunkedApproach = totalPixels > maxSafeArraySize;
-                
-                // Initialize accumulated density grid and state tracking
-                let accumulatedDensity;
-                let densityChunks = null;
-                const chunkSize = 16777216; // 16M pixels per chunk
-                
-                if (useChunkedApproach) {
-                    console.log(`🔧 Using chunked approach for large canvas: ${canvasWidth}x${canvasHeight} (${totalPixels} pixels)`);
-                    // Use chunked TypedArrays for very large canvases
-                    const numChunks = Math.ceil(totalPixels / chunkSize);
-                    densityChunks = [];
-                    for (let i = 0; i < numChunks; i++) {
-                        const remainingPixels = Math.min(chunkSize, totalPixels - (i * chunkSize));
-                        densityChunks.push(new Float32Array(remainingPixels));
-                    }
-                    console.log(`🔧 Created ${numChunks} chunks for density data`);
-                } else {
-                    // Use regular array for smaller canvases
-                    try {
-                        accumulatedDensity = new Float32Array(totalPixels);
-                    } catch (error) {
-                        if (error instanceof RangeError) {
-                            console.log(`🔧 Falling back to chunked approach due to memory allocation failure`);
-                            // Fallback to chunked approach
-                            const numChunks = Math.ceil(totalPixels / chunkSize);
-                            densityChunks = [];
-                            for (let i = 0; i < numChunks; i++) {
-                                const remainingPixels = Math.min(chunkSize, totalPixels - (i * chunkSize));
-                                densityChunks.push(new Float32Array(remainingPixels));
-                            }
-                        } else {
-                            throw error;
-                        }
-                    }
-                }
+                // No JS density allocation in iterative mode; rely solely on WASM accumulator
                 
                 let processedPoints = 0;
                 let batchCount = 0;
@@ -4988,54 +4973,7 @@
                 let batchGrowths = []; // For logging
                 console.log(`🎯 Convergence mode: ${convergenceMode ? 'ON' : 'OFF'}${convergenceMode ? ` (rel<th ${(relativeGrowthThreshold*100).toFixed(3)}%, abs<th ${absoluteGrowthThreshold} px, min batches ${minBatchesBeforeConvergence}, stagnant ${requiredConsecutiveStagnant})` : ''}`);
                 
-                // Helper functions for chunked density operations
-                function getDensityValue(pixelIndex) {
-                    if (densityChunks) {
-                        const chunkIndex = Math.floor(pixelIndex / chunkSize);
-                        const localIndex = pixelIndex % chunkSize;
-                        return chunkIndex < densityChunks.length ? densityChunks[chunkIndex][localIndex] : 0;
-                    }
-                    return accumulatedDensity[pixelIndex];
-                }
-                
-                function setDensityValue(pixelIndex, value) {
-                    if (densityChunks) {
-                        const chunkIndex = Math.floor(pixelIndex / chunkSize);
-                        const localIndex = pixelIndex % chunkSize;
-                        if (chunkIndex < densityChunks.length) {
-                            densityChunks[chunkIndex][localIndex] = value;
-                        }
-                    } else {
-                        accumulatedDensity[pixelIndex] = value;
-                    }
-                }
-                
-                function incrementDensityValue(pixelIndex, increment = 1) {
-                    if (densityChunks) {
-                        const chunkIndex = Math.floor(pixelIndex / chunkSize);
-                        const localIndex = pixelIndex % chunkSize;
-                        if (chunkIndex < densityChunks.length) {
-                            densityChunks[chunkIndex][localIndex] += increment;
-                        }
-                    } else {
-                        accumulatedDensity[pixelIndex] += increment;
-                    }
-                }
-                
-                function getDensityArray() {
-                    if (densityChunks) {
-                        // Convert chunked data back to a single array for RGBA conversion
-                        const result = new Float32Array(totalPixels);
-                        let offset = 0;
-                        for (let i = 0; i < densityChunks.length; i++) {
-                            const chunkData = densityChunks[i];
-                            result.set(chunkData, offset);
-                            offset += chunkData.length;
-                        }
-                        return result;
-                    }
-                    return accumulatedDensity;
-                }
+                // JS density helpers removed
                 // Reset abort state and show abort button
                 // If a newer generation started, stop immediately
                 if (runToken !== activeGenerationToken) {
@@ -5065,7 +5003,7 @@
                         currentBatchSize = Math.min(batchSize, remainingPoints);
                     }
 
-                    console.log(`🔄 processBatch called: processed=${processedPoints}, batchSize=${currentBatchSize}, mode=${convergenceMode ? 'convergence' : 'fixed'}`);
+                    if (__isVerbose()) console.log(`🔄 processBatch called: processed=${processedPoints}, batchSize=${currentBatchSize}, mode=${convergenceMode ? 'convergence' : 'fixed'}`);
                     
                     // Cancel early if superseded by a new generation
                     if (runToken !== activeGenerationToken) {
@@ -5079,54 +5017,49 @@
                         if (abortRequested) console.log('⛔ Abort requested; finalizing image');
                         console.log(`🎯 Stopping due to ${reason} - generating final image`);
 
-                        let resultRgba;
-                        let accRef = null;
-                        if (window.__chaosAccumulator) {
-                            accRef = window.__chaosAccumulator;
-                            try {
-                                const sCtl = document.getElementById('densitySoftness');
-                                const sInp = document.getElementById('densitySoftnessInput');
-                                const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
-                                accRef.fill_rgba_log_soft(colorScheme, sVal);
-                                resultRgba = accRef.rgba_view();
-                            } catch (e) {
-                                console.warn('⚠️ Accumulator finalization failed, falling back to JS density grid:', e);
-                            }
-                        }
-                        if (!resultRgba) {
-                            const sCtl = document.getElementById('densitySoftness');
-                            const sInp = document.getElementById('densitySoftnessInput');
-                            const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
-                            const densityArray = getDensityArray();
-                            resultRgba = generator.density_grid_to_rgba_log_soft(densityArray, canvasWidth, canvasHeight, colorScheme, sVal);
-                        }
-
+                        let accRef = window.__chaosAccumulator || null;
                         // Display result on canvas
                         elements.canvas.width = canvasWidth;
                         elements.canvas.height = canvasHeight;
                         initializeCanvas(elements.canvas, elements.backgroundColor.value);
-                        const ctx = elements.canvas.getContext('2d');
-                        const rgbaOut = resultRgba instanceof Uint8ClampedArray ? resultRgba : new Uint8ClampedArray(resultRgba);
-                        const imageData = new ImageData(rgbaOut, canvasWidth, canvasHeight);
-                        const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                        ctx.putImageData(finalImageData, 0, 0);
+                        const sCtl = document.getElementById('densitySoftness');
+                        const sInp = document.getElementById('densitySoftnessInput');
+                        const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
+                        if (accRef) {
+                            try {
+                                accRef.fill_rgba_log_soft(colorScheme, sVal);
+                                const isChunked = typeof accRef.use_chunked === 'function' && accRef.use_chunked();
+                                if (isChunked) {
+                                    drawAccumulatorRows(accRef, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value);
+                                } else {
+                                    const view = accRef.rgba_view();
+                                    const ctx = elements.canvas.getContext('2d');
+                                    const imageData = new ImageData(view, canvasWidth, canvasHeight);
+                                    const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                                    ctx.putImageData(finalImageData, 0, 0);
+                                }
+                            } catch (e) {
+                                console.error('⚠️ Accumulator finalization failed:', e);
+                                showNotification('Rendering failed. Try a smaller canvas or refresh.', 'error');
+                            }
+                        } else {
+                            console.error('⚠️ No accumulator available for finalization.');
+                            showNotification('No accumulator available. Try plotting again.', 'error');
+                        }
 
                         // Update current fractal data
                         currentFractal = {
                             type: 'chaotic_map',
                             method: 'random_chaos_iterative',
-                            imageData: resultRgba,
+                            imageData: null,
                             width: canvasWidth,
                             height: canvasHeight,
                             parameters: { xParams, yParams, points: processedPoints },
                             colorScheme,
                             backgroundColor: elements.backgroundColor.value,
-                            ...(accRef ? { accumulator: accRef } : { density: getDensityArray() })
+                            ...(accRef ? { accumulator: accRef } : {})
                         };
-                        if (!accRef) {
-                            const densityArray = getDensityArray();
-                            lastAccumulatedDensity = densityArray.slice ? densityArray.slice() : Array.from(densityArray);
-                        } else {
+                        if (accRef) {
                             try { lastAccumulatedDensity = accRef.density(); } catch {}
                         }
 
@@ -5147,6 +5080,7 @@
                     // Accumulator-based batch processing (in-WASM density)
                     setTimeout(async () => {
                         try {
+                            // Standard WASM ChaoticAccumulator approach
                             if (!window.__chaosAccumulator) {
                                 window.__chaosAccumulator = new ChaoticAccumulator(
                                     xParams.slice(), yParams.slice(), isCubic,
@@ -5163,6 +5097,7 @@
                             const totalNonZero = stats[3];
                             processedPoints += currentBatchSize;
 
+                            const totalPixels = canvasWidth * canvasHeight;
                             const coveragePct = (totalNonZero / totalPixels) * 100;
                             const delta = newPixels;
                             const relGrowth = lastNonZero > 0 ? delta / lastNonZero : 1.0;
@@ -5182,11 +5117,16 @@
                             const sInp2 = document.getElementById('densitySoftnessInput');
                             const sVal2 = parseFloat((sInp2?.value || sCtl2?.value || '1'));
                             acc.fill_rgba_log_soft(colorScheme, sVal2);
+                            const isChunked = typeof acc.use_chunked === 'function' && acc.use_chunked();
                             const ctx = elements.canvas.getContext('2d');
-                            const rgbaView = acc.rgba_view();
-                            const imageData = new ImageData(rgbaView, canvasWidth, canvasHeight);
-                            const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                            ctx.putImageData(bgImageData, 0, 0);
+                            if (isChunked) {
+                                drawAccumulatorRows(acc, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value);
+                            } else {
+                                const rgbaView = acc.rgba_view();
+                                const imageData = new ImageData(rgbaView, canvasWidth, canvasHeight);
+                                const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                                ctx.putImageData(bgImageData, 0, 0);
+                            }
 
                             const shouldContinue = !abortRequested && runToken === activeGenerationToken && (convergenceMode ? !converged : processedPoints < requestedPoints);
                             if (shouldContinue) {
@@ -5198,7 +5138,7 @@
                                 currentFractal = {
                                     type: 'chaotic_map',
                                     method: 'random_chaos_iterative',
-                                    imageData: rgbaView,
+                                    imageData: null,
                                     width: canvasWidth,
                                     height: canvasHeight,
                                     parameters: { xParams, yParams, points: processedPoints },
@@ -5206,7 +5146,8 @@
                                     backgroundColor: elements.backgroundColor.value,
                                     accumulator: acc
                                 };
-                                lastAccumulatedDensity = acc.density();
+                                // Avoid exporting full density for very large images
+                                try { if (!acc.use_chunked()) { lastAccumulatedDensity = acc.density(); } } catch {}
                                 hideBatchProgress();
                                 if (abortEl) abortEl.style.display = 'none';
                                 setLoading(false);
@@ -5234,7 +5175,7 @@
             }
         }
 
-        function regenerateWithCustomParametersIterative() {
+    function regenerateWithCustomParametersIterative() {
             if (!currentChaoticMapData || !generator) return;
             
             const editedParams = getEditedParameters();
@@ -5260,213 +5201,8 @@
             try {
                 setLoading(true);
                 
-                console.log(`🔄 Iterative generation: ${totalPoints} points in batches of ${batchSize}`);
-                
-                // For iterative mode, we need to calculate bounds from a longer trajectory
-                // to ensure we capture the full range of the extended orbit
-                const boundsCalculationPoints = Math.min(totalPoints, batchSize * 3); // Use up to 3 batches worth for bounds
-                console.log(`📏 Calculating bounds from ${boundsCalculationPoints} points for full trajectory coverage`);
-                
-                const boundsData = generator.generate_chaotic_map_points(xParams, yParams, boundsCalculationPoints, currentChaoticMapData.is_cubic);
-                const bounds = generator.calculate_point_bounds(boundsData);
-                const [minX, maxX, minY, maxY] = bounds;
-                
-                console.log(`� Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
-                
-                // Initialize accumulated density grid and state tracking
-                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
-                let processedPoints = 0;
-                let batchCount = 0;
-                let currentX = 0.05; // Initial state
-                let currentY = 0.05;
-                
-                // Dynamic bounds tracking - start with calculated bounds and expand as needed
-                let dynamicMinX = minX;
-                let dynamicMaxX = maxX;
-                let dynamicMinY = minY;
-                let dynamicMaxY = maxY;
-                let boundsExpanded = false;
-                
-                // Process in batches with efficient state continuity
-                const processBatch = () => {
-                    const remainingPoints = totalPoints - processedPoints;
-                    const currentBatchSize = Math.min(batchSize, remainingPoints);
-                    
-                    if (currentBatchSize <= 0) {
-                        // All batches complete - generate final image
-                        const densityArray = getDensityArray();
-                        const result = generator.density_grid_to_rgba(densityArray, canvasWidth, canvasHeight, colorScheme);
-                        
-                        // Display result on canvas
-                        elements.canvas.width = canvasWidth;
-                        elements.canvas.height = canvasHeight;
-                        const ctx = elements.canvas.getContext('2d');
-                        const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
-                        ctx.putImageData(imageData, 0, 0);
-                        
-                        // Update current fractal data
-                        currentFractal = {
-                            type: 'chaotic_map',
-                            method: 'random_chaos_iterative',
-                            imageData: result,
-                            width: canvasWidth,
-                            height: canvasHeight
-                        };
-                        
-                        // Overlay removed; keep internal state only
-                        
-                        // Update the stored data
-                        currentChaoticMapData.x_params = xParams;
-                        currentChaoticMapData.y_params = yParams;
-                        
-                        hideBatchProgress();
-                        setLoading(false);
-                        
-                        let finalMessage = `High-resolution fractal generated! (${totalPoints.toLocaleString()} points in ${batchCount} batches)`;
-                        if (boundsExpanded) {
-                            finalMessage += ' Extended trajectory explored larger region.';
-                        }
-                        // Final processing complete
-                        console.log(finalMessage);
-                        return;
-                    }
-                    
-                    batchCount++;
-                    const progress = Math.round((processedPoints / totalPoints) * 100);
-                    
-                    showBatchProgress(batchCount);
-                    
-                    // Generate batch density grid with state continuity
-                    setTimeout(() => {
-                        try {
-                            let batchDensity, currentBatchX, currentBatchY;
-                            
-                            // Try new efficient function first, fallback to old method
-                            if (generator.generate_chaotic_map_batch_with_state) {
-                                // Use the new efficient batch function with state continuity
-                                const batchResult = generator.generate_chaotic_map_batch_with_state(
-                                    xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
-                                    canvasWidth, canvasHeight, dynamicMinX, dynamicMaxX, dynamicMinY, dynamicMaxY, currentX, currentY
-                                );
-                                
-                                // Extract final state for next batch
-                                currentBatchX = batchResult[0];
-                                currentBatchY = batchResult[1];
-                                
-                                // Extract actual bounds encountered in this batch
-                                const batchMinX = batchResult[2];
-                                const batchMaxX = batchResult[3];
-                                const batchMinY = batchResult[4];
-                                const batchMaxY = batchResult[5];
-                                
-                                // Check if bounds need expansion
-                                if (batchMinX < dynamicMinX || batchMaxX > dynamicMaxX || batchMinY < dynamicMinY || batchMaxY > dynamicMaxY) {
-                                    console.log(`🔍 Trajectory exploring new regions - expanding bounds from batch ${batchCount}`);
-                                    console.log(`📏 Old bounds: x[${dynamicMinX.toFixed(3)}, ${dynamicMaxX.toFixed(3)}], y[${dynamicMinY.toFixed(3)}, ${dynamicMaxY.toFixed(3)}]`);
-                                    console.log(`📏 New bounds: x[${batchMinX.toFixed(3)}, ${batchMaxX.toFixed(3)}], y[${batchMinY.toFixed(3)}, ${batchMaxY.toFixed(3)}]`);
-                                    
-                                    // Expand bounds with some padding for future batches
-                                    const paddingX = (batchMaxX - batchMinX) * 0.1;
-                                    const paddingY = (batchMaxY - batchMinY) * 0.1;
-                                    
-                                    dynamicMinX = Math.min(dynamicMinX, batchMinX - paddingX);
-                                    dynamicMaxX = Math.max(dynamicMaxX, batchMaxX + paddingX);
-                                    dynamicMinY = Math.min(dynamicMinY, batchMinY - paddingY);
-                                    dynamicMaxY = Math.max(dynamicMaxY, batchMaxY + paddingY);
-                                    
-                                    boundsExpanded = true;
-                                    console.log(`📏 Expanded bounds: x[${dynamicMinX.toFixed(3)}, ${dynamicMaxX.toFixed(3)}], y[${dynamicMinY.toFixed(3)}, ${dynamicMaxY.toFixed(3)}]`);
-                                }
-                                
-                                // Extract density grid (convert from f64 back to u32)
-                                let batchDensity;
-                                if (densityChunks) {
-                                    // Use chunked approach for large canvases
-                                    batchDensity = {
-                                        isChunked: true,
-                                        getValue: function(index) {
-                                            return Math.round(batchResult[index + 6]);
-                                        },
-                                        length: totalPixels
-                                    };
-                                } else {
-                                    // Use regular array for smaller canvases
-                                    batchDensity = new Array(totalPixels);
-                                    for (let i = 0; i < batchDensity.length; i++) {
-                                        batchDensity[i] = Math.round(batchResult[i + 6]);
-                                    }
-                                }
-                            } else {
-                                // Fallback to old method
-                                console.log(`⚠️ Using fallback batch method for batch ${batchCount}`);
-                                batchDensity = generator.generate_chaotic_map_batch_to_density(
-                                    xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
-                                    canvasWidth, canvasHeight, minX, maxX, minY, maxY, processedPoints
-                                );
-                                
-                                // For old method, we don't have state continuity, so use a simple approximation
-                                currentBatchX = currentX;
-                                currentBatchY = currentY;
-                            }
-                            
-                            // Update state for next batch
-                            currentX = currentBatchX;
-                            currentY = currentBatchY;
-                            
-                            // Merge with accumulated density
-                            if (densityChunks && batchDensity.isChunked) {
-                                // Chunked accumulation for large canvases
-                                for (let i = 0; i < totalPixels; i++) {
-                                    const batchValue = batchDensity.getValue(i);
-                                    if (batchValue > 0) {
-                                        incrementDensityValue(i, batchValue);
-                                    }
-                                }
-                            } else if (batchDensity.length && !batchDensity.isChunked) {
-                                // Regular accumulation for smaller canvases
-                                if (generator.merge_density_grids) {
-                                    accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
-                                } else {
-                                    // Manual merge for new method
-                                    for (let i = 0; i < accumulatedDensity.length; i++) {
-                                        accumulatedDensity[i] += batchDensity[i];
-                                    }
-                                }
-                            }
-                            
-                            // Update canvas after each batch completion
-                            const ctx = elements.canvas.getContext('2d');
-                            const densityArray = getDensityArray();
-                            const currentResult = generator.density_grid_to_rgba(densityArray, canvasWidth, canvasHeight, colorScheme);
-                            const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
-                            const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                            ctx.putImageData(finalImageData, 0, 0);
-                            
-                            processedPoints += currentBatchSize;
-                            
-                            // Show intermediate result if this is not the first batch
-                            if (batchCount > 1 && batchCount % 2 === 0) {
-                                const densityArray = getDensityArray();
-                                const intermediateResult = generator.density_grid_to_rgba(densityArray, canvasWidth, canvasHeight, colorScheme);
-                                const ctx = elements.canvas.getContext('2d');
-                                const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
-                                ctx.putImageData(imageData, 0, 0);
-                            }
-                            
-                            // Process next batch
-                            processBatch();
-                            
-                        } catch (error) {
-                            console.error('❌ Error in batch processing:', error);
-                            hideBatchProgress();
-                            setLoading(false);
-                            showNotification('Error during batch processing. Try reducing batch size.', 'error');
-                        }
-                    }, 10); // Small delay to allow UI updates
-                };
-                
-                // Start batch processing
-                processBatch();
+                console.log('⚠️ Deprecated path. Use Plot with iterative accumulator instead.');
+                setLoading(false);
                 
             } catch (error) {
                 console.error('❌ Error in iterative generation:', error);
@@ -5489,17 +5225,25 @@
                 const w = currentFractal.width;
                 const h = currentFractal.height;
                 if (currentFractal.accumulator && typeof currentFractal.accumulator.fill_rgba_log_soft === 'function') {
-                    // Zero-copy recolor using accumulator internal buffer
-                    currentFractal.accumulator.fill_rgba_log_soft(newScheme, sVal);
-                    const view = currentFractal.accumulator.rgba_view();
-                    lastAccumulatedDensity = currentFractal.accumulator.density();
+                    // Recolor using accumulator. For large images stream rows; else zero-copy view
+                    const acc = currentFractal.accumulator;
+                    acc.fill_rgba_log_soft(newScheme, sVal);
+                    const isChunked = typeof acc.use_chunked === 'function' && acc.use_chunked();
                     const ctx = elements.canvas.getContext('2d');
-                    const imageData = new ImageData(view, w, h);
-                    const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
-                    ctx.putImageData(finalImageData, 0, 0);
+                    if (isChunked) {
+                        drawAccumulatorRows(acc, w, h, newScheme, bgColor);
+                        currentFractal.imageData = null;
+                    } else {
+                        const view = acc.rgba_view();
+                        const imageData = new ImageData(view, w, h);
+                        const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
+                        ctx.putImageData(finalImageData, 0, 0);
+                        currentFractal.imageData = view;
+                    }
+                    // Avoid exporting density for huge images
+                    try { if (!acc.use_chunked()) { lastAccumulatedDensity = acc.density(); } } catch {}
                     currentFractal.colorScheme = newScheme;
                     currentFractal.backgroundColor = bgColor;
-                    currentFractal.imageData = view;
                     return;
                 } else if (lastAccumulatedDensity) {
                     rgba = generator.density_grid_to_rgba_log_soft(lastAccumulatedDensity, w, h, newScheme, sVal);

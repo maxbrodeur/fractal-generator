@@ -169,6 +169,28 @@ function getClampedArrayU8FromWasm0(ptr, len) {
     return getUint8ClampedArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 /**
+ * Generate just the trajectory points for streaming processing
+ * Returns alternating [x1, y1, x2, y2, ...] coordinates and final state
+ * @param {Float64Array} x_params
+ * @param {Float64Array} y_params
+ * @param {number} n_points
+ * @param {boolean} is_cubic
+ * @param {number} start_x
+ * @param {number} start_y
+ * @returns {Float64Array}
+ */
+export function generate_trajectory_points(x_params, y_params, n_points, is_cubic, start_x, start_y) {
+    const ptr0 = passArrayF64ToWasm0(x_params, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayF64ToWasm0(y_params, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.generate_trajectory_points(ptr0, len0, ptr1, len1, n_points, is_cubic, start_x, start_y);
+    var v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+    return v3;
+}
+
+/**
  * Standalone function to generate chaotic map points
  * This is called from JavaScript as generator.generate_chaotic_map_points()
  * @param {string} chaos_type
@@ -226,6 +248,7 @@ const ChaoticAccumulatorFinalization = (typeof FinalizationRegistry === 'undefin
  * Stateful accumulator that keeps a running density grid and incremental
  * coverage metrics entirely inside WASM to avoid large per-batch memory copies
  * and repeated JS-side scans for non-zero counts.
+ * Uses chunked memory allocation for very large resolutions (32K+).
  */
 export class ChaoticAccumulator {
 
@@ -242,9 +265,7 @@ export class ChaoticAccumulator {
     }
     /**
      * Create a new accumulator with initial orbit state and fixed bounds.
-     * Bounds are not dynamically expanded (mirrors current JS behavior prior
-     * to dynamic expansion logic). A future enhancement could expose a method
-     * to adjust bounds and remap existing density if required.
+     * Uses chunked memory allocation for very large resolutions to avoid WASM memory limits.
      * @param {Float64Array} x_params
      * @param {Float64Array} y_params
      * @param {boolean} is_cubic
@@ -336,11 +357,33 @@ export class ChaoticAccumulator {
     }
     /**
      * Return a zero-copy JS view over the internal RGBA buffer. Recreate the view after memory growth.
+     * For large/sparse memory, returns an empty view. Use get_rgba_rows() from JS.
      * @returns {Uint8ClampedArray}
      */
     rgba_view() {
         const ret = wasm.chaoticaccumulator_rgba_view(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * Whether this accumulator uses chunked (large) memory mode
+     * @returns {boolean}
+     */
+    use_chunked() {
+        const ret = wasm.chaoticaccumulator_use_chunked(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Stream RGBA rows computed with the last fill_rgba_log_soft mapping.
+     * start_row + rows will be clamped to height.
+     * @param {number} start_row
+     * @param {number} rows
+     * @returns {Uint8ClampedArray}
+     */
+    get_rgba_rows(start_row, rows) {
+        const ret = wasm.chaoticaccumulator_get_rgba_rows(this.__wbg_ptr, start_row, rows);
+        var v1 = getClampedArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v1;
     }
 }
 
@@ -1170,6 +1213,10 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbg_newwithlength_a381634e90c276d4 = function(arg0) {
         const ret = new Uint8Array(arg0 >>> 0);
+        return ret;
+    };
+    imports.wbg.__wbg_newwithlength_ee8e1b95dea9d37c = function(arg0) {
+        const ret = new Uint8ClampedArray(arg0 >>> 0);
         return ret;
     };
     imports.wbg.__wbg_node_905d3e251edff8a2 = function(arg0) {
