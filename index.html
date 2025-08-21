@@ -3415,6 +3415,21 @@
             
             showNotification('Preparing download...', 'info');
             
+            // If we have a WASM accumulator and the true render area exceeds the safe canvas limit,
+            // export as tiled PNGs without allocating a giant canvas.
+            if (currentFractal.accumulator && (currentFractal.width * currentFractal.height > MAX_CANVAS_AREA)) {
+                const acc = currentFractal.accumulator;
+                const w = currentFractal.width;
+                const h = currentFractal.height;
+                const scheme = currentFractal.colorScheme ?? parseInt(elements.colorScheme.value);
+                const bg = currentFractal.backgroundColor ?? elements.backgroundColor.value;
+                exportTiledPNGs(acc, w, h, scheme, bg).catch(err => {
+                    console.error('Tiled export failed', err);
+                    showNotification('Tiled export failed. See console.', 'error');
+                });
+                return;
+            }
+
             // For very large canvases (16K and above), skip metadata to avoid memory issues
             const canvasSize = elements.canvas.width * elements.canvas.height;
             const isLargeImage = canvasSize > (8192 * 8192); // Threshold for large images
@@ -3463,6 +3478,104 @@
                 showNotification('Fractal image downloaded!', 'success');
                 
             }, 'image/png', 0.95); // Use 95% quality to balance file size and quality
+        }
+
+        // Export a very large render as multiple PNG tiles within safe canvas limits
+        async function exportTiledPNGs(acc, renderW, renderH, colorScheme, bgColor) {
+            try {
+                // Ensure RGBA buffer is up to date
+                const sCtl = document.getElementById('densitySoftness');
+                const sInp = document.getElementById('densitySoftnessInput');
+                const sVal = parseFloat((sInp?.value || sCtl?.value || '1'));
+                if (typeof acc.fill_rgba_log_soft === 'function') {
+                    acc.fill_rgba_log_soft(colorScheme, sVal);
+                }
+
+                // Choose conservative tile size to stay well under canvas limits
+                const TILE_W = Math.min(4096, renderW);
+                const TILE_H = Math.min(4096, renderH);
+                const cols = Math.ceil(renderW / TILE_W);
+                const rows = Math.ceil(renderH / TILE_H);
+                const totalTiles = cols * rows;
+                let tileIndex = 0;
+
+                // Working canvas for a single tile
+                const tileCanvas = document.createElement('canvas');
+                tileCanvas.width = TILE_W;
+                tileCanvas.height = TILE_H;
+                const tctx = tileCanvas.getContext('2d');
+                const ROWS_PER_CHUNK = 256; // stream rows in small chunks
+
+                // Helper to update batch progress banner
+                const updateProgress = () => {
+                    const pct = ((tileIndex / totalTiles) * 100).toFixed(1);
+                    if (elements.batchProgress && elements.batchText) {
+                        elements.batchText.textContent = `Exporting tiles ${tileIndex}/${totalTiles} (${pct}%)`;
+                        elements.batchProgress.classList.add('visible');
+                    }
+                };
+                updateProgress();
+
+                // Disable buttons during export
+                const prevLoading = isLoading; setLoading(true);
+
+                for (let ty = 0; ty < rows; ty++) {
+                    const y0 = ty * TILE_H;
+                    const thisTileH = Math.min(TILE_H, renderH - y0);
+                    // Resize tile canvas height to the actual remaining height
+                    if (tileCanvas.height !== thisTileH) tileCanvas.height = thisTileH;
+                    for (let tx = 0; tx < cols; tx++) {
+                        const x0 = tx * TILE_W;
+                        const thisTileW = Math.min(TILE_W, renderW - x0);
+                        if (tileCanvas.width !== thisTileW) tileCanvas.width = thisTileW;
+                        // Clear tile
+                        tctx.clearRect(0, 0, thisTileW, thisTileH);
+
+                        // Stream tile rows in chunks and blit into the tile canvas
+                        for (let localStart = 0; localStart < thisTileH; localStart += ROWS_PER_CHUNK) {
+                            const rowsReq = Math.min(ROWS_PER_CHUNK, thisTileH - localStart);
+                            // Fetch RGBA for [globalY .. globalY+rowsReq) across full render width
+                            const globalY = y0 + localStart;
+                            const fullRows = acc.get_rgba_rows(globalY, rowsReq);
+                            // For each row in chunk, copy tile columns into a small ImageData and draw at proper Y
+                            // Build a buffer for the whole chunk width thisTileW
+                            const chunkBuf = new Uint8ClampedArray(thisTileW * rowsReq * 4);
+                            for (let r = 0; r < rowsReq; r++) {
+                                const srcRowOff = r * renderW * 4 + x0 * 4;
+                                const dstRowOff = r * thisTileW * 4;
+                                chunkBuf.set(fullRows.subarray(srcRowOff, srcRowOff + thisTileW * 4), dstRowOff);
+                            }
+                            let imageData = new ImageData(chunkBuf, thisTileW, rowsReq);
+                            imageData = applyBackgroundColor(imageData, bgColor, colorScheme);
+                            tctx.putImageData(imageData, 0, localStart);
+                            // Yield to UI
+                            await new Promise(r => setTimeout(r, 0));
+                        }
+
+                        // Tile ready: export PNG
+                        const fileName = `fractal-${renderW}x${renderH}-x${tx}-y${ty}.png`;
+                        await new Promise((resolve, reject) => {
+                            tileCanvas.toBlob((blob) => {
+                                if (!blob) { reject(new Error('toBlob failed')); return; }
+                                downloadBlob(blob, fileName);
+                                resolve();
+                            }, 'image/png');
+                        });
+                        tileIndex++;
+                        updateProgress();
+                        // Small delay to keep the UI reactive
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                hideBatchProgress();
+                setLoading(prevLoading);
+                showNotification(`Exported ${totalTiles} PNG tile(s).`, 'success');
+            } catch (e) {
+                hideBatchProgress();
+                setLoading(false);
+                throw e;
+            }
         }
         
         // Helper function to download a blob
@@ -4077,10 +4190,13 @@
                 canvasWidth = size;
                 canvasHeight = Math.round(size * 3 / 4);
             }
-            
-            // Update actual canvas size
-            elements.canvas.width = canvasWidth;
-            elements.canvas.height = canvasHeight;
+            // Compute safe display buffer size to avoid exceeding browser canvas area limits
+            const dims = (typeof computeDisplayDimensions === 'function')
+                ? computeDisplayDimensions(canvasWidth, canvasHeight)
+                : { w: canvasWidth, h: canvasHeight };
+            // Update actual canvas buffer to safe display size only (rendering uses full size in WASM)
+            elements.canvas.width = dims.w;
+            elements.canvas.height = dims.h;
             
             // Calculate maximum display size
             const sidebar = document.getElementById('sidebar');
@@ -4764,6 +4880,20 @@
             return false;
         }
 
+        // Maximum safe canvas area (Safari/Chrome typical limit ~2^28)
+        const MAX_CANVAS_AREA = 268435456; // 268,435,456 pixels
+
+        // Compute display dimensions that fit within MAX_CANVAS_AREA while preserving aspect ratio
+        function computeDisplayDimensions(renderW, renderH) {
+            const area = renderW * renderH;
+            if (!Number.isFinite(area) || area <= 0) return { w: renderW, h: renderH };
+            if (area <= MAX_CANVAS_AREA) return { w: renderW, h: renderH };
+            const scale = Math.sqrt(MAX_CANVAS_AREA / area);
+            const w = Math.max(1, Math.floor(renderW * scale));
+            const h = Math.max(1, Math.floor(renderH * scale));
+            return { w, h };
+        }
+
         // Apply background color to image data (for zero-value pixels)
         function applyBackgroundColor(imageData, backgroundColor, colorScheme) {
             const data = imageData.data;
@@ -4775,7 +4905,33 @@
             let b = parseInt(hex.substring(4, 6), 16);
             
             // Map numeric colorScheme to scheme name
-            const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
+            // const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
+            const schemeNames = [
+                'Fire', 
+                'Jet', 
+                'Prism', 
+                'Turbo', 
+                'ColorWheel', 
+                'Gnuplot', 
+                'BMY', 
+                'Plasma', 
+                'Inferno', 
+                'Viridis', 
+                'Neon', 
+                'Pastel', 
+                'Magma', 
+                'Cividis', 
+                'Gray', 
+                'Cubehelix', 
+                'BlueOrange', 
+                'Heat', 
+                'Ice', 
+                'WhiteFire', 
+                'WhiteHeat', 
+                'WhiteBlue', 
+                'WhiteViridis', 
+                'WhiteMagma'
+            ];
             const schemeName = schemeNames[colorScheme] || 'Fire';
             
             // Define the background colors for each colormap scheme (t=0.0 values)
@@ -4865,14 +5021,36 @@
         }
 
         // Stream rows from WASM accumulator for large (chunked) images and draw to canvas
-        function drawAccumulatorRows(acc, width, height, colorScheme, bgColor, rowsPerChunk = 256) {
+        // Supports scaled preview rendering when render area exceeds MAX_CANVAS_AREA
+        function drawAccumulatorRows(acc, renderW, renderH, colorScheme, bgColor, rowsPerChunk = 256, displayW = renderW, displayH = renderH) {
             const ctx = elements.canvas.getContext('2d');
-            for (let start = 0; start < height; start += rowsPerChunk) {
-                const rows = Math.min(rowsPerChunk, height - start);
+            const needScale = (displayW !== renderW) || (displayH !== renderH);
+            const scaleY = displayH / renderH;
+            // Temporary tile canvas for scaling path
+            let tileCanvas = null, tileCtx = null;
+            if (needScale) {
+                tileCanvas = document.createElement('canvas');
+                tileCanvas.width = renderW;
+                tileCanvas.height = Math.min(rowsPerChunk, renderH);
+                tileCtx = tileCanvas.getContext('2d');
+            }
+            for (let start = 0; start < renderH; start += rowsPerChunk) {
+                const rows = Math.min(rowsPerChunk, renderH - start);
                 const clamped = acc.get_rgba_rows(start, rows);
-                const imageData = new ImageData(clamped, width, rows);
+                const imageData = new ImageData(clamped, renderW, rows);
                 const finalImageData = applyBackgroundColor(imageData, bgColor, colorScheme);
-                ctx.putImageData(finalImageData, 0, start);
+                if (!needScale) {
+                    ctx.putImageData(finalImageData, 0, start);
+                } else {
+                    if (tileCanvas.height !== rows) tileCanvas.height = rows;
+                    // Paint chunk into tile canvas, then scale onto display canvas
+                    tileCtx.putImageData(finalImageData, 0, 0);
+                    ctx.drawImage(
+                        tileCanvas,
+                        0, 0, renderW, rows,
+                        0, Math.floor(start * scaleY), displayW, Math.ceil(rows * scaleY)
+                    );
+                }
             }
         }
         
@@ -5018,9 +5196,10 @@
                         console.log(`🎯 Stopping due to ${reason} - generating final image`);
 
                         let accRef = window.__chaosAccumulator || null;
-                        // Display result on canvas
-                        elements.canvas.width = canvasWidth;
-                        elements.canvas.height = canvasHeight;
+                        // Display result on canvas (cap visible size under browser limits)
+                        const { w: dispW, h: dispH } = computeDisplayDimensions(canvasWidth, canvasHeight);
+                        elements.canvas.width = dispW;
+                        elements.canvas.height = dispH;
                         initializeCanvas(elements.canvas, elements.backgroundColor.value);
                         const sCtl = document.getElementById('densitySoftness');
                         const sInp = document.getElementById('densitySoftnessInput');
@@ -5030,13 +5209,23 @@
                                 accRef.fill_rgba_log_soft(colorScheme, sVal);
                                 const isChunked = typeof accRef.use_chunked === 'function' && accRef.use_chunked();
                                 if (isChunked) {
-                                    drawAccumulatorRows(accRef, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value);
+                                    drawAccumulatorRows(accRef, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value, 256, dispW, dispH);
                                 } else {
                                     const view = accRef.rgba_view();
                                     const ctx = elements.canvas.getContext('2d');
                                     const imageData = new ImageData(view, canvasWidth, canvasHeight);
                                     const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                                    ctx.putImageData(finalImageData, 0, 0);
+                                    if (dispW === canvasWidth && dispH === canvasHeight) {
+                                        ctx.putImageData(finalImageData, 0, 0);
+                                    } else {
+                                        // Scale via offscreen canvas to fit display
+                                        const off = document.createElement('canvas');
+                                        off.width = canvasWidth;
+                                        off.height = canvasHeight;
+                                        off.getContext('2d').putImageData(finalImageData, 0, 0);
+                                        ctx.imageSmoothingEnabled = false;
+                                        ctx.drawImage(off, 0, 0, canvasWidth, canvasHeight, 0, 0, dispW, dispH);
+                                    }
                                 }
                             } catch (e) {
                                 console.error('⚠️ Accumulator finalization failed:', e);
@@ -5119,13 +5308,27 @@
                             acc.fill_rgba_log_soft(colorScheme, sVal2);
                             const isChunked = typeof acc.use_chunked === 'function' && acc.use_chunked();
                             const ctx = elements.canvas.getContext('2d');
+                            const { w: dispW, h: dispH } = computeDisplayDimensions(canvasWidth, canvasHeight);
+                            if (elements.canvas.width !== dispW || elements.canvas.height !== dispH) {
+                                elements.canvas.width = dispW; elements.canvas.height = dispH;
+                                initializeCanvas(elements.canvas, elements.backgroundColor.value);
+                            }
                             if (isChunked) {
-                                drawAccumulatorRows(acc, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value);
+                                drawAccumulatorRows(acc, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value, 256, dispW, dispH);
                             } else {
                                 const rgbaView = acc.rgba_view();
                                 const imageData = new ImageData(rgbaView, canvasWidth, canvasHeight);
                                 const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                                ctx.putImageData(bgImageData, 0, 0);
+                                if (dispW === canvasWidth && dispH === canvasHeight) {
+                                    ctx.putImageData(bgImageData, 0, 0);
+                                } else {
+                                    const off = document.createElement('canvas');
+                                    off.width = canvasWidth;
+                                    off.height = canvasHeight;
+                                    off.getContext('2d').putImageData(bgImageData, 0, 0);
+                                    ctx.imageSmoothingEnabled = false;
+                                    ctx.drawImage(off, 0, 0, canvasWidth, canvasHeight, 0, 0, dispW, dispH);
+                                }
                             }
 
                             const shouldContinue = !abortRequested && runToken === activeGenerationToken && (convergenceMode ? !converged : processedPoints < requestedPoints);
@@ -5230,15 +5433,29 @@
                     acc.fill_rgba_log_soft(newScheme, sVal);
                     const isChunked = typeof acc.use_chunked === 'function' && acc.use_chunked();
                     const ctx = elements.canvas.getContext('2d');
+                    const { w: dispW, h: dispH } = computeDisplayDimensions(w, h);
+                    if (elements.canvas.width !== dispW || elements.canvas.height !== dispH) {
+                        elements.canvas.width = dispW; elements.canvas.height = dispH;
+                        initializeCanvas(elements.canvas, bgColor);
+                    }
                     if (isChunked) {
-                        drawAccumulatorRows(acc, w, h, newScheme, bgColor);
+                        drawAccumulatorRows(acc, w, h, newScheme, bgColor, 256, dispW, dispH);
                         currentFractal.imageData = null;
                     } else {
                         const view = acc.rgba_view();
                         const imageData = new ImageData(view, w, h);
                         const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
-                        ctx.putImageData(finalImageData, 0, 0);
-                        currentFractal.imageData = view;
+                        if (dispW === w && dispH === h) {
+                            ctx.putImageData(finalImageData, 0, 0);
+                            currentFractal.imageData = view;
+                        } else {
+                            const off = document.createElement('canvas');
+                            off.width = w; off.height = h;
+                            off.getContext('2d').putImageData(finalImageData, 0, 0);
+                            ctx.imageSmoothingEnabled = false;
+                            ctx.drawImage(off, 0, 0, w, h, 0, 0, dispW, dispH);
+                            currentFractal.imageData = null;
+                        }
                     }
                     // Avoid exporting density for huge images
                     try { if (!acc.use_chunked()) { lastAccumulatedDensity = acc.density(); } } catch {}
