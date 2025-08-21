@@ -371,6 +371,17 @@ impl FractalGenerator {
         n_points: usize,
         is_cubic: bool,
     ) -> Vec<f64> {
+        // Validate parameter lengths defensively to avoid panics on indexing
+        let required = if is_cubic { 10 } else { 6 };
+        if x_params.len() < required || y_params.len() < required {
+            console_log!(
+                "⚠️ estimate_bounds_for_map: insufficient params (x:{}, y:{}, required:{})",
+                x_params.len(), y_params.len(), required
+            );
+            return vec![0.0, 1.0, 0.0, 1.0];
+        }
+
+        console_log!("⏳ bounds: warmup {} points", n_points.clamp(500, 10_000).min(n_points));
         // Start from standard seed used elsewhere
         let mut x = 0.05;
         let mut y = 0.05;
@@ -389,6 +400,7 @@ impl FractalGenerator {
             }
         }
 
+        console_log!("⏳ bounds: warmup done; tracking {} steps", n_points.saturating_sub(warmup).max(1));
         // Initialize bounds after warmup
         let mut min_x = x;
         let mut max_x = x;
@@ -422,6 +434,7 @@ impl FractalGenerator {
             }
         }
 
+    console_log!("✅ bounds: done x[{:.3}, {:.3}] y[{:.3}, {:.3}]", min_x, max_x, min_y, max_y);
         // Add small padding similar to calculate_point_bounds (10%)
         let pad_x = (max_x - min_x) * 0.1;
         let pad_y = (max_y - min_y) * 0.1;
@@ -1021,6 +1034,7 @@ impl FractalGenerator {
 /// Stateful accumulator that keeps a running density grid and incremental
 /// coverage metrics entirely inside WASM to avoid large per-batch memory copies
 /// and repeated JS-side scans for non-zero counts.
+/// Uses chunked memory allocation for very large resolutions (32K+).
 #[wasm_bindgen]
 pub struct ChaoticAccumulator {
     x_params: Vec<f64>,
@@ -1034,17 +1048,26 @@ pub struct ChaoticAccumulator {
     max_y: f64,
     x: f64,
     y: f64,
-    density: Vec<u32>,
+    density: Option<Vec<u16>>,           // For small resolutions (16-bit, saturating)
+    // For very large resolutions, use sparse per-row storage to avoid huge dense allocations
+    // Each row stores a mapping of column -> count (u16, saturating)
+    sparse_rows: Option<Vec<std::collections::HashMap<u32, u16>>>,
+    use_chunked: bool,                   // Whether to use sparse (large) memory
     non_zero: usize,
-    rgba_buf: Vec<u8>,
+    // Small-res reusable RGBA buffer; for chunked/large we stream rows instead of storing full RGBA
+    rgba_buf: Option<Vec<u8>>,
+    // Mapping cache for row streaming (valid after fill_rgba_log_soft)
+    map_ready: bool,
+    map_s: f64,
+    map_denom: f64,
+    map_color_scheme: ColorScheme,
+    map_max_density: u16,
 }
 
 #[wasm_bindgen]
 impl ChaoticAccumulator {
     /// Create a new accumulator with initial orbit state and fixed bounds.
-    /// Bounds are not dynamically expanded (mirrors current JS behavior prior
-    /// to dynamic expansion logic). A future enhancement could expose a method
-    /// to adjust bounds and remap existing density if required.
+    /// Uses chunked memory allocation for very large resolutions to avoid WASM memory limits.
     #[wasm_bindgen(constructor)]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -1060,21 +1083,133 @@ impl ChaoticAccumulator {
         start_x: f64,
         start_y: f64,
     ) -> ChaoticAccumulator {
-        ChaoticAccumulator {
-            x_params,
-            y_params,
-            is_cubic,
-            width,
-            height,
-            min_x,
-            max_x,
-            min_y,
-            max_y,
-            x: start_x,
-            y: start_y,
-            density: vec![0u32; width * height],
-            non_zero: 0,
-            rgba_buf: vec![0u8; width * height * 4],
+    let total_pixels = width * height;
+    // Switch to sparse storage when the dense grid would be too large for browser WASM memory
+    const MAX_CONTIGUOUS_PIXELS: usize = 50_000_000; // ~100MB for u16; tweak as needed
+    let use_chunked = total_pixels > MAX_CONTIGUOUS_PIXELS;
+        
+        console_log!("🔧 ChaoticAccumulator: {}x{} = {} pixels, chunked: {}", 
+                    width, height, total_pixels, use_chunked);
+        
+        if use_chunked {
+            // Allocate sparse per-row maps (empty). Memory grows only with non-zero pixels.
+            let mut rows = Vec::with_capacity(height);
+            for _ in 0..height { rows.push(std::collections::HashMap::new()); }
+
+            ChaoticAccumulator {
+                x_params,
+                y_params,
+                is_cubic,
+                width,
+                height,
+                min_x,
+                max_x,
+                min_y,
+                max_y,
+                x: start_x,
+                y: start_y,
+                density: None,
+                sparse_rows: Some(rows),
+                use_chunked: true,
+                non_zero: 0,
+                rgba_buf: None,
+                map_ready: false,
+                map_s: 1.0,
+                map_denom: 1.0,
+                map_color_scheme: ColorScheme::Cubehelix,
+                map_max_density: 0,
+            }
+        } else {
+            ChaoticAccumulator {
+                x_params,
+                y_params,
+                is_cubic,
+                width,
+                height,
+                min_x,
+                max_x,
+                min_y,
+                max_y,
+                x: start_x,
+                y: start_y,
+                density: Some(vec![0u16; total_pixels]),
+                sparse_rows: None,
+                use_chunked: false,
+                non_zero: 0,
+                rgba_buf: Some(vec![0u8; total_pixels * 4]),
+                map_ready: false,
+                map_s: 1.0,
+                map_denom: 1.0,
+                map_color_scheme: ColorScheme::Cubehelix,
+                map_max_density: 0,
+            }
+        }
+    }
+
+    /// Helper: Get density value at linear index, works with both chunked and regular memory
+    fn get_density(&self, idx: usize) -> u32 {
+        if self.use_chunked {
+            if let Some(ref rows) = self.sparse_rows {
+                if self.width == 0 { return 0; }
+                let row = idx / self.width;
+                let col = (idx % self.width) as u32;
+                if row < rows.len() {
+                    if let Some(v) = rows[row].get(&col) { return *v as u32; }
+                }
+                0
+            } else { 0 }
+        } else {
+            self.density
+                .as_ref()
+                .map(|d| d.get(idx).copied().unwrap_or(0) as u32)
+                .unwrap_or(0)
+        }
+    }
+
+    /// Helper: Set density value at linear index, works with both chunked and regular memory
+    fn set_density(&mut self, idx: usize, value: u16) {
+        if self.use_chunked {
+            if let Some(ref mut rows) = self.sparse_rows {
+                if self.width == 0 { return; }
+                let row = idx / self.width;
+                let col = (idx % self.width) as u32;
+                if row < rows.len() {
+                    let r = &mut rows[row];
+                    if value == 0 {
+                        r.remove(&col);
+                    } else {
+                        r.insert(col, value);
+                    }
+                }
+            }
+        } else if let Some(ref mut density) = self.density {
+            if idx < density.len() {
+                density[idx] = value;
+            }
+        }
+    }
+
+    /// Helper: Increment density value at linear index, returns whether it was newly lit
+    fn increment_density(&mut self, idx: usize) -> bool {
+        if self.use_chunked {
+            if let Some(ref mut rows) = self.sparse_rows {
+                if self.width == 0 { return false; }
+                let row = idx / self.width;
+                let col = (idx % self.width) as u32;
+                if row >= rows.len() { return false; }
+                let r: &mut HashMap<u32, u16> = &mut rows[row];
+                match r.get_mut(&col) {
+                    Some(v) => { if *v < u16::MAX { *v = v.saturating_add(1); } false }
+                    None => { r.insert(col, 1); true }
+                }
+            } else { false }
+        } else {
+            let current = self.get_density(idx) as u16;
+            let was_zero = current == 0;
+            // Saturate at u16::MAX
+            let new_val = if current == u16::MAX { u16::MAX } else { current.saturating_add(1) };
+            self.set_density(idx, new_val);
+            was_zero
         }
     }
 
@@ -1103,10 +1238,9 @@ impl ChaoticAccumulator {
                     as usize;
                 if px < self.width && py < self.height {
                     let idx = py * self.width + px;
-                    if self.density[idx] == 0 {
+                    if self.increment_density(idx) {
                         self.non_zero += 1;
                     }
-                    self.density[idx] += 1;
                 }
             }
         }
@@ -1137,11 +1271,10 @@ impl ChaoticAccumulator {
                     as usize;
                 if px < self.width && py < self.height {
                     let idx = py * self.width + px;
-                    if self.density[idx] == 0 {
+                    if self.increment_density(idx) {
                         self.non_zero += 1;
                         new_pixels += 1;
                     }
-                    self.density[idx] += 1;
                 }
             }
         }
@@ -1150,7 +1283,27 @@ impl ChaoticAccumulator {
 
     /// Export a clone of the density grid (used only at finalization / external caching).
     pub fn density(&self) -> Vec<u32> {
-        self.density.clone()
+        if self.use_chunked {
+            // Reconstruct full density array from sparse rows
+            let total_pixels = self.width * self.height;
+            let mut result = vec![0u32; total_pixels];
+            if let Some(ref rows) = self.sparse_rows {
+                for (row_idx, row) in rows.iter().enumerate() {
+                    let base = row_idx * self.width;
+                    for (col, &v) in row.iter() {
+                        let idx = base + (*col as usize);
+                        if idx < result.len() { result[idx] = v as u32; }
+                    }
+                }
+            }
+            result
+        } else {
+            self
+                .density
+                .as_ref()
+                .map(|v| v.iter().map(|&x| x as u32).collect())
+                .unwrap_or_default()
+        }
     }
 
     /// Convenience: directly map current density to RGBA with scaling & color scheme.
@@ -1161,8 +1314,9 @@ impl ChaoticAccumulator {
     ) -> wasm_bindgen::Clamped<Vec<u8>> {
         // Re-use existing generator implementation for mapping
         let gen = FractalGenerator::new();
+        let density_grid = self.density(); // This handles chunked reconstruction
         gen.density_grid_to_rgba_scaled(
-            &self.density,
+            &density_grid,
             self.width,
             self.height,
             color_scheme,
@@ -1178,8 +1332,9 @@ impl ChaoticAccumulator {
         softness: f64,
     ) -> wasm_bindgen::Clamped<Vec<u8>> {
         let gen = FractalGenerator::new();
+        let density_grid = self.density(); // This handles chunked reconstruction
         gen.density_grid_to_rgba_log_soft(
-            &self.density,
+            &density_grid,
             self.width,
             self.height,
             color_scheme,
@@ -1194,15 +1349,39 @@ impl ChaoticAccumulator {
         if self.width == 0 || self.height == 0 {
             return;
         }
-        let max_density_u32 = *self.density.iter().max().unwrap_or(&0);
-        if max_density_u32 == 0 {
-            // leave buffer as zeros
-            for b in &mut self.rgba_buf {
-                *b = 0;
+        
+        // Find max density across all chunks
+        let max_density_u16: u16 = if self.use_chunked {
+            if let Some(ref rows) = self.sparse_rows {
+                let mut maxv: u16 = 0;
+                for r in rows.iter() {
+                    for v in r.values() { if *v > maxv { maxv = *v; } }
+                }
+                maxv
+            } else { 0 }
+        } else {
+            self
+                .density
+                .as_ref()
+                .map(|v| *v.iter().max().unwrap_or(&0))
+                .unwrap_or(0)
+        };
+        
+        // Cache mapping parameters for row streaming
+        self.map_max_density = max_density_u16;
+        if max_density_u16 == 0 {
+            // Clear small-res buffer if present and mark mapping ready with zero denom
+            if let Some(ref mut rgba_buf) = self.rgba_buf {
+                for b in rgba_buf.iter_mut() { *b = 0; }
             }
+            self.map_s = if softness.is_finite() && softness > 0.0 { softness } else { 1.0 };
+            self.map_denom = 0.0;
+            self.map_color_scheme = color_scheme;
+            self.map_ready = true;
             return;
         }
-        let max_density = max_density_u32 as f64;
+
+        let max_density = max_density_u16 as f64;
         let s = if softness.is_finite() && softness > 0.0 {
             softness
         } else {
@@ -1210,38 +1389,137 @@ impl ChaoticAccumulator {
         };
         let denom = (1.0 + s * max_density).ln();
         if !denom.is_finite() || denom <= 0.0 {
-            for b in &mut self.rgba_buf {
-                *b = 0;
+            if let Some(ref mut rgba_buf) = self.rgba_buf {
+                for b in rgba_buf.iter_mut() { *b = 0; }
             }
+            self.map_s = s;
+            self.map_denom = 0.0;
+            self.map_color_scheme = color_scheme;
+            self.map_ready = true;
             return;
         }
 
-        // Ensure buffer sized correctly (avoid reallocation growth to keep view stable)
-        if self.rgba_buf.len() != self.width * self.height * 4 {
-            self.rgba_buf.clear();
-            self.rgba_buf.resize(self.width * self.height * 4, 0);
-        }
+        // Store mapping state for streamed rendering
+        self.map_s = s;
+        self.map_denom = denom;
+        self.map_color_scheme = color_scheme;
+        self.map_ready = true;
 
-        for i in 0..self.density.len() {
-            let d = self.density[i] as f64;
-            let mapped = if d > 0.0 {
-                ((1.0 + s * d).ln() / denom).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-            let color = FractalGenerator::apply_color_scheme_static(mapped, color_scheme);
-            let base = i * 4;
-            self.rgba_buf[base] = color.0;
-            self.rgba_buf[base + 1] = color.1;
-            self.rgba_buf[base + 2] = color.2;
-            self.rgba_buf[base + 3] = 255;
+    if !self.use_chunked {
+            if let Some(ref density) = self.density {
+                if let Some(ref mut rgba_buf) = self.rgba_buf {
+                    // Ensure buffer sized correctly
+                    if rgba_buf.len() != self.width * self.height * 4 {
+                        rgba_buf.resize(self.width * self.height * 4, 0);
+                    }
+
+                    for i in 0..density.len() {
+                        let d = density[i] as f64;
+                        let mapped = if d > 0.0 {
+                            ((1.0 + s * d).ln() / denom).clamp(0.0, 1.0)
+                        } else {
+                            0.0
+                        };
+                        let color = FractalGenerator::apply_color_scheme_static(mapped, color_scheme);
+                        let base = i * 4;
+                        rgba_buf[base] = color.0;
+                        rgba_buf[base + 1] = color.1;
+                        rgba_buf[base + 2] = color.2;
+                        rgba_buf[base + 3] = 255;
+                    }
+                }
+            }
         }
     }
 
     /// Return a zero-copy JS view over the internal RGBA buffer. Recreate the view after memory growth.
+    /// For large/sparse memory, returns an empty view. Use get_rgba_rows() from JS.
     #[wasm_bindgen]
     pub fn rgba_view(&self) -> Uint8ClampedArray {
-        unsafe { Uint8ClampedArray::view(&self.rgba_buf) }
+        if self.use_chunked {
+            // For chunked/large images, avoid allocating gigantic RGBA arrays; return empty view.
+            // Use get_rgba_rows() from JS to stream rows.
+            Uint8ClampedArray::new_with_length(0)
+        } else {
+            if let Some(ref rgba_buf) = self.rgba_buf {
+                unsafe { Uint8ClampedArray::view(rgba_buf) }
+            } else {
+                Uint8ClampedArray::new_with_length(0)
+            }
+        }
+    }
+
+    /// Whether this accumulator uses chunked (large) memory mode
+    #[wasm_bindgen]
+    pub fn use_chunked(&self) -> bool { self.use_chunked }
+
+    /// Stream RGBA rows computed with the last fill_rgba_log_soft mapping.
+    /// start_row + rows will be clamped to height.
+    #[wasm_bindgen]
+    pub fn get_rgba_rows(
+        &self,
+        start_row: usize,
+        rows: usize,
+    ) -> wasm_bindgen::Clamped<Vec<u8>> {
+        let h = self.height;
+        let w = self.width;
+        if w == 0 || h == 0 || start_row >= h || rows == 0 {
+            return wasm_bindgen::Clamped(vec![]);
+        }
+        let end_row = (start_row + rows).min(h);
+        let out_rows = end_row - start_row;
+        let mut out = vec![0u8; out_rows * w * 4];
+
+        // Ensure mapping computed
+        let s = if self.map_ready { self.map_s } else { 1.0 };
+        let denom = if self.map_ready { self.map_denom } else { 0.0 };
+        let scheme = if self.map_ready { self.map_color_scheme } else { ColorScheme::Cubehelix };
+
+        // If denom invalid or max density zero, return transparent rows
+        if self.map_max_density == 0 || !denom.is_finite() || denom <= 0.0 {
+            return wasm_bindgen::Clamped(out);
+        }
+
+        for row in start_row..end_row {
+            let out_row_off = (row - start_row) * w * 4;
+            if self.use_chunked {
+                // Use sparse row data to fill this row quickly
+                if let Some(ref rows) = self.sparse_rows {
+                    if row < rows.len() {
+                        // Default already zero; fill only non-zero cols
+                        for (col_u32, &v) in rows[row].iter() {
+                            let col = *col_u32 as usize;
+                            if col < w {
+                                let d = v as f64;
+                                let mapped = if d > 0.0 { ((1.0 + s * d).ln() / denom).clamp(0.0, 1.0) } else { 0.0 };
+                                let (r, g, b) = FractalGenerator::apply_color_scheme_static(mapped, scheme);
+                                let off = out_row_off + col * 4;
+                                out[off] = r;
+                                out[off + 1] = g;
+                                out[off + 2] = b;
+                                out[off + 3] = 255;
+                            }
+                        }
+                    }
+                }
+            } else {
+                let base_idx = row * w;
+                let mut col_off = 0usize;
+                for col in 0..w {
+                    let idx = base_idx + col;
+                    let d = self.get_density(idx) as f64;
+                    let mapped = if d > 0.0 { ((1.0 + s * d).ln() / denom).clamp(0.0, 1.0) } else { 0.0 };
+                    let (r, g, b) = FractalGenerator::apply_color_scheme_static(mapped, scheme);
+                    let off = out_row_off + col_off;
+                    out[off] = r;
+                    out[off + 1] = g;
+                    out[off + 2] = b;
+                    out[off + 3] = 255;
+                    col_off += 4;
+                }
+            }
+        }
+        wasm_bindgen::Clamped(out)
     }
 }
 
@@ -2672,6 +2950,42 @@ impl FractalGenerator {
 
         result
     }
+}
+
+/// Generate just the trajectory points for streaming processing
+/// Returns alternating [x1, y1, x2, y2, ...] coordinates and final state
+#[wasm_bindgen]
+pub fn generate_trajectory_points(
+    x_params: &[f64],
+    y_params: &[f64],
+    n_points: usize,
+    is_cubic: bool,
+    start_x: f64,
+    start_y: f64,
+) -> Vec<f64> {
+    let mut x = start_x;
+    let mut y = start_y;
+    let mut result = Vec::with_capacity(n_points * 2 + 2); // +2 for final state
+    
+    // Generate n_points and collect coordinates
+    for _ in 0..n_points {
+        let (xp, yp) = (x, y);
+        if is_cubic {
+            x = map_cubic(x_params, xp, yp);
+            y = map_cubic(y_params, xp, yp);
+        } else {
+            x = map_quadratic(x_params, xp, yp);
+            y = map_quadratic(y_params, xp, yp);
+        }
+        result.push(x);
+        result.push(y);
+    }
+    
+    // Append final state at the end
+    result.push(x);
+    result.push(y);
+    
+    result
 }
 
 /// Standalone function to generate chaotic map points

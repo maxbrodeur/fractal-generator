@@ -3413,14 +3413,32 @@
         function downloadPNG() {
             if (!currentFractal) return;
             
-            try {
-                // Get PNG data from canvas
-                const dataURL = elements.canvas.toDataURL('image/png');
-                
-                // Add metadata if we have chaotic map data
-                let finalDataURL = dataURL;
-                if (currentChaoticMapData && currentFractal.method === 'random_chaos') {
-                    finalDataURL = addMetadataToPNG(dataURL, {
+            showNotification('Preparing download...', 'info');
+            
+            // If we have a WASM accumulator and the true render area exceeds the safe canvas limit,
+            // export as tiled PNGs without allocating a giant canvas.
+            if (currentFractal.accumulator && (currentFractal.width * currentFractal.height > MAX_CANVAS_AREA)) {
+                const acc = currentFractal.accumulator;
+                const w = currentFractal.width;
+                const h = currentFractal.height;
+                const scheme = currentFractal.colorScheme ?? parseInt(elements.colorScheme.value);
+                const bg = currentFractal.backgroundColor ?? elements.backgroundColor.value;
+                exportTiledPNGs(acc, w, h, scheme, bg).catch(err => {
+                    console.error('Tiled export failed', err);
+                    showNotification('Tiled export failed. See console.', 'error');
+                });
+                return;
+            }
+
+            // For very large canvases (16K and above), skip metadata to avoid memory issues
+            const canvasSize = elements.canvas.width * elements.canvas.height;
+            const isLargeImage = canvasSize > (8192 * 8192); // Threshold for large images
+            
+            if (!isLargeImage && currentChaoticMapData && currentFractal.method === 'random_chaos') {
+                // Try to add metadata for smaller images
+                try {
+                    const dataURL = elements.canvas.toDataURL('image/png');
+                    const finalDataURL = addMetadataToPNG(dataURL, {
                         fractalType: currentFractal.type,
                         method: currentFractal.method,
                         xParams: currentChaoticMapData.x_params,
@@ -3431,23 +3449,160 @@
                         fractalDimension: currentChaoticMapData.fractal_dimension,
                         timestamp: new Date().toISOString()
                     });
+                    
+                    // Convert back to blob for consistent download behavior
+                    const base64Data = finalDataURL.split(',')[1];
+                    const binaryData = atob(base64Data);
+                    const bytes = new Uint8Array(binaryData.length);
+                    for (let i = 0; i < binaryData.length; i++) {
+                        bytes[i] = binaryData.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes], { type: 'image/png' });
+                    downloadBlob(blob, `fractal-${currentFractal.type}-${Date.now()}.png`);
+                    showNotification('Fractal image downloaded with metadata!', 'success');
+                    return;
+                } catch (error) {
+                    console.warn('⚠️ Metadata addition failed, falling back to standard download:', error);
+                }
+            }
+            
+            // Use canvas.toBlob() for better memory efficiency with large images
+            elements.canvas.toBlob(function(blob) {
+                if (!blob) {
+                    console.error('❌ Failed to create blob from canvas');
+                    showNotification('Failed to create image data', 'error');
+                    return;
                 }
                 
-                const link = document.createElement('a');
-                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
-                link.href = finalDataURL;
-                link.click();
+                downloadBlob(blob, `fractal-${currentFractal.type}-${Date.now()}.png`);
+                showNotification('Fractal image downloaded!', 'success');
                 
-                showNotification('Fractal image downloaded with metadata!', 'success');
+            }, 'image/png', 0.95); // Use 95% quality to balance file size and quality
+        }
+
+        // Export a very large render as multiple PNG tiles within safe canvas limits
+        async function exportTiledPNGs(acc, renderW, renderH, colorScheme, bgColor) {
+            try {
+                // Ensure RGBA buffer is up to date
+                const sCtl = document.getElementById('densitySoftness');
+                const sInp = document.getElementById('densitySoftnessInput');
+                const sVal = parseFloat((sInp?.value || sCtl?.value || '1'));
+                if (typeof acc.fill_rgba_log_soft === 'function') {
+                    acc.fill_rgba_log_soft(colorScheme, sVal);
+                }
+
+                // Choose conservative tile size to stay well under canvas limits
+                const TILE_W = Math.min(4096, renderW);
+                const TILE_H = Math.min(4096, renderH);
+                const cols = Math.ceil(renderW / TILE_W);
+                const rows = Math.ceil(renderH / TILE_H);
+                const totalTiles = cols * rows;
+                let tileIndex = 0;
+
+                // Working canvas for a single tile
+                const tileCanvas = document.createElement('canvas');
+                tileCanvas.width = TILE_W;
+                tileCanvas.height = TILE_H;
+                const tctx = tileCanvas.getContext('2d');
+                const ROWS_PER_CHUNK = 256; // stream rows in small chunks
+
+                // Helper to update batch progress banner
+                const updateProgress = () => {
+                    const pct = ((tileIndex / totalTiles) * 100).toFixed(1);
+                    if (elements.batchProgress && elements.batchText) {
+                        elements.batchText.textContent = `Exporting tiles ${tileIndex}/${totalTiles} (${pct}%)`;
+                        elements.batchProgress.classList.add('visible');
+                    }
+                };
+                updateProgress();
+
+                // Disable buttons during export
+                const prevLoading = isLoading; setLoading(true);
+
+                for (let ty = 0; ty < rows; ty++) {
+                    const y0 = ty * TILE_H;
+                    const thisTileH = Math.min(TILE_H, renderH - y0);
+                    // Resize tile canvas height to the actual remaining height
+                    if (tileCanvas.height !== thisTileH) tileCanvas.height = thisTileH;
+                    for (let tx = 0; tx < cols; tx++) {
+                        const x0 = tx * TILE_W;
+                        const thisTileW = Math.min(TILE_W, renderW - x0);
+                        if (tileCanvas.width !== thisTileW) tileCanvas.width = thisTileW;
+                        // Clear tile
+                        tctx.clearRect(0, 0, thisTileW, thisTileH);
+
+                        // Stream tile rows in chunks and blit into the tile canvas
+                        for (let localStart = 0; localStart < thisTileH; localStart += ROWS_PER_CHUNK) {
+                            const rowsReq = Math.min(ROWS_PER_CHUNK, thisTileH - localStart);
+                            // Fetch RGBA for [globalY .. globalY+rowsReq) across full render width
+                            const globalY = y0 + localStart;
+                            const fullRows = acc.get_rgba_rows(globalY, rowsReq);
+                            // For each row in chunk, copy tile columns into a small ImageData and draw at proper Y
+                            // Build a buffer for the whole chunk width thisTileW
+                            const chunkBuf = new Uint8ClampedArray(thisTileW * rowsReq * 4);
+                            for (let r = 0; r < rowsReq; r++) {
+                                const srcRowOff = r * renderW * 4 + x0 * 4;
+                                const dstRowOff = r * thisTileW * 4;
+                                chunkBuf.set(fullRows.subarray(srcRowOff, srcRowOff + thisTileW * 4), dstRowOff);
+                            }
+                            let imageData = new ImageData(chunkBuf, thisTileW, rowsReq);
+                            imageData = applyBackgroundColor(imageData, bgColor, colorScheme);
+                            tctx.putImageData(imageData, 0, localStart);
+                            // Yield to UI
+                            await new Promise(r => setTimeout(r, 0));
+                        }
+
+                        // Tile ready: export PNG
+                        const fileName = `fractal-${renderW}x${renderH}-x${tx}-y${ty}.png`;
+                        await new Promise((resolve, reject) => {
+                            tileCanvas.toBlob((blob) => {
+                                if (!blob) { reject(new Error('toBlob failed')); return; }
+                                downloadBlob(blob, fileName);
+                                resolve();
+                            }, 'image/png');
+                        });
+                        tileIndex++;
+                        updateProgress();
+                        // Small delay to keep the UI reactive
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+
+                hideBatchProgress();
+                setLoading(prevLoading);
+                showNotification(`Exported ${totalTiles} PNG tile(s).`, 'success');
+            } catch (e) {
+                hideBatchProgress();
+                setLoading(false);
+                throw e;
+            }
+        }
+        
+        // Helper function to download a blob
+        function downloadBlob(blob, filename) {
+            try {
+                // Create object URL for the blob
+                const url = URL.createObjectURL(blob);
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = url;
+                link.style.display = 'none';
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up object URL after a short delay
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                }, 1000);
                 
             } catch (error) {
-                console.error('❌ Error downloading PNG:', error);
-                // Fallback to basic download
-                const link = document.createElement('a');
-                link.download = `fractal-${currentFractal.type}-${Date.now()}.png`;
-                link.href = elements.canvas.toDataURL('image/png');
-                link.click();
-                showNotification('Fractal image downloaded!', 'success');
+                console.error('❌ Error downloading file:', error);
+                showNotification('Download failed: ' + error.message, 'error');
             }
         }
         
@@ -4035,10 +4190,13 @@
                 canvasWidth = size;
                 canvasHeight = Math.round(size * 3 / 4);
             }
-            
-            // Update actual canvas size
-            elements.canvas.width = canvasWidth;
-            elements.canvas.height = canvasHeight;
+            // Compute safe display buffer size to avoid exceeding browser canvas area limits
+            const dims = (typeof computeDisplayDimensions === 'function')
+                ? computeDisplayDimensions(canvasWidth, canvasHeight)
+                : { w: canvasWidth, h: canvasHeight };
+            // Update actual canvas buffer to safe display size only (rendering uses full size in WASM)
+            elements.canvas.width = dims.w;
+            elements.canvas.height = dims.h;
             
             // Calculate maximum display size
             const sidebar = document.getElementById('sidebar');
@@ -4712,6 +4870,30 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
         
+        // Simple verbose flag for throttling logs: URL ?debug=1 or localStorage 'verboseLogs' = '1' or window.__verboseLogs
+        function __isVerbose() {
+            try {
+                if (typeof window !== 'undefined' && window.__verboseLogs) return true;
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('debug') === '1') return true;
+            } catch (_) { /* ignore */ }
+            return false;
+        }
+
+        // Maximum safe canvas area (Safari/Chrome typical limit ~2^28)
+        const MAX_CANVAS_AREA = 268435456; // 268,435,456 pixels
+
+        // Compute display dimensions that fit within MAX_CANVAS_AREA while preserving aspect ratio
+        function computeDisplayDimensions(renderW, renderH) {
+            const area = renderW * renderH;
+            if (!Number.isFinite(area) || area <= 0) return { w: renderW, h: renderH };
+            if (area <= MAX_CANVAS_AREA) return { w: renderW, h: renderH };
+            const scale = Math.sqrt(MAX_CANVAS_AREA / area);
+            const w = Math.max(1, Math.floor(renderW * scale));
+            const h = Math.max(1, Math.floor(renderH * scale));
+            return { w, h };
+        }
+
         // Apply background color to image data (for zero-value pixels)
         function applyBackgroundColor(imageData, backgroundColor, colorScheme) {
             const data = imageData.data;
@@ -4723,10 +4905,34 @@
             let b = parseInt(hex.substring(4, 6), 16);
             
             // Map numeric colorScheme to scheme name
-            const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
+            // const schemeNames = ['Fire', 'Jet', 'Prism', 'Turbo', 'ColorWheel', 'Gnuplot', 'BMY', 'Plasma', 'Inferno', 'Viridis', 'Neon', 'Pastel', 'Magma', 'Cividis', 'Gray', 'Cubehelix', 'BlueOrange', 'Heat', 'Ice', 'WhiteFire', 'WhiteHeat', 'WhiteBlue', 'WhiteViridis', 'WhiteMagma'];
+            const schemeNames = [
+                'Fire', 
+                'Jet', 
+                'Prism', 
+                'Turbo', 
+                'ColorWheel', 
+                'Gnuplot', 
+                'BMY', 
+                'Plasma', 
+                'Inferno', 
+                'Viridis', 
+                'Neon', 
+                'Pastel', 
+                'Magma', 
+                'Cividis', 
+                'Gray', 
+                'Cubehelix', 
+                'BlueOrange', 
+                'Heat', 
+                'Ice', 
+                'WhiteFire', 
+                'WhiteHeat', 
+                'WhiteBlue', 
+                'WhiteViridis', 
+                'WhiteMagma'
+            ];
             const schemeName = schemeNames[colorScheme] || 'Fire';
-            
-            console.log(`🎨 Applying background color: ${backgroundColor} -> RGB(${r}, ${g}, ${b}) for ${schemeName} scheme`);
             
             // Define the background colors for each colormap scheme (t=0.0 values)
             const backgroundColors = {
@@ -4757,11 +4963,14 @@
             };
             
             const targetColor = backgroundColors[schemeName] || [0, 0, 0]; // Default to black
-            console.log(`🎯 Targeting background color for ${schemeName}: RGB(${targetColor})`);
-            
-            // If "no background" option is enabled, skip recoloring
+            // If "no background" option is enabled, skip recoloring (and logging)
             if (document.getElementById('noBackgroundColor')?.checked) {
                 return imageData; // leave original colormap background
+            }
+
+            if (__isVerbose()) {
+                console.log(`🎨 Applying background color: ${backgroundColor} -> RGB(${r}, ${g}, ${b}) for ${schemeName} scheme`);
+                console.log(`🎯 Targeting background color for ${schemeName}: RGB(${targetColor})`);
             }
 
             // If "use min-density color" is enabled, scan the image for the faintest non-background pixel color
@@ -4784,9 +4993,9 @@
                 }
                 if (found) {
                     r = minR; g = minG; b = minB;
-                    console.log(`🎯 Using min-density color as background: RGB(${r}, ${g}, ${b})`);
+                    if (__isVerbose()) console.log(`🎯 Using min-density color as background: RGB(${r}, ${g}, ${b})`);
                 } else {
-                    console.log('ℹ️ No non-background pixels found; falling back to chosen background color.');
+                    if (__isVerbose()) console.log('ℹ️ No non-background pixels found; falling back to chosen background color.');
                 }
             }
 
@@ -4806,9 +5015,43 @@
                 }
             }
             
-            console.log(`🎨 Background color applied to ${pixelsChanged} pixels`);
+            if (__isVerbose()) console.log(`🎨 Background color applied to ${pixelsChanged} pixels`);
             
             return imageData;
+        }
+
+        // Stream rows from WASM accumulator for large (chunked) images and draw to canvas
+        // Supports scaled preview rendering when render area exceeds MAX_CANVAS_AREA
+        function drawAccumulatorRows(acc, renderW, renderH, colorScheme, bgColor, rowsPerChunk = 256, displayW = renderW, displayH = renderH) {
+            const ctx = elements.canvas.getContext('2d');
+            const needScale = (displayW !== renderW) || (displayH !== renderH);
+            const scaleY = displayH / renderH;
+            // Temporary tile canvas for scaling path
+            let tileCanvas = null, tileCtx = null;
+            if (needScale) {
+                tileCanvas = document.createElement('canvas');
+                tileCanvas.width = renderW;
+                tileCanvas.height = Math.min(rowsPerChunk, renderH);
+                tileCtx = tileCanvas.getContext('2d');
+            }
+            for (let start = 0; start < renderH; start += rowsPerChunk) {
+                const rows = Math.min(rowsPerChunk, renderH - start);
+                const clamped = acc.get_rgba_rows(start, rows);
+                const imageData = new ImageData(clamped, renderW, rows);
+                const finalImageData = applyBackgroundColor(imageData, bgColor, colorScheme);
+                if (!needScale) {
+                    ctx.putImageData(finalImageData, 0, start);
+                } else {
+                    if (tileCanvas.height !== rows) tileCanvas.height = rows;
+                    // Paint chunk into tile canvas, then scale onto display canvas
+                    tileCtx.putImageData(finalImageData, 0, 0);
+                    ctx.drawImage(
+                        tileCanvas,
+                        0, 0, renderW, rows,
+                        0, Math.floor(start * scaleY), displayW, Math.ceil(rows * scaleY)
+                    );
+                }
+            }
         }
         
         // Iterative plotting function with progress bars
@@ -4878,14 +5121,14 @@
                 const boundsCalculationPoints = Math.min(requestedPoints, batchSize * 3); // Use up to 3 batches worth for bounds
                 console.log(`📏 Calculating bounds from ${boundsCalculationPoints} points for full trajectory coverage`);
                 
-                const boundsData = generator.generate_chaotic_map_points(xParams, yParams, boundsCalculationPoints, isCubic);
-                const bounds = generator.calculate_point_bounds(boundsData);
+                // Use WASM-side bounds estimation to avoid transferring millions of points
+                const bounds = generator.estimate_bounds_for_map(xParams, yParams, boundsCalculationPoints, isCubic);
                 const [minX, maxX, minY, maxY] = bounds;
                 
                 console.log(`📏 Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
                 
-                // Initialize accumulated density grid and state tracking
-                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
+                // No JS density allocation in iterative mode; rely solely on WASM accumulator
+                
                 let processedPoints = 0;
                 let batchCount = 0;
                 let currentX = 0.05; // Initial state
@@ -4895,7 +5138,6 @@
                 
                 // Convergence detection variables (early adaptive algorithm) using user thresholds
                 const convergenceMode = document.getElementById('chaosConvergenceMode').checked;
-                const totalPixels = canvasWidth * canvasHeight;
                 const userRelPct = parseFloat(elements.relGrowthThreshold?.value || '0.05');
                 const relativeGrowthThreshold = Math.max(0.0000005, userRelPct / 100.0); // convert percent to fraction
                 const userAbsPixels = parseInt(elements.absGrowthPixels?.value || '50');
@@ -4909,6 +5151,7 @@
                 let batchGrowths = []; // For logging
                 console.log(`🎯 Convergence mode: ${convergenceMode ? 'ON' : 'OFF'}${convergenceMode ? ` (rel<th ${(relativeGrowthThreshold*100).toFixed(3)}%, abs<th ${absoluteGrowthThreshold} px, min batches ${minBatchesBeforeConvergence}, stagnant ${requiredConsecutiveStagnant})` : ''}`);
                 
+                // JS density helpers removed
                 // Reset abort state and show abort button
                 // If a newer generation started, stop immediately
                 if (runToken !== activeGenerationToken) {
@@ -4938,7 +5181,7 @@
                         currentBatchSize = Math.min(batchSize, remainingPoints);
                     }
 
-                    console.log(`🔄 processBatch called: processed=${processedPoints}, batchSize=${currentBatchSize}, mode=${convergenceMode ? 'convergence' : 'fixed'}`);
+                    if (__isVerbose()) console.log(`🔄 processBatch called: processed=${processedPoints}, batchSize=${currentBatchSize}, mode=${convergenceMode ? 'convergence' : 'fixed'}`);
                     
                     // Cancel early if superseded by a new generation
                     if (runToken !== activeGenerationToken) {
@@ -4952,52 +5195,60 @@
                         if (abortRequested) console.log('⛔ Abort requested; finalizing image');
                         console.log(`🎯 Stopping due to ${reason} - generating final image`);
 
-                        let resultRgba;
-                        let accRef = null;
-                        if (window.__chaosAccumulator) {
-                            accRef = window.__chaosAccumulator;
-                            try {
-                                const sCtl = document.getElementById('densitySoftness');
-                                const sInp = document.getElementById('densitySoftnessInput');
-                                const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
-                                accRef.fill_rgba_log_soft(colorScheme, sVal);
-                                resultRgba = accRef.rgba_view();
-                            } catch (e) {
-                                console.warn('⚠️ Accumulator finalization failed, falling back to JS density grid:', e);
-                            }
-                        }
-                        if (!resultRgba) {
-                            const sCtl = document.getElementById('densitySoftness');
-                            const sInp = document.getElementById('densitySoftnessInput');
-                            const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
-                            resultRgba = generator.density_grid_to_rgba_log_soft(accumulatedDensity, canvasWidth, canvasHeight, colorScheme, sVal);
-                        }
-
-                        // Display result on canvas
-                        elements.canvas.width = canvasWidth;
-                        elements.canvas.height = canvasHeight;
+                        let accRef = window.__chaosAccumulator || null;
+                        // Display result on canvas (cap visible size under browser limits)
+                        const { w: dispW, h: dispH } = computeDisplayDimensions(canvasWidth, canvasHeight);
+                        elements.canvas.width = dispW;
+                        elements.canvas.height = dispH;
                         initializeCanvas(elements.canvas, elements.backgroundColor.value);
-                        const ctx = elements.canvas.getContext('2d');
-                        const rgbaOut = resultRgba instanceof Uint8ClampedArray ? resultRgba : new Uint8ClampedArray(resultRgba);
-                        const imageData = new ImageData(rgbaOut, canvasWidth, canvasHeight);
-                        const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                        ctx.putImageData(finalImageData, 0, 0);
+                        const sCtl = document.getElementById('densitySoftness');
+                        const sInp = document.getElementById('densitySoftnessInput');
+                        const sVal = parseFloat((sInp?.value || sCtl?.value || '10'));
+                        if (accRef) {
+                            try {
+                                accRef.fill_rgba_log_soft(colorScheme, sVal);
+                                const isChunked = typeof accRef.use_chunked === 'function' && accRef.use_chunked();
+                                if (isChunked) {
+                                    drawAccumulatorRows(accRef, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value, 256, dispW, dispH);
+                                } else {
+                                    const view = accRef.rgba_view();
+                                    const ctx = elements.canvas.getContext('2d');
+                                    const imageData = new ImageData(view, canvasWidth, canvasHeight);
+                                    const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                                    if (dispW === canvasWidth && dispH === canvasHeight) {
+                                        ctx.putImageData(finalImageData, 0, 0);
+                                    } else {
+                                        // Scale via offscreen canvas to fit display
+                                        const off = document.createElement('canvas');
+                                        off.width = canvasWidth;
+                                        off.height = canvasHeight;
+                                        off.getContext('2d').putImageData(finalImageData, 0, 0);
+                                        ctx.imageSmoothingEnabled = false;
+                                        ctx.drawImage(off, 0, 0, canvasWidth, canvasHeight, 0, 0, dispW, dispH);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('⚠️ Accumulator finalization failed:', e);
+                                showNotification('Rendering failed. Try a smaller canvas or refresh.', 'error');
+                            }
+                        } else {
+                            console.error('⚠️ No accumulator available for finalization.');
+                            showNotification('No accumulator available. Try plotting again.', 'error');
+                        }
 
                         // Update current fractal data
                         currentFractal = {
                             type: 'chaotic_map',
                             method: 'random_chaos_iterative',
-                            imageData: resultRgba,
+                            imageData: null,
                             width: canvasWidth,
                             height: canvasHeight,
                             parameters: { xParams, yParams, points: processedPoints },
                             colorScheme,
                             backgroundColor: elements.backgroundColor.value,
-                            ...(accRef ? { accumulator: accRef } : { density: accumulatedDensity })
+                            ...(accRef ? { accumulator: accRef } : {})
                         };
-                        if (!accRef) {
-                            lastAccumulatedDensity = accumulatedDensity.slice();
-                        } else {
+                        if (accRef) {
                             try { lastAccumulatedDensity = accRef.density(); } catch {}
                         }
 
@@ -5018,6 +5269,7 @@
                     // Accumulator-based batch processing (in-WASM density)
                     setTimeout(async () => {
                         try {
+                            // Standard WASM ChaoticAccumulator approach
                             if (!window.__chaosAccumulator) {
                                 window.__chaosAccumulator = new ChaoticAccumulator(
                                     xParams.slice(), yParams.slice(), isCubic,
@@ -5034,6 +5286,7 @@
                             const totalNonZero = stats[3];
                             processedPoints += currentBatchSize;
 
+                            const totalPixels = canvasWidth * canvasHeight;
                             const coveragePct = (totalNonZero / totalPixels) * 100;
                             const delta = newPixels;
                             const relGrowth = lastNonZero > 0 ? delta / lastNonZero : 1.0;
@@ -5053,11 +5306,30 @@
                             const sInp2 = document.getElementById('densitySoftnessInput');
                             const sVal2 = parseFloat((sInp2?.value || sCtl2?.value || '1'));
                             acc.fill_rgba_log_soft(colorScheme, sVal2);
+                            const isChunked = typeof acc.use_chunked === 'function' && acc.use_chunked();
                             const ctx = elements.canvas.getContext('2d');
-                            const rgbaView = acc.rgba_view();
-                            const imageData = new ImageData(rgbaView, canvasWidth, canvasHeight);
-                            const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                            ctx.putImageData(bgImageData, 0, 0);
+                            const { w: dispW, h: dispH } = computeDisplayDimensions(canvasWidth, canvasHeight);
+                            if (elements.canvas.width !== dispW || elements.canvas.height !== dispH) {
+                                elements.canvas.width = dispW; elements.canvas.height = dispH;
+                                initializeCanvas(elements.canvas, elements.backgroundColor.value);
+                            }
+                            if (isChunked) {
+                                drawAccumulatorRows(acc, canvasWidth, canvasHeight, colorScheme, elements.backgroundColor.value, 256, dispW, dispH);
+                            } else {
+                                const rgbaView = acc.rgba_view();
+                                const imageData = new ImageData(rgbaView, canvasWidth, canvasHeight);
+                                const bgImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
+                                if (dispW === canvasWidth && dispH === canvasHeight) {
+                                    ctx.putImageData(bgImageData, 0, 0);
+                                } else {
+                                    const off = document.createElement('canvas');
+                                    off.width = canvasWidth;
+                                    off.height = canvasHeight;
+                                    off.getContext('2d').putImageData(bgImageData, 0, 0);
+                                    ctx.imageSmoothingEnabled = false;
+                                    ctx.drawImage(off, 0, 0, canvasWidth, canvasHeight, 0, 0, dispW, dispH);
+                                }
+                            }
 
                             const shouldContinue = !abortRequested && runToken === activeGenerationToken && (convergenceMode ? !converged : processedPoints < requestedPoints);
                             if (shouldContinue) {
@@ -5069,7 +5341,7 @@
                                 currentFractal = {
                                     type: 'chaotic_map',
                                     method: 'random_chaos_iterative',
-                                    imageData: rgbaView,
+                                    imageData: null,
                                     width: canvasWidth,
                                     height: canvasHeight,
                                     parameters: { xParams, yParams, points: processedPoints },
@@ -5077,7 +5349,8 @@
                                     backgroundColor: elements.backgroundColor.value,
                                     accumulator: acc
                                 };
-                                lastAccumulatedDensity = acc.density();
+                                // Avoid exporting full density for very large images
+                                try { if (!acc.use_chunked()) { lastAccumulatedDensity = acc.density(); } } catch {}
                                 hideBatchProgress();
                                 if (abortEl) abortEl.style.display = 'none';
                                 setLoading(false);
@@ -5105,7 +5378,7 @@
             }
         }
 
-        function regenerateWithCustomParametersIterative() {
+    function regenerateWithCustomParametersIterative() {
             if (!currentChaoticMapData || !generator) return;
             
             const editedParams = getEditedParameters();
@@ -5131,186 +5404,8 @@
             try {
                 setLoading(true);
                 
-                console.log(`🔄 Iterative generation: ${totalPoints} points in batches of ${batchSize}`);
-                
-                // For iterative mode, we need to calculate bounds from a longer trajectory
-                // to ensure we capture the full range of the extended orbit
-                const boundsCalculationPoints = Math.min(totalPoints, batchSize * 3); // Use up to 3 batches worth for bounds
-                console.log(`📏 Calculating bounds from ${boundsCalculationPoints} points for full trajectory coverage`);
-                
-                const boundsData = generator.generate_chaotic_map_points(xParams, yParams, boundsCalculationPoints, currentChaoticMapData.is_cubic);
-                const bounds = generator.calculate_point_bounds(boundsData);
-                const [minX, maxX, minY, maxY] = bounds;
-                
-                console.log(`� Dynamic bounds: x[${minX.toFixed(3)}, ${maxX.toFixed(3)}], y[${minY.toFixed(3)}, ${maxY.toFixed(3)}]`);
-                
-                // Initialize accumulated density grid and state tracking
-                let accumulatedDensity = new Array(canvasWidth * canvasHeight).fill(0);
-                let processedPoints = 0;
-                let batchCount = 0;
-                let currentX = 0.05; // Initial state
-                let currentY = 0.05;
-                
-                // Dynamic bounds tracking - start with calculated bounds and expand as needed
-                let dynamicMinX = minX;
-                let dynamicMaxX = maxX;
-                let dynamicMinY = minY;
-                let dynamicMaxY = maxY;
-                let boundsExpanded = false;
-                
-                // Process in batches with efficient state continuity
-                const processBatch = () => {
-                    const remainingPoints = totalPoints - processedPoints;
-                    const currentBatchSize = Math.min(batchSize, remainingPoints);
-                    
-                    if (currentBatchSize <= 0) {
-                        // All batches complete - generate final image
-                        const result = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
-                        
-                        // Display result on canvas
-                        elements.canvas.width = canvasWidth;
-                        elements.canvas.height = canvasHeight;
-                        const ctx = elements.canvas.getContext('2d');
-                        const imageData = new ImageData(new Uint8ClampedArray(result), canvasWidth, canvasHeight);
-                        ctx.putImageData(imageData, 0, 0);
-                        
-                        // Update current fractal data
-                        currentFractal = {
-                            type: 'chaotic_map',
-                            method: 'random_chaos_iterative',
-                            imageData: result,
-                            width: canvasWidth,
-                            height: canvasHeight
-                        };
-                        
-                        // Overlay removed; keep internal state only
-                        
-                        // Update the stored data
-                        currentChaoticMapData.x_params = xParams;
-                        currentChaoticMapData.y_params = yParams;
-                        
-                        hideBatchProgress();
-                        setLoading(false);
-                        
-                        let finalMessage = `High-resolution fractal generated! (${totalPoints.toLocaleString()} points in ${batchCount} batches)`;
-                        if (boundsExpanded) {
-                            finalMessage += ' Extended trajectory explored larger region.';
-                        }
-                        // Final processing complete
-                        console.log(finalMessage);
-                        return;
-                    }
-                    
-                    batchCount++;
-                    const progress = Math.round((processedPoints / totalPoints) * 100);
-                    
-                    showBatchProgress(batchCount);
-                    
-                    // Generate batch density grid with state continuity
-                    setTimeout(() => {
-                        try {
-                            let batchDensity, currentBatchX, currentBatchY;
-                            
-                            // Try new efficient function first, fallback to old method
-                            if (generator.generate_chaotic_map_batch_with_state) {
-                                // Use the new efficient batch function with state continuity
-                                const batchResult = generator.generate_chaotic_map_batch_with_state(
-                                    xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
-                                    canvasWidth, canvasHeight, dynamicMinX, dynamicMaxX, dynamicMinY, dynamicMaxY, currentX, currentY
-                                );
-                                
-                                // Extract final state for next batch
-                                currentBatchX = batchResult[0];
-                                currentBatchY = batchResult[1];
-                                
-                                // Extract actual bounds encountered in this batch
-                                const batchMinX = batchResult[2];
-                                const batchMaxX = batchResult[3];
-                                const batchMinY = batchResult[4];
-                                const batchMaxY = batchResult[5];
-                                
-                                // Check if bounds need expansion
-                                if (batchMinX < dynamicMinX || batchMaxX > dynamicMaxX || batchMinY < dynamicMinY || batchMaxY > dynamicMaxY) {
-                                    console.log(`🔍 Trajectory exploring new regions - expanding bounds from batch ${batchCount}`);
-                                    console.log(`📏 Old bounds: x[${dynamicMinX.toFixed(3)}, ${dynamicMaxX.toFixed(3)}], y[${dynamicMinY.toFixed(3)}, ${dynamicMaxY.toFixed(3)}]`);
-                                    console.log(`📏 New bounds: x[${batchMinX.toFixed(3)}, ${batchMaxX.toFixed(3)}], y[${batchMinY.toFixed(3)}, ${batchMaxY.toFixed(3)}]`);
-                                    
-                                    // Expand bounds with some padding for future batches
-                                    const paddingX = (batchMaxX - batchMinX) * 0.1;
-                                    const paddingY = (batchMaxY - batchMinY) * 0.1;
-                                    
-                                    dynamicMinX = Math.min(dynamicMinX, batchMinX - paddingX);
-                                    dynamicMaxX = Math.max(dynamicMaxX, batchMaxX + paddingX);
-                                    dynamicMinY = Math.min(dynamicMinY, batchMinY - paddingY);
-                                    dynamicMaxY = Math.max(dynamicMaxY, batchMaxY + paddingY);
-                                    
-                                    boundsExpanded = true;
-                                    console.log(`📏 Expanded bounds: x[${dynamicMinX.toFixed(3)}, ${dynamicMaxX.toFixed(3)}], y[${dynamicMinY.toFixed(3)}, ${dynamicMaxY.toFixed(3)}]`);
-                                }
-                                
-                                // Extract density grid (convert from f64 back to u32)
-                                batchDensity = new Array(canvasWidth * canvasHeight);
-                                for (let i = 0; i < batchDensity.length; i++) {
-                                    batchDensity[i] = Math.round(batchResult[i + 6]);
-                                }
-                            } else {
-                                // Fallback to old method
-                                console.log(`⚠️ Using fallback batch method for batch ${batchCount}`);
-                                batchDensity = generator.generate_chaotic_map_batch_to_density(
-                                    xParams, yParams, currentBatchSize, currentChaoticMapData.is_cubic,
-                                    canvasWidth, canvasHeight, minX, maxX, minY, maxY, processedPoints
-                                );
-                                
-                                // For old method, we don't have state continuity, so use a simple approximation
-                                currentBatchX = currentX;
-                                currentBatchY = currentY;
-                            }
-                            
-                            // Update state for next batch
-                            currentX = currentBatchX;
-                            currentY = currentBatchY;
-                            
-                            // Merge with accumulated density
-                            if (batchDensity.length) {
-                                accumulatedDensity = generator.merge_density_grids(accumulatedDensity, batchDensity);
-                            } else {
-                                // Manual merge for new method
-                                for (let i = 0; i < accumulatedDensity.length; i++) {
-                                    accumulatedDensity[i] += batchDensity[i];
-                                }
-                            }
-                            
-                            // Update canvas after each batch completion
-                            const ctx = elements.canvas.getContext('2d');
-                            const currentResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
-                            const imageData = new ImageData(new Uint8ClampedArray(currentResult), canvasWidth, canvasHeight);
-                            const finalImageData = applyBackgroundColor(imageData, elements.backgroundColor.value, colorScheme);
-                            ctx.putImageData(finalImageData, 0, 0);
-                            
-                            processedPoints += currentBatchSize;
-                            
-                            // Show intermediate result if this is not the first batch
-                            if (batchCount > 1 && batchCount % 2 === 0) {
-                                const intermediateResult = generator.density_grid_to_rgba(accumulatedDensity, canvasWidth, canvasHeight, colorScheme);
-                                const ctx = elements.canvas.getContext('2d');
-                                const imageData = new ImageData(new Uint8ClampedArray(intermediateResult), canvasWidth, canvasHeight);
-                                ctx.putImageData(imageData, 0, 0);
-                            }
-                            
-                            // Process next batch
-                            processBatch();
-                            
-                        } catch (error) {
-                            console.error('❌ Error in batch processing:', error);
-                            hideBatchProgress();
-                            setLoading(false);
-                            showNotification('Error during batch processing. Try reducing batch size.', 'error');
-                        }
-                    }, 10); // Small delay to allow UI updates
-                };
-                
-                // Start batch processing
-                processBatch();
+                console.log('⚠️ Deprecated path. Use Plot with iterative accumulator instead.');
+                setLoading(false);
                 
             } catch (error) {
                 console.error('❌ Error in iterative generation:', error);
@@ -5333,17 +5428,39 @@
                 const w = currentFractal.width;
                 const h = currentFractal.height;
                 if (currentFractal.accumulator && typeof currentFractal.accumulator.fill_rgba_log_soft === 'function') {
-                    // Zero-copy recolor using accumulator internal buffer
-                    currentFractal.accumulator.fill_rgba_log_soft(newScheme, sVal);
-                    const view = currentFractal.accumulator.rgba_view();
-                    lastAccumulatedDensity = currentFractal.accumulator.density();
+                    // Recolor using accumulator. For large images stream rows; else zero-copy view
+                    const acc = currentFractal.accumulator;
+                    acc.fill_rgba_log_soft(newScheme, sVal);
+                    const isChunked = typeof acc.use_chunked === 'function' && acc.use_chunked();
                     const ctx = elements.canvas.getContext('2d');
-                    const imageData = new ImageData(view, w, h);
-                    const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
-                    ctx.putImageData(finalImageData, 0, 0);
+                    const { w: dispW, h: dispH } = computeDisplayDimensions(w, h);
+                    if (elements.canvas.width !== dispW || elements.canvas.height !== dispH) {
+                        elements.canvas.width = dispW; elements.canvas.height = dispH;
+                        initializeCanvas(elements.canvas, bgColor);
+                    }
+                    if (isChunked) {
+                        drawAccumulatorRows(acc, w, h, newScheme, bgColor, 256, dispW, dispH);
+                        currentFractal.imageData = null;
+                    } else {
+                        const view = acc.rgba_view();
+                        const imageData = new ImageData(view, w, h);
+                        const finalImageData = applyBackgroundColor(imageData, bgColor, newScheme);
+                        if (dispW === w && dispH === h) {
+                            ctx.putImageData(finalImageData, 0, 0);
+                            currentFractal.imageData = view;
+                        } else {
+                            const off = document.createElement('canvas');
+                            off.width = w; off.height = h;
+                            off.getContext('2d').putImageData(finalImageData, 0, 0);
+                            ctx.imageSmoothingEnabled = false;
+                            ctx.drawImage(off, 0, 0, w, h, 0, 0, dispW, dispH);
+                            currentFractal.imageData = null;
+                        }
+                    }
+                    // Avoid exporting density for huge images
+                    try { if (!acc.use_chunked()) { lastAccumulatedDensity = acc.density(); } } catch {}
                     currentFractal.colorScheme = newScheme;
                     currentFractal.backgroundColor = bgColor;
-                    currentFractal.imageData = view;
                     return;
                 } else if (lastAccumulatedDensity) {
                     rgba = generator.density_grid_to_rgba_log_soft(lastAccumulatedDensity, w, h, newScheme, sVal);
