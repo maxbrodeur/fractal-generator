@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Generator Desktop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .app-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: 100vh;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            background: white;
+            padding: 0 1rem 1rem 1rem;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding-top: 1rem;
+            z-index: 5;
+        }
+
+        .sidebar-content {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .sidebar-scroll {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-top: 0.5rem;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            flex-wrap: wrap;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .desktop-badge {
+            background: #28a745;
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 0.5rem;
+        }
+
+        .system-info {
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .system-info h4 {
+            margin-bottom: 0.3rem;
+            color: #495057;
+        }
+
+        .parameter-group {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+
+        .parameter-group h3 {
+            margin-bottom: 0.5rem;
+            color: #495057;
+            font-size: 1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .parameter-group h3:hover {
+            color: #667eea;
+        }
+
+        .parameter-group.collapsed .parameter-content {
+            display: none;
+        }
+
+        .parameter-content {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 0.75rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            color: #495057;
+            font-size: 0.85rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        input[type="range"] {
+            margin: 0.5rem 0;
+        }
+
+        .range-value {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .canvas-container {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .canvas-title {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .canvas-stats {
+            color: rgba(255,255,255,0.9);
+            font-size: 0.9rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        #canvas {
+            max-width: 100%;
+            max-height: calc(100% - 120px);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: white;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 10px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 6px;
+            color: white;
+            z-index: 1001;
+            max-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification.success {
+            background: #28a745;
+        }
+
+        .notification.error {
+            background: #dc3545;
+        }
+
+        .notification.info {
+            background: #17a2b8;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .desktop-features {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .desktop-features h4 {
+            color: #155724;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .desktop-features ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .desktop-features li {
+            color: #155724;
+            font-size: 0.8rem;
+            margin-bottom: 0.2rem;
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .desktop-features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Fractal Generator <span class="desktop-badge">DESKTOP</span></h2>
+                <div class="desktop-features">
+                    <h4>Desktop Enhanced Features</h4>
+                    <ul>
+                        <li>No memory limitations</li>
+                        <li>Ultra-high resolution support</li>
+                        <li>Parallel processing</li>
+                        <li>Enhanced export capabilities</li>
+                    </ul>
+                </div>
+                <div class="system-info" id="systemInfo">
+                    <h4>System Information</h4>
+                    <div>Loading system info...</div>
+                </div>
+            </div>
+            <div class="sidebar-content">
+                <div class="sidebar-scroll">
+                    <!-- Fractal Method Selection -->
+                    <div class="parameter-group">
+                        <h3>Fractal Method</h3>
+                        <div class="parameter-content">
+                            <div class="form-group">
+                                <label for="fractalMethod">Generation Method:</label>
+                                <select id="fractalMethod">
+                                    <option value="chaos_game">Chaos Game</option>
+                                    <option value="ifs">Iterated Function Systems (IFS)</option>
+                                    <option value="escape_time">Escape-Time Fractals</option>
+                                    <option value="random_chaos">Random Chaos Finder</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Settings -->
+                    <div class="parameter-group">
+                        <h3>Canvas Settings</h3>
+                        <div class="parameter-content">
+                            <div class="form-group">
+                                <label for="canvasSize">Canvas Size: <span class="range-value" id="canvasSizeValue">1024</span>px</label>
+                                <input type="range" id="canvasSize" min="400" max="16384" value="1024" step="64">
+                                <small>Desktop limit: 16,384px (vs 8,192px in browser)</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="aspectRatio">Aspect Ratio:</label>
+                                <select id="aspectRatio">
+                                    <option value="square">Square (1:1)</option>
+                                    <option value="landscape">Landscape (4:3)</option>
+                                    <option value="portrait">Portrait (3:4)</option>
+                                    <option value="widescreen">Widescreen (16:9)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Iterations -->
+                    <div class="parameter-group">
+                        <h3>Iterations</h3>
+                        <div class="parameter-content">
+                            <div class="form-group">
+                                <label for="iterations">Iterations: <span class="range-value" id="iterationsValue">100,000</span></label>
+                                <input type="range" id="iterations" min="1000" max="100000000" value="100000" step="1000">
+                                <small>Desktop limit: 100M (vs 10M in browser)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Color Scheme -->
+                    <div class="parameter-group">
+                        <h3>Color Scheme</h3>
+                        <div class="parameter-content">
+                            <div class="form-group">
+                                <label for="colorScheme">Color Scheme:</label>
+                                <select id="colorScheme">
+                                    <option value="0">Magma</option>
+                                    <option value="1">Plasma</option>
+                                    <option value="2" selected>Inferno</option>
+                                    <option value="3">Viridis</option>
+                                    <option value="4">Cividis</option>
+                                    <option value="5">GNU Plot</option>
+                                    <option value="6">BMY</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generation Controls -->
+                    <div class="parameter-group">
+                        <h3>Generation</h3>
+                        <div class="parameter-content">
+                            <button id="generateBtn" class="btn" style="width: 100%; margin-bottom: 0.5rem;">
+                                Generate Fractal
+                            </button>
+                            <button id="exportBtn" class="btn" style="width: 100%; background: #28a745;">
+                                Export High-Res PNG
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <div class="canvas-header">
+                <div class="canvas-title">Fractal Viewer</div>
+                <div class="canvas-stats" id="canvasStats">
+                    Ready to generate fractal
+                </div>
+            </div>
+            <canvas id="canvas" width="1024" height="1024"></canvas>
+            
+            <div class="loading-overlay hidden" id="loadingOverlay">
+                <div class="spinner"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="loadingText">Generating fractal...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Import Tauri API
+        const { invoke } = window.__TAURI__.tauri;
+
+        // DOM elements
+        const elements = {
+            fractalMethod: document.getElementById('fractalMethod'),
+            canvasSize: document.getElementById('canvasSize'),
+            canvasSizeValue: document.getElementById('canvasSizeValue'),
+            aspectRatio: document.getElementById('aspectRatio'),
+            iterations: document.getElementById('iterations'),
+            iterationsValue: document.getElementById('iterationsValue'),
+            colorScheme: document.getElementById('colorScheme'),
+            generateBtn: document.getElementById('generateBtn'),
+            exportBtn: document.getElementById('exportBtn'),
+            canvas: document.getElementById('canvas'),
+            canvasStats: document.getElementById('canvasStats'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            progressFill: document.getElementById('progressFill'),
+            loadingText: document.getElementById('loadingText'),
+            systemInfo: document.getElementById('systemInfo')
+        };
+
+        // Application state
+        let currentFractal = null;
+        let isGenerating = false;
+        let systemCapabilities = null;
+
+        // Initialize application
+        async function initializeApp() {
+            try {
+                // Get system information from Tauri backend
+                systemCapabilities = await invoke('get_system_info');
+                updateSystemInfo();
+                
+                // Set up event listeners
+                setupEventListeners();
+                
+                // Initialize UI
+                updateCanvasDisplaySize();
+                
+                showNotification('Desktop fractal generator ready!', 'success');
+            } catch (error) {
+                console.error('Failed to initialize app:', error);
+                showNotification('Failed to initialize application', 'error');
+            }
+        }
+
+        function updateSystemInfo() {
+            if (!systemCapabilities) return;
+            
+            const { max_canvas_size, max_iterations, available_cores, platform, architecture } = systemCapabilities;
+            
+            elements.systemInfo.innerHTML = `
+                <h4>System Information</h4>
+                <div><strong>Platform:</strong> ${platform} (${architecture})</div>
+                <div><strong>CPU Cores:</strong> ${available_cores}</div>
+                <div><strong>Max Resolution:</strong> ${max_canvas_size}px</div>
+                <div><strong>Max Iterations:</strong> ${(max_iterations / 1000000).toFixed(0)}M</div>
+            `;
+        }
+
+        function setupEventListeners() {
+            // Canvas size slider
+            elements.canvasSize.addEventListener('input', () => {
+                elements.canvasSizeValue.textContent = elements.canvasSize.value;
+                updateCanvasDisplaySize();
+            });
+
+            // Iterations slider  
+            elements.iterations.addEventListener('input', () => {
+                const value = parseInt(elements.iterations.value);
+                elements.iterationsValue.textContent = value.toLocaleString();
+            });
+
+            // Generate button
+            elements.generateBtn.addEventListener('click', generateFractal);
+            
+            // Export button
+            elements.exportBtn.addEventListener('click', exportFractal);
+
+            // Parameter group toggles
+            document.querySelectorAll('.parameter-group h3').forEach(header => {
+                header.addEventListener('click', () => {
+                    const group = header.parentElement;
+                    group.classList.toggle('collapsed');
+                });
+            });
+        }
+
+        function updateCanvasDisplaySize() {
+            const size = parseInt(elements.canvasSize.value);
+            const aspectRatio = elements.aspectRatio.value;
+            
+            let width = size;
+            let height = size;
+            
+            switch(aspectRatio) {
+                case 'landscape':
+                    height = Math.round(size * 3 / 4);
+                    break;
+                case 'portrait':
+                    width = Math.round(size * 3 / 4);
+                    break;
+                case 'widescreen':
+                    height = Math.round(size * 9 / 16);
+                    break;
+            }
+            
+            elements.canvas.width = width;
+            elements.canvas.height = height;
+            
+            // Clear canvas
+            const ctx = elements.canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, width, height);
+            
+            elements.canvasStats.textContent = `Canvas: ${width}x${height}px`;
+        }
+
+        async function generateFractal() {
+            if (isGenerating) return;
+            
+            try {
+                isGenerating = true;
+                setLoading(true, 'Generating fractal...');
+                
+                const method = elements.fractalMethod.value;
+                const iterations = parseInt(elements.iterations.value);
+                const canvasWidth = elements.canvas.width;
+                const canvasHeight = elements.canvas.height;
+                const colorScheme = parseInt(elements.colorScheme.value);
+                
+                const startTime = performance.now();
+                let result;
+                
+                // Generate fractal based on method
+                switch(method) {
+                    case 'chaos_game':
+                        result = await generateChaosGame(iterations);
+                        break;
+                    case 'ifs':
+                        result = await generateIFS(iterations);
+                        break;
+                    case 'escape_time':
+                        result = await generateEscapeTime(canvasWidth, canvasHeight, iterations);
+                        break;
+                    case 'random_chaos':
+                        result = await generateRandomChaos(iterations);
+                        break;
+                    default:
+                        throw new Error('Unknown fractal method');
+                }
+                
+                const duration = performance.now() - startTime;
+                
+                // Render result to canvas
+                await renderToCanvas(result, canvasWidth, canvasHeight, colorScheme);
+                
+                currentFractal = {
+                    method,
+                    result,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    colorScheme,
+                    iterations,
+                    duration
+                };
+                
+                elements.canvasStats.textContent = 
+                    `Generated: ${iterations.toLocaleString()} points in ${duration.toFixed(0)}ms`;
+                
+                showNotification(`Fractal generated in ${duration.toFixed(0)}ms!`, 'success');
+                
+            } catch (error) {
+                console.error('Generation failed:', error);
+                showNotification('Generation failed: ' + error.message, 'error');
+            } finally {
+                isGenerating = false;
+                setLoading(false);
+            }
+        }
+
+        async function generateChaosGame(iterations) {
+            // Simple Sierpinski triangle setup
+            const vertices = [
+                { x: 0.0, y: 0.0 },
+                { x: 1.0, y: 0.0 },
+                { x: 0.5, y: Math.sqrt(3)/2 }
+            ];
+            
+            const params = {
+                vertices,
+                x0: 0.5,
+                y0: 0.25,
+                iterations,
+                transforms: [{ compression: 0.5, rotation: 0.0 }],
+                rule: { length: 0, offset: 0, symmetry: false, sign: 1, heap: [] }
+            };
+            
+            return await invoke('generate_chaos_game', { params });
+        }
+
+        async function generateIFS(iterations) {
+            // Barnsley fern setup
+            const transforms = [
+                { a: 0.0, b: 0.0, c: 0.0, d: 0.16, e: 0.0, f: 0.0 },
+                { a: 0.85, b: 0.04, c: -0.04, d: 0.85, e: 0.0, f: 1.6 },
+                { a: 0.2, b: -0.26, c: 0.23, d: 0.22, e: 0.0, f: 1.6 },
+                { a: -0.15, b: 0.28, c: 0.26, d: 0.24, e: 0.0, f: 0.44 }
+            ];
+            
+            const params = {
+                start: { x: 0.0, y: 0.0 },
+                iterations,
+                transforms,
+                probabilities: [0.01, 0.85, 0.07, 0.07]
+            };
+            
+            return await invoke('generate_ifs_fractal', { params });
+        }
+
+        async function generateEscapeTime(width, height, maxIterations) {
+            const params = {
+                width,
+                height,
+                max_iterations: maxIterations,
+                x_min: -2.5,
+                x_max: 1.0,
+                y_min: -1.25,
+                y_max: 1.25
+            };
+            
+            return await invoke('generate_mandelbrot', { params });
+        }
+
+        async function generateRandomChaos(iterations) {
+            // For now, fallback to chaos game
+            return await generateChaosGame(iterations);
+        }
+
+        async function renderToCanvas(result, width, height, colorScheme) {
+            const ctx = elements.canvas.getContext('2d');
+            
+            if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'object') {
+                // Point-based fractal (chaos game, IFS)
+                const params = {
+                    points: result,
+                    width,
+                    height,
+                    color_scheme: colorScheme
+                };
+                
+                const imageData = await invoke('points_to_rgba', { params });
+                const imgData = new ImageData(new Uint8ClampedArray(imageData), width, height);
+                ctx.putImageData(imgData, 0, 0);
+                
+            } else if (Array.isArray(result) && typeof result[0] === 'number') {
+                // Escape-time fractal (Mandelbrot, Julia)
+                const imageData = new Uint8ClampedArray(width * height * 4);
+                const maxIter = Math.max(...result);
+                
+                for (let i = 0; i < result.length; i++) {
+                    const iteration = result[i];
+                    const normalized = iteration / maxIter;
+                    const color = getEscapeTimeColor(normalized, colorScheme);
+                    
+                    const idx = i * 4;
+                    imageData[idx] = color[0];     // R
+                    imageData[idx + 1] = color[1]; // G
+                    imageData[idx + 2] = color[2]; // B
+                    imageData[idx + 3] = 255;      // A
+                }
+                
+                const imgData = new ImageData(imageData, width, height);
+                ctx.putImageData(imgData, 0, 0);
+            }
+        }
+
+        function getEscapeTimeColor(normalized, scheme) {
+            // Simple color mapping for escape-time fractals
+            const t = Math.min(normalized, 1.0);
+            
+            switch(scheme) {
+                case 0: // Magma
+                    return [Math.floor(255 * t), Math.floor(128 * t), Math.floor(64 * t)];
+                case 2: // Inferno  
+                    return [Math.floor(255 * t), Math.floor(128 * t * t), Math.floor(32 * t)];
+                default:
+                    return [Math.floor(255 * t), Math.floor(255 * t * 0.8), Math.floor(255 * t * 0.6)];
+            }
+        }
+
+        async function exportFractal() {
+            if (!currentFractal) {
+                showNotification('Generate a fractal first!', 'error');
+                return;
+            }
+            
+            try {
+                setLoading(true, 'Exporting high-resolution image...');
+                
+                // Create high-res version (4x larger)
+                const scale = 4;
+                const exportWidth = currentFractal.width * scale;
+                const exportHeight = currentFractal.height * scale;
+                
+                // Re-generate at higher resolution
+                const method = currentFractal.method;
+                const iterations = currentFractal.iterations * scale; // More points for higher res
+                
+                let result;
+                switch(method) {
+                    case 'chaos_game':
+                        result = await generateChaosGame(iterations);
+                        break;
+                    case 'ifs':
+                        result = await generateIFS(iterations);
+                        break;
+                    case 'escape_time':
+                        result = await generateEscapeTime(exportWidth, exportHeight, currentFractal.iterations);
+                        break;
+                    default:
+                        result = currentFractal.result;
+                }
+                
+                // Create off-screen canvas for export
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = exportWidth;
+                exportCanvas.height = exportHeight;
+                
+                // Render to export canvas
+                const exportCtx = exportCanvas.getContext('2d');
+                
+                if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'object') {
+                    const params = {
+                        points: result,
+                        width: exportWidth,
+                        height: exportHeight,
+                        color_scheme: currentFractal.colorScheme
+                    };
+                    
+                    const imageData = await invoke('points_to_rgba', { params });
+                    const imgData = new ImageData(new Uint8ClampedArray(imageData), exportWidth, exportHeight);
+                    exportCtx.putImageData(imgData, 0, 0);
+                } else {
+                    // Handle escape-time fractals
+                    const imageData = new Uint8ClampedArray(exportWidth * exportHeight * 4);
+                    const maxIter = Math.max(...result);
+                    
+                    for (let i = 0; i < result.length; i++) {
+                        const iteration = result[i];
+                        const normalized = iteration / maxIter;
+                        const color = getEscapeTimeColor(normalized, currentFractal.colorScheme);
+                        
+                        const idx = i * 4;
+                        imageData[idx] = color[0];
+                        imageData[idx + 1] = color[1];
+                        imageData[idx + 2] = color[2];
+                        imageData[idx + 3] = 255;
+                    }
+                    
+                    const imgData = new ImageData(imageData, exportWidth, exportHeight);
+                    exportCtx.putImageData(imgData, 0, 0);
+                }
+                
+                // Convert to blob and download
+                exportCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `fractal-${Date.now()}-${exportWidth}x${exportHeight}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    showNotification(`Exported ${exportWidth}x${exportHeight} fractal!`, 'success');
+                }, 'image/png');
+                
+            } catch (error) {
+                console.error('Export failed:', error);
+                showNotification('Export failed: ' + error.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function setLoading(loading, text = 'Loading...') {
+            if (loading) {
+                elements.loadingOverlay.classList.remove('hidden');
+                elements.loadingText.textContent = text;
+                elements.generateBtn.disabled = true;
+                elements.exportBtn.disabled = true;
+            } else {
+                elements.loadingOverlay.classList.add('hidden');
+                elements.generateBtn.disabled = false;
+                elements.exportBtn.disabled = !!currentFractal === false;
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 4000);
+        }
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
